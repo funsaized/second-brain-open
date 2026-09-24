@@ -1,17 +1,22 @@
 # Plan: OpenCode-native second-brain machinery
 
-> Status: P0 started; paused at R0 review / R1A runtime-profile approval
+> Status: P0 baseline verified; P1 contract/templates and synthetic examples delivered; P2 next
 > Updated: 2026-09-24
 > Execution update (2026-09-24): the owner authorized implementation up to the first blocker/approval gate, including operational autonomy. After the D1 question, “continue” approved MIT with `Copyright (c) 2026 Funsaized`. The original planning record below remains historical; its planning-only restrictions do not revoke that later authorization. Named integration checkpoints remain in force.
 
 ## Implementation progress
 
 * D1 resolved: downstream MIT notice added; pinned upstream notice preserved verbatim in `THIRD_PARTY_NOTICES.md`.
-* P0 partial: inert deny-default config example, public development guidance, ignore rules, one-way distribution/upgrade/rollback procedure, and offline distribution checks added. README contains the current candidate allowlist and proposed synthetic runtime scope.
+* P0 baseline delivered: inert config example, guidance, ignore rules, one-way distribution/rollback rehearsal, isolated runtime baseline and corpus preflight checks. The owner approved the distinction between native tool permissions and prepared-corpus/OS controls, then authorized delivery in logical increments.
 * Observed: installed OpenCode reports `1.18.32`; `bwrap` and Python 3 are available. No global config, credentials, or vault data inspected.
-* Verification: `python3 -m unittest discover -s tests -v` passed all three offline distribution tests. These check the inert config, preserved notice, and ignore rules, not runtime confinement or install/rollback behavior.
-* Next gate: owner review of R0 distribution and R1A synthetic-only isolated runtime proposal. Install/rollback rehearsal, effective-config inspection, and runtime positive/negative probes remain pending; P0 is not complete. No P1–P5 deliverable is claimed.
-* No vault installation, provider test call, commit, or push performed in this implementation step.
+* Verification: `python3 -m unittest discover -s tests -v` passes 13 offline checks (distribution, corpus preflight, synthetic rollback and P1 contract fixtures). `python3 tests/runtime_read_probe.py` separately passes 16 baseline cases on OpenCode `1.18.32` / Bubblewrap `0.12.0`. Static tests are not runtime proof, and a deterministic fake provider is not model-ingestion proof.
+* R0 distribution method and R1A synthetic-only isolated runtime proposal approved by the owner's subsequent “approve”. Their technical exit criteria remain mandatory.
+* Runtime path mismatch resolved: native `read` asks on worktree-relative paths. The disposable non-Git project reports worktree `/`, not cwd `/workspace`; its exact allow is `workspace/wiki/index.md`. The approved read now succeeds, while five direct/traversal/outside negative reads are denied. CLI `debug scrap` supplies the isolated project record; HTTP inspection timed out and was removed from the workflow, not declared fixed.
+* Baseline forced edit/write/bash/grep/glob/webfetch/task/skill calls are rejected as unavailable under deny-default policy. A narrowly ask-scoped edit requests permission and is rejected by noninteractive CLI, leaving fixture bytes unchanged. A new process is used for each case. Actual named-role skill loads, command expansion, interactive approval semantics and the complete P2 matrix remain future checks.
+* Boundary distinction: an earlier native symlink characterization returned denied synthetic content through an approved filename. Native read permissions do not confine link targets. The adopted profile rejects linked files/ancestors and hardlinks before launch, freezes the prepared corpus against outside writers, and never mounts private settings/credentials. Its symlink test now stops at preflight with zero provider calls; this is not a claim that OpenCode fixed symlinks or that a preflight alone prevents races.
+* P1 delivered: generic contract, seven templates, all four content types plus index/log populated, two conflicting wholly invented sources, and a project brief. Claim/locator matrix, reciprocal links, complete index, explicit unknown provenance and no placeholder residue pass static checks. The log labels this as hand-authored fixture creation, not runtime ingest. Generated metadata is a flat JSON-value YAML subset; append-only log header dates remain at creation and operation dates are in entries.
+* Next increment: P2 checker grammar fixtures, named ingest/query roles/skills, command safety and synthetic ingest/query/recovery proof; P2A/P2B remain required. No real template installation, provider/source approval, private backup/restore or P3 integration is implied by these results. Runtime fixtures/session data were ephemeral namespace data.
+* No vault installation, live-provider call, or push performed. The only provider test calls were to a deterministic fake server inside the network-isolated namespace. Public implementation commits are within the owner's authorization; private-vault Git remains a separate gate.
 
 ## Objective
 
@@ -31,7 +36,10 @@ Supply a small, reusable OpenCode framework from this public repository to a sep
 * [ ] Give every phase a testable exit criterion, including negative safety tests and recovery.
 * [ ] Deliver `chat_export_to_md.py` and `vault_stats.py` as **first-class required core ports**, with documented CLIs, synthetic regression tests, and operator runbooks—not deferred optional utilities.
 
-## Current State
+## Current State at planning time (historical)
+
+Implementation-time results supersede these initial observations; see
+Implementation progress above, including the tested P0 runtime subset.
 
 * At investigation start this repository contained only `.git/`, with no commits, application, tests, dependencies, or existing plan. This consolidated `PLAN.md` is the only new repository file. The configured remote is the user's public `funsaized/second-brain-open` repository. No commit or push was performed.
 * Only the explicitly permitted vault `AGENTS.md` was read. Its integration constraints require small approved steps, direct file access, preservation of notes/settings, source grounding, and optional—not mandatory—tracks. No personal notes or plugin credential file were read. Personal context from that file is deliberately not reproduced here.
@@ -119,7 +127,7 @@ Authoritative sources: [schema](https://opencode.ai/config.json), [permissions](
 | `.obsidian/`, secrets, credentials, `.git/`, unrelated files | deny reads/writes | deny reads/writes |
 | Runtime config (not permissions) | top-level `share: "disabled"`, `snapshot: false` | same; recovery uses explicit backups |
 
-Rules are last-match-wins: broad denial first, narrow grants next, final sensitive-path denials. `external_directory` belongs **inside** `permission`; external access does not itself restrict edit access. Use resolved local paths; do not assume environment expansion in map keys works. Agent rules override global rules, and global/project configurations merge: a small config fragment alone is not proof of the effective restriction. Inspect inherited agents/tools/plugins and test the actual invoked role, not just the file.
+Rules are last-match-wins: broad denial first, narrow grants next, final sensitive-path denials. `external_directory` belongs **inside** `permission`; external access does not itself restrict edit access. Resolve local resource paths, then verify each tool's actual permission-match representation; do not assume environment expansion in map keys works. **P0 runtime correction:** OpenCode 1.18.32 read requests use worktree-relative patterns, not absolute paths; the initial absolute allow failed the positive probe. Other tools' path representations remain unverified. Agent rules override global rules, and global/project configurations merge: a small config fragment alone is not proof of the effective restriction. Inspect inherited agents/tools/plugins and test the actual invoked role, not just the file.
 
 `grep` matches the search regex and `glob` the requested glob, **not every returned file path**. Denying `read` on secrets does not deny search leakage. The minimal loop therefore uses index-first scoped reads, not unrestricted search. Owner-assisted candidate lists cover discovery/recovery until an approved corpus can be searched in filesystem isolation. Do not promise full-vault retrieval recall from index-only reads; disclose incomplete coverage.
 
@@ -255,6 +263,9 @@ The Implementation Runbooks below specify what to inspect, implement later, veri
 
 ## Validation
 
+The following paragraphs are the original planning record. Runnable checks and
+actual results now appear in Implementation progress and README.md.
+
 No implementation checks exist yet. Future checks must use public or synthetic fixtures, never private vault content in this repository or CI. Research is not evidence that upstream examples or OpenCode runtime behavior work.
 
 Confirmed diagnostic command: `opencode --version`. Local help lists `opencode run --pure --agent <name> --format json "<prompt>"`; runtime semantics remain untested. `--format json` is an event-output mode, not a promise that model answers satisfy an arbitrary JSON schema. Future code/tests may use Python's standard library, but no test command is claimed to exist today. The implementation must document the exact runnable checks it actually adds.
@@ -364,9 +375,9 @@ The inspected guide is [published here](https://undefined-ui.github.io/second-br
 
 Counts reconciled from the tree: core guide **75 section Markdown files + 2 navigation files = 77**; tracks **44 content pages + 5 READMEs = 49**; machinery **18 skills, 72 commands, 6 agents, 6 Python scripts, 21 vault-template blobs**. Upstream's four-script headline counts vault utilities, not the two site-build scripts.
 
-Not verified: external product availability/pricing/benchmarks, current Jev SDK/API, Claude-specific CLI/plugin claims, upstream example execution, live OpenCode permission enforcement/config loading, actual restore performance, or compatibility with existing personal notes (not read). No provider was called on vault content, no upstream script was run, and no installed config/credential contents were inspected. These gaps become explicit pre-execution gates, not claimed working features.
+At planning time, not verified: external product availability/pricing/benchmarks, current Jev SDK/API, Claude-specific CLI/plugin claims, upstream example execution, live OpenCode permission enforcement/config loading, actual restore performance, or compatibility with existing personal notes (not read). The P0 runtime subset is now tested as recorded in Implementation progress; other gaps remain unless explicitly resolved there. No provider was called on vault content, no upstream script was run, and no installed config/credential contents were inspected. These gaps become explicit pre-execution gates, not claimed working features.
 
-## Scope Boundaries
+## Planning Scope Boundaries (historical)
 
 ### In Scope
 

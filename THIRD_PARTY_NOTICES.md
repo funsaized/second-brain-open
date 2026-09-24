@@ -13,9 +13,17 @@ licenses; neither project's MIT license grants rights to that content.
 | `PLAN.md` | Paths enumerated in its Upstream Inventory and Research Coverage | Research synthesis and proposed adaptations; not an installed catalog |
 | `README.md` | `vault-template/README.md`, root `README.md` | Setup concepts replaced by an inert, approval-gated, one-way distribution procedure |
 | `THIRD_PARTY_NOTICES.md` | `LICENSE` | Complete notice reproduced below, without adding a holder |
+| `framework/instructions/wiki-contract.md` | `vault-template/CLAUDE.md`, `vault-template/projects/README.md`, and the four knowledge templates below | Reconciles schema, claim locators, unknown provenance, canonical paths, control types, isolated input scope and approved project promotion |
+| `framework/templates/source.md` | `vault-template/templates/source.md` | Adds capture/archive fields and per-claim locators; unknown values explicit |
+| `framework/templates/concept.md` | `vault-template/templates/concept.md` | Preserves support/opposition/questions; canonical source links and locators |
+| `framework/templates/entity.md` | `vault-template/templates/entity.md` | Documents kind and source-backed identity/mentions |
+| `framework/templates/synthesis.md` | `vault-template/templates/synthesis.md` | Separates source claims, author views and inference; preserves disagreement |
+| `framework/templates/index.md` | `vault-template/wiki/index.md` | Common metadata and explicit control type; actual pages only, plain-text gaps |
+| `framework/templates/log.md` | `vault-template/wiki/log.md` | Append-only dated records with changed paths, verification and partial/completed status; immutable header dates |
+| `framework/templates/project.md` | `vault-template/projects/example-project/CLAUDE.md`, `vault-template/projects/README.md` | Lightweight owner-maintained brief; optional artifact folders and explicit reviewed promotion; no wiki type |
 
 `AGENTS.md`, `.gitignore`, the inactive OpenCode example, and distribution
-tests are original downstream material. Add a row when implementing each
+tests and wholly invented fixture content are original downstream material. Add a row when implementing each
 substantial port; proposed files in PLAN.md are not delivered adaptations.
 
 ## Upstream MIT notice (verbatim)
