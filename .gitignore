@@ -1,0 +1,20 @@
+# Secondary guard only: private data must never enter this checkout.
+/raw/
+/wiki/
+/projects/
+/output/
+/backups/
+/sessions/
+/transcripts/
+/runtime/
+/.opencode/
+/opencode.json
+/opencode.jsonc
+.obsidian/
+.env*
+credentials*
+auth.json
+*.pem
+*.key
+__pycache__/
+*.py[cod]
