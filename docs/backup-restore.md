@@ -4,6 +4,12 @@ Status, 2026-09-25: the public filesystem rehearsal passes. **No private vault
 has been backed up or restored.** This does not satisfy the private R6A policy or
 R6C restore-proof gates for P3 installation.
 
+Later scoped owner amendment: initial backup was waived for a specifically
+approved 14-file, add-only greenfield machinery bootstrap. That copy is not a
+private restore pass, a blanket overwrite authorization or a decision about
+ongoing backup policy once valuable content accumulates. See PLAN.md's current
+implementation record; all other private-source/tool/provider decisions remain separate.
+
 The implementation is deliberately test-only:
 `tests/test_r6_backup_restore.py`. It accepts no vault/source/destination CLI
 arguments and runs only fixed public/invented inputs in temporary directories.

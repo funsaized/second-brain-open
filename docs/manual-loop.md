@@ -233,5 +233,11 @@ is delivered with its [local report approval procedure](vault-stats.md).
 Approve exact paths/provider/source and R6 backup policy/isolated restore.
 The [R6 public rehearsal](backup-restore.md) now passes on synthetic files;
 it does not supply the actual private backup policy or private restore proof.
-No personal installation has been performed. Existing approved authentication was
-used only for the synthetic live checks above; no private-source approval is implied.
+A later, explicitly approved 14-file add-only greenfield bootstrap has been copied,
+under the owner's initial-backup waiver. Installed payload hashes and the existing
+root instruction hash were verified; the broad metadata audit reported an
+unattributed change and is not a full private-content integrity pass. No notes or
+settings were opened/edited and no runtime/model process was invoked for the copy.
+Restart to discover the roles/skills, then separately approve source/provider and
+exact grants. Earlier live authentication approval covered synthetic checks, not
+arbitrary private-source exposure.

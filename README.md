@@ -13,8 +13,9 @@ not declared passing. Owner content judgment and private integration gates remai
 Unsafe slash-command wrappers are withheld as the plan permits;
 use explicitly selected roles with plain, vetted requests. The required statistics
 and chat converter ports are available; R8's converted-conversation ingest/query
-is evidenced, with owner content acceptance still pending. Not ready for
-personal-vault installation. See [PLAN.md](PLAN.md) and the
+is evidenced, with owner content acceptance still pending. A specifically approved
+14-file greenfield bootstrap has now been copied; private-source processing and
+runtime grants are not configured or verified by that copy. See [PLAN.md](PLAN.md) and the
 [manual loop runbook](docs/manual-loop.md).
 The [synthetic acceptance packet](docs/synthetic-acceptance.md) records the selected
 conversation, and the [native trial report](docs/native-acceptance-trials.md) records
@@ -22,8 +23,9 @@ the new checks, limitations and waivers. OpenCode's missing-role fallback is not
 fixed; guarded launchers still verify the intended installed resources.
 The [R6 backup/restore rehearsal](docs/backup-restore.md) now verifies a 16-file
 synthetic snapshot, alternate-location restore and drift-safe partial recovery.
-It is not a private backup or a production backup CLI; R6A policy/private restore
-approval still precedes personal-vault installation.
+It is not a private backup or a production backup CLI. The owner waived the initial
+backup prerequisite only for the add-only greenfield bootstrap; no broader private
+write, restore or source-processing approval is implied.
 
 ## Content contract and examples
 
@@ -43,10 +45,11 @@ These examples are hand-authored fixtures, **not a demonstrated agent ingest**.
 
 ## Current distribution allowlist
 
-No file is currently approved for installation into a personal vault.
-Destinations below are candidates, relative to an approved isolated workspace
-unless noted. Collision status must be checked locally; every copy/merge is
-reviewed. P1 template/contract review does not waive the P3 entry gate.
+The owner approved one 14-file greenfield bootstrap using the namespaced entries
+below, **excluding** the `opencode.json` example. Those files were copied from
+revision `1e987fd`. This is not a general install/upgrade authorization. Destinations
+are relative to the separately approved private root; private paths are not
+published here. Every future collision/merge still requires review.
 
 | Public source | Proposed destination | Action |
 |---|---|---|
@@ -82,13 +85,23 @@ ingestor ask-to-edit grants are supplied by the approved local manifest. The
 research role remains read-only. This does not disable ordinary development tools in
 the owner's existing OpenCode setup.
 
+Bootstrap verification: all 14 installed hashes match the source revision; the
+root instruction hash is unchanged; no root/default-agent/provider config was
+changed. The first top-level metadata audit reported a change and is not declared
+passing; a later read-only check confirmed exact new files and expected layout.
+Existing note/settings contents were neither opened nor integrity-audited.
+Restart OpenCode to discover the added roles/skills. Their effective inherited
+permissions and private-source routing still require a separate scoped check;
+copying definitions is not runtime-permission or ingestion proof.
+
 ## Reviewed install, upgrade, and rollback
 
 1. Pass the phase's gates before copying anything. Real integration additionally
-   requires P2/P2A/P2B and R6 backup/isolated-restore proof.
+   requires P2/P2A/P2B and R6 backup/isolated-restore proof, except for a documented
+   owner waiver scoped to greenfield add-only bootstrap. No overwrite is implied.
 2. In a private local manifest record the reviewed public commit SHA, each
    allowlisted source and its SHA-256, resolved destination, action (copy or
-   merge), destination's preimage hash or absence, and private backup location.
+   merge), destination's preimage hash or absence, and backup location or scoped waiver.
    Reject traversal and symlinked sources/destinations/ancestors. Do not use
    directories or globs as manifest entries. No private paths belong here.
 3. Pause edits to affected files; verify preimages immediately before each
