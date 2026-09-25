@@ -27,6 +27,8 @@ licenses; neither project's MIT license grants rights to that content.
 | `framework/skills/second-brain-query/SKILL.md` | `skills/second-brain-query/SKILL.md` | Index-first evidence retrieval, claim citations, abstention, Read/Not covered, no writes |
 | `scripts/link_check.py` | `scripts/link_check.py` | Replaces basename guessing with exact managed paths; validates narrow metadata, reports ambiguity/unsupported forms/unchecked anchors, read-only stdlib CLI |
 | `scripts/vault_stats.py` | `scripts/vault_stats.py`, `docs/05-graphs/metrics.md`, `skills/second-brain-metrics/SKILL.md`, `skills/second-brain-graph/SKILL.md` | Required stdlib port: content-only scope, canonical unique edges, explicit degrees/denominators, weak components, stale/unknown concepts, JSON/as-of and read-only reporting |
+| `scripts/chat_export_to_md.py` | `scripts/chat_export_to_md.py` | Required stdlib port: explicit selection/dry-run, Claude/simple and ChatGPT active ancestry, preserved roles/text/UTC dates, quoted metadata, omissions, digest versions and no-overwrite descriptor-based writes |
+| `docs/chat-exports.md` | `docs/03-ingestion/chat-exports.md`, `skills/second-brain-chat-import/SKILL.md`, `commands/ingest-chats.md` | Replaces direct-to-raw bulk conversion/agent triage with local staging, privacy approval and selected R3/R4 handoff; assistant assertions remain attributed; no wrapper port |
 
 P2A extends the checker's shared scanner/resolver with optional control exclusion
 and structured unusable-field diagnostics. Both consumers exclude reserved

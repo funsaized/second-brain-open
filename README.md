@@ -5,12 +5,13 @@ Reusable OpenCode machinery for a separate Obsidian vault, based on
 `347feee87b305b291f7264890e5024db422e3467`.
 See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-**Status: P0/P1 and P2A statistics delivered; P2 checker and roles/skills delivered.**
+**Status: P0/P1, P2A statistics and P2B converter machinery delivered; P2 checker and roles/skills delivered.**
 P2 is not complete: accepted native edits, injection/recovery and owner content
 acceptance remain pending. A live staged ingest/repeat/query rehearsal has passed.
 Unsafe slash-command wrappers are withheld as the plan permits;
 use explicitly selected roles with plain, vetted requests. The required statistics
-port is available; the required chat converter is next (P2B). Not ready for
+and chat converter ports are available; R8's converted-conversation ingest/query
+and owner acceptance remain pending. Not ready for
 personal-vault installation. See [PLAN.md](PLAN.md) and the
 [manual loop runbook](docs/manual-loop.md).
 
@@ -58,7 +59,7 @@ reviewed. P1 template/contract review does not waive the P3 entry gate.
 Development instructions, tests and PLAN.md stay in this public repository.
 Do not copy its AGENTS.md into a vault. License notices accompany copied material
 in the namespaced locations above. Run `scripts/link_check.py` and
-`scripts/vault_stats.py` from this checkout
+`scripts/vault_stats.py` and `scripts/chat_export_to_md.py` from this checkout
 as an operator; no installation or agent shell grant is needed.
 The inactive configuration example has no roles, read grants, provider,
 credential, or private path.
@@ -240,6 +241,25 @@ with diagnostics; exit 2 means invalid/unsafe input. It never writes a note,
 repairs links, calls a model or grants agent Bash. Real reports stay local and
 require R7B scope approval. See [definitions and operator runbook](docs/vault-stats.md).
 
+### Local chat-export conversion
+
+```sh
+python3 scripts/chat_export_to_md.py --help
+python3 -m unittest discover -s tests -p 'test_chat_export_to_md.py' -v
+```
+
+The required P2B CLI accepts positional export/outdir, `--min-words` (150 by
+default), no-write `--dry-run`, and repeated `--conversation-id` or explicit
+`--all`. Claude/simple lists and ChatGPT selected-branch ancestry preserve roles,
+text and known UTC timestamps. Unknown dates remain unknown; omissions are
+counted. Safe digest filenames, exclusive writes and byte-verified reruns prevent
+overwrites and duplicate versions. Default output is counts, not chat contents.
+
+Use approved local staging outside this repository and the live wiki; privacy
+review and selected ingestion are separate gates. See the
+[format, recovery and operator runbook](docs/chat-exports.md). No model call,
+private export processing or native converted-conversation ingest is claimed.
+
 ## Checks
 
 ```sh
@@ -250,9 +270,9 @@ python3 tests/runtime_read_probe.py
 python3 tests/runtime_roles_probe.py
 ```
 
-The offline suite has 39 passing checks: distribution, scope preflight,
+The offline suite has 62 passing checks: distribution, scope preflight,
 synthetic copy/rollback, schema/claim fixtures, framework invariants and checker
-and statistics cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
+and statistics/converter cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
 2 on setup/runtime failure. The namespace probes have no unisolated fallback.
 Separate live helpers require explicit `--live --agent ... --model ...`; they
 are not run by unittest discovery or CI. P2 still requires named-role accepted
