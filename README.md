@@ -6,12 +6,13 @@ Reusable OpenCode machinery for a separate Obsidian vault, based on
 See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 **Status: P0/P1, P2A statistics and P2B converter machinery delivered; P2 checker and roles/skills delivered.**
-P2 is not complete: accepted native edits, injection/recovery and owner content
-acceptance remain pending. A live staged ingest/repeat/query rehearsal has passed.
+P2 is not complete: broader injection/refusal cases, native interruption/recovery
+and owner content acceptance remain pending. The selected synthetic conversation
+now has four accepted native edits, an applied-wiki query and a read-only repeat no-op.
 Unsafe slash-command wrappers are withheld as the plan permits;
 use explicitly selected roles with plain, vetted requests. The required statistics
 and chat converter ports are available; R8's converted-conversation ingest/query
-and owner acceptance remain pending. Not ready for
+is evidenced, with owner content acceptance still pending. Not ready for
 personal-vault installation. See [PLAN.md](PLAN.md) and the
 [manual loop runbook](docs/manual-loop.md).
 The [synthetic acceptance packet](docs/synthetic-acceptance.md) records a verified
@@ -274,7 +275,7 @@ python3 tests/runtime_read_probe.py
 python3 tests/runtime_roles_probe.py
 ```
 
-The offline suite has 70 passing checks: distribution, scope preflight,
+The offline suite has 71 passing checks: distribution, scope preflight,
 synthetic copy/rollback, schema/claim fixtures, framework invariants and checker
 and statistics/converter cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
 2 on setup/runtime failure. The namespace probes have no unisolated fallback.

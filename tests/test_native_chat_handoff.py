@@ -1,14 +1,42 @@
 """Exact per-call approval regressions; no server/provider or native writes."""
 
 import copy
+import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
-from native_chat_handoff import patch_for, validate_permission, write_local
+from native_chat_handoff import ARTIFACT_NAME, CHANGES, digest, patch_for, query, validate_permission, write_local
 
 
 class NativeApprovalTests(unittest.TestCase):
+    def test_repeat_uses_ingestor_reads_log_and_preserves_corpus(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            corpus = base / "corpus"
+            names = CHANGES | {"operation.md", "instructions/wiki-contract.md", f"raw/{ARTIFACT_NAME}"}
+            for name in names:
+                path = corpus / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("Invented content\n")
+            calls = [{"tool": "skill", "state": {"input": {"name": "second-brain-ingest"}}}]
+            calls += [{"tool": "read", "state": {"input": {"filePath": str(corpus / name)},
+                       "output": "(End of file - total 1 lines)"}} for name in names]
+            with mock.patch("native_chat_handoff.configure", return_value={}) as configure, \
+                    mock.patch("native_chat_handoff.NativeServer") as server, \
+                    mock.patch("native_chat_handoff.ARTIFACT_SHA256", digest(b"Invented content\n")), \
+                    mock.patch("builtins.print"):
+                server.return_value.turn.return_value = {"text": "Unchanged source: no-op; owner acceptance pending.", "calls": calls}
+                query(base, repeat=True)
+                configure.assert_called_once_with(base, editing=False)
+                self.assertEqual(server.return_value.turn.call_args.args[0], "sb-ingestor")
+                server.return_value.close.assert_called_once()
+            evidence = json.loads((base / "native-repeat-evidence.json").read_text())
+            self.assertEqual(evidence["required_full_reads"], 7)
+            self.assertTrue(evidence["corpus_bytes_and_file_set_unchanged"])
+            self.assertFalse((base / "native-query.txt").exists())
+
     def test_only_exact_patch_preimage_path_and_once(self):
         with tempfile.TemporaryDirectory() as directory:
             corpus = Path(directory)

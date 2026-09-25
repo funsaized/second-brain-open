@@ -192,9 +192,10 @@ The [synthetic acceptance packet](synthetic-acceptance.md) now records one selec
 invented conversion, exact hashes, privacy assessment and Message 1–4 claim oracle.
 Run `python3 tests/test_chat_handoff.py` to reproduce it without provider calls.
 Native runs and bounded operator-validated four-file edits are authorized. A valid
-native proposal and source-grounded direct-raw researcher answer are now observed;
-native wiki application and its query remain unproven. See the packet's separate
-successes and failures. Owner content acceptance remains pending.
+native proposal, four exact one-time-approved native wiki edits and a source-grounded
+applied-wiki answer are now observed, as is a read-only unchanged-source repeat
+assessment. See the packet's separate successes and failures. Owner content
+acceptance remains pending; no general P2/private-use approval is implied.
 
 **Actual evidence:** deterministic offline tests cover conversion, fidelity,
 refusal, rerun and failure behavior using invented temporary records. This slice

@@ -161,11 +161,13 @@ until a valid exact patch reaches the applicable approval gate.
 For this invented four-file slice only, the owner authorized operator patch
 validation and one-time native edit approvals. `native_chat_handoff.py` checks
 exact patch arguments, tool-call identity, paths and preimages before `once`,
-never `always`. Its live application attempts still made no edits; positive
-approval is only offline-tested. A separate native researcher turn answered from
-the selected raw artifact with no writes, disclosing no applied wiki pages.
-See the dated packet for actual evidence and commands. Owner content acceptance
-was not delegated by the edit authorization.
+never `always`. The retry with absolute manifest/patch paths now has live evidence:
+four accepted native edits, exact postimages, passing checker, unchanged protected
+inputs, and a native applied-wiki query with no writes. `--live-repeat-only` adds
+a read-only unchanged-source no-op assessment, including a full log read. It does
+not replay the old patch over changed preimages and does not prove write-enabled
+idempotence. See the dated packet for evidence and remaining recovery/refusal tests.
+Owner content acceptance was not delegated by the edit authorization.
 
 ### Optional live semantic rehearsal
 

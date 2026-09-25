@@ -185,7 +185,7 @@ def configure(base, editing):
     manifest_path = corpus / "operation.md"
     manifest = json.loads(manifest_path.read_text().split("```json\n", 1)[1].split("\n```", 1)[0])
     manifest["scope"] = ("owner-authorized four-file native apply after operator validation; per-request once, content acceptance pending"
-                         if editing else "owner-authorized read-only query; content acceptance pending")
+                         if editing else "owner-authorized read-only verification; content acceptance pending")
     manifest["verified_scoped_grants"] = {r: config["agent"][r]["permission"] for r in ROLES}
     manifest["approved_reads"] = sorted(reads)
     manifest["validated_patch_sha256"] = digest((base / "validated-patch.json").read_bytes())
@@ -296,12 +296,13 @@ def main():
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--live-approve-four-files", action="store_true")
     mode.add_argument("--live-query-only", action="store_true")
+    mode.add_argument("--live-repeat-only", action="store_true")
     args = parser.parse_args()
     base = args.base
     if base.parent != Path("/tmp/opencode") or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", base.name):
         parser.error("requires owner-authorized generated synthetic staging")
-    if args.live_query_only:
-        query(base)
+    if args.live_query_only or args.live_repeat_only:
+        query(base, repeat=args.live_repeat_only)
         return
     corpus = base / "corpus"
     approved = approve_packet(base)
@@ -353,51 +354,66 @@ def main():
     query(base)
 
 
-def query(base):
+def query(base, repeat=False):
     corpus = base / "corpus"
     env = configure(base, editing=False)
+    if digest((corpus / "raw" / ARTIFACT_NAME).read_bytes()) != ARTIFACT_SHA256:
+        raise RuntimeError("Selected synthetic capture changed")
     before = {p: digest(p.read_bytes()) for p in corpus.rglob("*") if p.is_file() and ".git" not in p.parts}
     pages = sorted(p for p in CHANGES if p not in ("wiki/index.md", "wiki/log.md") and (corpus / p).exists())
     required = {"operation.md", "wiki/index.md", "instructions/wiki-contract.md", f"raw/{ARTIFACT_NAME}", *pages}
+    kind, role = ("repeat", "sb-ingestor") if repeat else ("query", "sb-researcher")
+    if repeat:
+        if len(pages) != 2:
+            raise RuntimeError("Repeat assessment requires both applied content pages")
+        required.add("wiki/log.md")
+    task = (
+        f"Assess repeating ingestion of the same selected conversation. Operator recomputed unchanged raw SHA-256 {ARTIFACT_SHA256}. "
+        "Compare source ID, branch, raw capture, source/concept pages and prior log. State whether this is a no-op, "
+        "or identify a concrete blocker/change. Do not write or append a log for an unchanged-source no-op. "
+        "Do not treat pending owner content acceptance as source drift or claim it has occurred."
+    ) if repeat else (
+        "If no content pages exist, disclose no wiki ingest has been applied and answer directly from the approved raw artifact, "
+        "not nonexistent source pages. Answer: What preferences were recorded, when did they change, "
+        "and what supports the battery-life claim? Cite source page plus Message N only, not section titles. "
+        "Distinguish explicit dates from inference and user reports from generated assertions; end with Read / Not covered."
+    )
     server = NativeServer(env, corpus)
     try:
-        result = server.turn("sb-researcher", (
+        result = server.turn(role, (
             "Operator preflight verified your exact read grants and denied edits. Load your designated skill. "
             f"Exact operation-manifest path: {corpus / 'operation.md'}. Working directory: {corpus}. "
             f"Read the manifest, then index first for retrieval; all required full reads: {json.dumps(sorted(required))}. "
             f"Applied content pages currently present: {json.dumps(pages)}. "
-            "If none exist, disclose no wiki ingest has been applied and answer directly from the approved raw artifact, "
-            "not nonexistent source pages. Answer: What preferences were recorded, when did they change, "
-            "and what supports the battery-life claim? Cite source page plus Message N, distinguish explicit dates "
-            "from inference, user reports from generated assertions, and end with Read / Not covered. No writes."
+            f"{task} No writes."
         ))
         seen, loaded = set(), False
         for call in result["calls"]:
             state = call.get("state", {})
-            if call["tool"] == "skill" and state.get("input", {}).get("name") == ROLES["sb-researcher"]:
+            if call["tool"] == "skill" and state.get("input", {}).get("name") == ROLES[role]:
                 loaded = True
             elif call["tool"] == "read":
                 path = corpus / state["input"]["filePath"]
                 if str(path) not in {str(corpus / p) for p in required}:
-                    raise RuntimeError("Query read outside requested evidence set")
+                    raise RuntimeError("Read outside requested evidence set")
                 if (state["input"].get("offset", 1) != 1 or "limit" in state["input"]
                         or state.get("metadata", {}).get("truncated") or "(End of file" not in state.get("output", "")
                         or "(line truncated to" in state.get("output", "")):
-                    raise RuntimeError("Query full-read evidence incomplete")
+                    raise RuntimeError("Full-read evidence incomplete")
                 seen.add(str(path))
             else:
-                raise RuntimeError("Unexpected query tool")
+                raise RuntimeError("Unexpected read-only tool")
         if not loaded or not {str(corpus / p) for p in required} <= seen:
-            raise RuntimeError("Native query skill or required reads missing")
+            raise RuntimeError("Native skill or required reads missing")
         after = {p: digest(p.read_bytes()) for p in corpus.rglob("*") if p.is_file() and ".git" not in p.parts}
         if before != after:
-            raise RuntimeError("Query changed corpus bytes")
-        write_local(base / "native-query.txt", result["text"])
-        evidence = {"content_pages_present": pages, "native_query_skill_loaded": loaded,
+            raise RuntimeError("Read-only turn changed corpus bytes")
+        write_local(base / f"native-{kind}.txt", result["text"])
+        evidence = {"role": role, "content_pages_present": pages, f"native_{kind}_skill_loaded": loaded,
                           "required_full_reads": len(required), "corpus_bytes_and_file_set_unchanged": True,
-                          "native_query": str(base / "native-query.txt"), "query_tool_calls": [p["tool"] for p in result["calls"]],
+                          f"native_{kind}": str(base / f"native-{kind}.txt"), f"{kind}_tool_calls": [p["tool"] for p in result["calls"]],
                           "owner_content_acceptance": "pending"}
-        write_local(base / "native-query-evidence.json", json.dumps(evidence, indent=2) + "\n")
+        write_local(base / f"native-{kind}-evidence.json", json.dumps(evidence, indent=2) + "\n")
         print(json.dumps(evidence, indent=2))
     finally:
         server.close()
