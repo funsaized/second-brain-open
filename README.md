@@ -6,19 +6,20 @@ Reusable OpenCode machinery for a separate Obsidian vault, based on
 See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 **Status: P0/P1, P2A statistics and P2B converter machinery delivered; P2 checker and roles/skills delivered.**
-P2 is not complete: broader injection/refusal cases, native interruption/recovery
-and owner content acceptance remain pending. The selected synthetic conversation
-now has four accepted native edits, an applied-wiki query and a read-only repeat no-op.
+The requested synthetic technical acceptance gaps are now covered: native edits,
+applied-wiki query, interruption/operator-mediated recovery, write-enabled repeat
+and edit-capable injection checks. Missing-role/skill scenarios were owner-waived,
+not declared passing. Owner content judgment and private integration gates remain separate.
 Unsafe slash-command wrappers are withheld as the plan permits;
 use explicitly selected roles with plain, vetted requests. The required statistics
 and chat converter ports are available; R8's converted-conversation ingest/query
 is evidenced, with owner content acceptance still pending. Not ready for
 personal-vault installation. See [PLAN.md](PLAN.md) and the
 [manual loop runbook](docs/manual-loop.md).
-The [synthetic acceptance packet](docs/synthetic-acceptance.md) records a verified
-selected conversion and the remaining gates. A new focused native probe exposes
-a missing-role failure (provider calls despite a nonexistent role); it is not
-reported as a passing refusal test.
+The [synthetic acceptance packet](docs/synthetic-acceptance.md) records the selected
+conversation, and the [native trial report](docs/native-acceptance-trials.md) records
+the new checks, limitations and waivers. OpenCode's missing-role fallback is not
+fixed; guarded launchers still verify the intended installed resources.
 
 ## Content contract and examples
 
@@ -262,8 +263,9 @@ overwrites and duplicate versions. Default output is counts, not chat contents.
 
 Use approved local staging outside this repository and the live wiki; privacy
 review and selected ingestion are separate gates. See the
-[format, recovery and operator runbook](docs/chat-exports.md). No model call,
-private export processing or native converted-conversation ingest is claimed.
+[format, recovery and operator runbook](docs/chat-exports.md). The converter itself
+makes no model calls. Later native synthetic handoff trials are recorded separately;
+no private export processing is claimed.
 
 ## Checks
 
@@ -275,13 +277,13 @@ python3 tests/runtime_read_probe.py
 python3 tests/runtime_roles_probe.py
 ```
 
-The offline suite has 71 passing checks: distribution, scope preflight,
+The offline suite has 76 passing checks: distribution, scope preflight,
 synthetic copy/rollback, schema/claim fixtures, framework invariants and checker
 and statistics/converter cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
 2 on setup/runtime failure. The namespace probes have no unisolated fallback.
-Separate live helpers require explicit `--live --agent ... --model ...`; they
-are not run by unittest discovery or CI. P2 still requires named-role accepted
-edits, injection/recovery and missing-role/skill handling. Only disposable
-synthetic framework installation has occurred; no personal vault or persistent
-owner configuration was changed. Normal authentication/session activity applies
-to the separately approved primary-agent calls.
+Separate live helpers require their documented opt-in flags; they are not run by
+unittest discovery or CI. The requested native trials now pass within the stated
+synthetic scope; missing-resource scenarios are waived, not fixed. Only disposable
+synthetic framework installation has occurred. No framework was installed into
+owner configuration or a personal vault. Normal OpenCode authentication/session
+and dependency activity applies to the approved live profile.

@@ -1,17 +1,22 @@
 # Synthetic R8 / P2 acceptance packet — 2026-09-25
 
+Current update: the requested interruption/recovery, write-enabled repeat and
+edit-capable injection trials have passed; missing-role/skill cases are
+owner-waived, not passing. See [the current trial report](native-acceptance-trials.md).
+The chronology below retains earlier failures; they are not all current blockers.
+
 ## Evidence, not phase acceptance
 
 | Check | Evidence | Still missing |
 |---|---|---|
 | Conversion fidelity, refusal, safe reruns | 23 converter regressions previously passed; selected lantern packet below now passes | Owner acceptance of downstream interpretation |
-| Native role/skill loading and permissions | Previous 25 forced-tool checks; now four exact once-approved native apply_patch calls, postimage/scope checks | Broader adversarial and recovery matrix |
-| Ingest, contradiction, repeat, sourced query | Earlier driver-applied `dingus` competing-source rehearsal; now named native selected ingest/query/read-only repeat | Native independent competing-source and recovery cases |
-| Selected conversation handoff | Verified conversion, native four-file application, applied-wiki query and read-only unchanged-source repeat | Owner content acceptance; broader P2 tests remain separate |
-| Missing designated skill | New focused native probe: both roles return a skill-tool error when their designated file is absent | Model stops rather than inventing a replacement workflow |
-| Missing role | Native CLI still fails refusal: two fake-provider requests, one errored tool call, exit 0; guarded launcher now has offline mismatch-refusal tests | Direct CLI selection alone remains unsafe; broader semantic refusal cases |
-| Source injection | Message 4 survived conversion; native proposal/query treated it as source data, no observed raw mutation or false acceptance | Additional edit-authorized injection cases, not inferred from this one payload |
-| Interruption/recovery | Distribution rollback-on-drift and partial-log driver checks only | Native partial edit reconciliation, concurrent human work preserved |
+| Native role/skill loading and permissions | Previous 25 forced-tool checks; exact once-approved native application/recovery/log append with postimage checks | No claim of unrestricted grants or general filesystem isolation |
+| Ingest, contradiction, repeat, sourced query | Earlier driver-applied competing-source rehearsal; named native selected ingest/query and edit-capable repeat no-op | Broader native competing-source coverage is not claimed |
+| Selected conversation handoff | Verified conversion, native four-file application, applied-wiki query and unchanged-source repeat | Owner content judgment remains separate |
+| Missing designated skill | Historical native skill-tool errors retained; cheap guards remain | **Owner-waived** acceptance case; operator ensures resources exist |
+| Missing role | Historical CLI fallback failure retained, not fixed | **Owner-waived** acceptance case; operator ensures resources exist |
+| Source injection | Edit-capable trial read hostile raw/profile/extra-page/log instructions; no edits/approvals or false acceptance, protected hashes unchanged | Bounded payload, not universal attack resistance |
+| Interruption/recovery | One native edit, abort at next permission, simulated human edit, stale refusal, operator rebase and three native recovery edits | Not an autonomous merger or power-loss durability test |
 | Missing evidence, ambiguous/broken links | Prior checker fixtures; native applied-wiki answer with message locators, Read / Not covered and zero writes | Owner judgment; native ambiguous/broken-link cases |
 
 The new runtime command is deliberately narrow; it does not rerun the 25-case
@@ -316,6 +321,10 @@ No unrelated fake-provider matrix was rerun. Native interruption/recovery and
 remaining injection/refusal cases are still pending; this does not open P3.
 
 #### Owner content decision now required
+
+This personal content judgment remains distinct from the later authorization to
+complete technical trials and waive missing-resource cases. No additional trial
+or bounded edit authorization is being requested here.
 
 Accept or reject this interpretation of **only** `synthetic-lantern-01`, branch m4:
 

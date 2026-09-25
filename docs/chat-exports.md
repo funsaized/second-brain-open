@@ -198,11 +198,12 @@ assessment. See the packet's separate successes and failures. Owner content
 acceptance remains pending; no general P2/private-use approval is implied.
 
 **Actual evidence:** deterministic offline tests cover conversion, fidelity,
-refusal, rerun and failure behavior using invented temporary records. This slice
-does not claim a native accepted ingest/query of a converted conversation.
-R8B/C owner content acceptance and the P2 named-role end-to-end gates remain
-pending. Prior staged live ingests were different fixtures and are not substitute
-evidence. No live model call or private export is needed to verify this converter.
+refusal, rerun and failure behavior using invented temporary records. The later
+selected lantern handoff also has native ingest/query and bounded recovery,
+repeat/injection evidence; see [the trial report](native-acceptance-trials.md).
+Owner content judgment remains separate. Earlier unrelated driver-applied ingests
+are not substituted for that native evidence. No live model call or private export
+is needed to verify the converter itself.
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_chat_export_to_md.py' -v

@@ -44,7 +44,7 @@ only in the synthetic runtime probe, not in the framework's distribution list.
 tests and wholly invented fixture content are original downstream material. Add a row when implementing each
 substantial port; proposed files in PLAN.md are not delivered adaptations.
 The selected lantern fixture, its acceptance packet and focused missing-resource
-runtime checks and native proposal driver are also original downstream verification,
+runtime checks and native proposal/handoff/recovery trial drivers are original downstream verification,
 not new upstream ports. The acceptance packet links pinned OpenCode implementation
 evidence for runtime-specific behavior; no OpenCode source is copied into the driver.
 

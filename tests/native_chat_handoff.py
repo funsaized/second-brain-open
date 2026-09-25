@@ -40,6 +40,12 @@ def write_local(path, text):
 def patch_for(path, old, new):
     if not new.endswith("\n"):
         raise RuntimeError("Approved Markdown must end with newline")
+    if old is not None and old.endswith("\n") and new.startswith(old):
+        # The gate still compares the entire preimage. Avoid making the model
+        # retranscribe history (especially hashes) just to append a log record.
+        context = "".join(" " + line + "\n" for line in old.splitlines()[-3:])
+        addition = "".join("+" + line + "\n" for line in new[len(old):].splitlines())
+        return f"*** Begin Patch\n*** Update File: {path}\n@@\n{context}{addition}*** End Patch"
     header = f"*** Add File: {path}\n" if old is None else f"*** Update File: {path}\n@@\n"
     removed = "" if old is None else "".join("-" + line + "\n" for line in old.splitlines())
     return "*** Begin Patch\n" + header + removed + "".join("+" + line + "\n" for line in new.splitlines()) + "*** End Patch"
@@ -129,14 +135,27 @@ def approve_packet(base):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(item["after"])
         check_pages(review)
+    store_patches(base, approved)
+    return approved
+
+
+def store_patches(base, approved, pending=None):
     write_local(base / "validated-patch.json", json.dumps(approved, indent=2) + "\n")
+    corpus = base / "corpus"
     patch_file = corpus / "approved-edits.md"
     # Native read truncates individual long lines, including JSON-escaped pages.
     write_local(patch_file, "# Exact operator-validated patches\n\n" + "\n".join(
         f"## {name}\n\n```patch\n{approved[name]['patchText']}\n```\n"
-        for name in sorted(approved, key=lambda p: p == "wiki/log.md")))
+        for name in sorted(approved if pending is None else pending, key=lambda p: p == "wiki/log.md")))
     patch_file.chmod(0o400)
-    return approved
+
+
+def listed_patch_paths(corpus):
+    validate_scope(corpus, [Path("approved-edits.md")])
+    paths = re.findall(r"^## (wiki/[^\n]+\.md)$", (corpus / "approved-edits.md").read_text(), re.M)
+    if len(set(paths)) != len(paths) or not set(paths) <= CHANGES:
+        raise RuntimeError("Unexpected approved patch headings")
+    return paths
 
 
 def configure(base, editing):
@@ -159,6 +178,9 @@ def configure(base, editing):
              *CHANGES, *[f"templates/{kind}.md" for kind in ("source", "concept", "index", "log")]}
     if not editing:
         reads.remove("approved-edits.md")
+    if (corpus / "raw/injection.md").exists():
+        validate_scope(corpus, [Path("raw/injection.md")])
+        reads.add("raw/injection.md")
     for role, skill in ROLES.items():
         permissions = {"*": "deny", "read": {"*": "deny", **{p: "allow" for p in sorted(reads)}},
                        "edit": {"*": "deny", **({p: "ask" for p in sorted(CHANGES)} if editing and role == "sb-ingestor" else {})},
@@ -184,8 +206,25 @@ def configure(base, editing):
     verify_skills(debug(env, corpus, "skill"), profile)
     manifest_path = corpus / "operation.md"
     manifest = json.loads(manifest_path.read_text().split("```json\n", 1)[1].split("\n```", 1)[0])
-    manifest["scope"] = ("owner-authorized four-file native apply after operator validation; per-request once, content acceptance pending"
-                         if editing else "owner-authorized read-only verification; content acceptance pending")
+    listed = listed_patch_paths(corpus) if editing else []
+    validated = json.loads((base / "validated-patch.json").read_text())
+    current_hashes, completed = {}, {}
+    for name in CHANGES:
+        path = corpus / name
+        if path.exists():
+            validate_scope(corpus, [Path(name)])
+            data = path.read_bytes()
+            current_hashes[name] = digest(data)
+            if name not in listed and data == validated[name]["after"].encode():
+                completed[name] = digest(data)
+        else:
+            current_hashes[name] = None
+    manifest["scope"] = ("owner-authorized native application of listed patches only; per-request once, content acceptance pending"
+                         if listed else "owner-authorized verification; no new patch approved; content acceptance pending")
+    manifest["native_write_paths_this_turn"] = listed
+    manifest["preimages"] = current_hashes
+    manifest["verified_existing_postimages"] = completed
+    manifest["planned_new_paths"] = [p for p in listed if current_hashes[p] is None]
     manifest["verified_scoped_grants"] = {r: config["agent"][r]["permission"] for r in ROLES}
     manifest["approved_reads"] = sorted(reads)
     manifest["validated_patch_sha256"] = digest((base / "validated-patch.json").read_bytes())
@@ -241,53 +280,95 @@ class NativeServer:
             body = response.read()
             return json.loads(body) if body else None
 
-    def turn(self, role, prompt, approved=None):
-        session = self.api("POST", "/session", {"agent": role})["id"]
+    def turn(self, role, prompt, approved=None, interrupt_after=None, session=None):
+        prior = set()
+        if session is None:
+            session = self.api("POST", "/session", {"agent": role})["id"]
+        else:
+            if self.api("GET", f"/session/{session}").get("directory") != str(self.corpus):
+                raise RuntimeError("Continuation belongs to a different corpus")
+            prior = {m["info"]["id"] for m in self.api("GET", f"/session/{session}/message")}
         self.api("POST", f"/session/{session}/prompt_async", {
             "agent": role, "model": {"providerID": "openai", "modelID": "gpt-6-luna"},
             "parts": [{"type": "text", "text": prompt}],
         })
-        used, answered = set(), set()
+        used, answered, receipts = set(), set(), []
         try:
             deadline = time.monotonic() + 180
             while time.monotonic() < deadline:
                 messages = self.api("GET", f"/session/{session}/message")
-                parts = [p for m in messages for p in m.get("parts", [])]
+                parts = [p for m in messages if m.get("info", {}).get("id") not in prior for p in m.get("parts", [])]
                 for request in self.api("GET", "/permission"):
                     if request.get("sessionID") != session or request["id"] in answered:
                         continue
                     if approved is None:
                         raise RuntimeError("Read-only turn requested permission")
+                    fresh = self.api("GET", f"/session/{session}/message")
+                    permission_parts = [p for m in fresh for p in m.get("parts", [])]
+                    if not any(p.get("tool") == "skill" and p.get("state", {}).get("status") == "completed"
+                               and p["state"].get("input", {}).get("name") == ROLES[role] for p in permission_parts):
+                        raise RuntimeError("Native designated skill not loaded before edit")
+                    name = validate_permission(request, permission_parts, self.corpus, approved, used)
+                    if interrupt_after is not None and len(used) == interrupt_after:
+                        if any(not (self.corpus / p).exists() or (self.corpus / p).read_text() != approved[p]["after"] for p in used):
+                            continue
+                        self.api("POST", f"/session/{session}/abort")
+                        return {"session": session, "interrupted": True, "pending_path": name, "approved_once": sorted(used),
+                                "receipts": receipts, "text": "", "calls": parts}
                     # The log is last, after all other exact postimages exist.
-                    if request.get("patterns") == ["wiki/log.md"] and any(
+                    if name == "wiki/log.md" and any(
                         not (self.corpus / p).exists() or (self.corpus / p).read_text() != approved[p]["after"]
                         for p in CHANGES - {"wiki/log.md"}
                     ):
                         continue
-                    fresh = self.api("GET", f"/session/{session}/message")
-                    parts = [p for m in fresh for p in m.get("parts", [])]
-                    if not any(p.get("tool") == "skill" and p.get("state", {}).get("status") == "completed"
-                               and p["state"].get("input", {}).get("name") == ROLES[role] for p in parts):
-                        raise RuntimeError("Native designated skill not loaded before edit")
-                    name = validate_permission(request, parts, self.corpus, approved, used)
                     self.api("POST", f"/permission/{request['id']}/reply", {"reply": "once"})
                     used.add(name)
                     answered.add(request["id"])
+                    receipts.append({"path": name, "reply": "once", "call_id": request["tool"]["callID"],
+                                     "permission_id": request["id"], "before_sha256": digest(approved[name]["before"].encode()) if approved[name]["before"] is not None else None,
+                                     "after_sha256": digest(approved[name]["after"].encode())})
                 statuses = self.api("GET", "/session/status")
-                assistants = [m for m in messages if m.get("info", {}).get("role") == "assistant"]
+                assistants = [m for m in messages if m.get("info", {}).get("role") == "assistant" and m["info"].get("id") not in prior]
                 if any(m["info"].get("error") for m in assistants):
                     raise RuntimeError("Native session error; details withheld")
                 if assistants and statuses.get(session, {"type": "idle"}).get("type") == "idle" and all(m["info"].get("time", {}).get("completed") for m in assistants):
                     calls = [p for p in parts if p.get("type") == "tool"]
-                    if any(p.get("state", {}).get("status") != "completed" for p in calls):
-                        raise RuntimeError("Native tool failed")
                     text = "\n".join(p["text"] for m in assistants for p in m.get("parts", []) if p.get("type") == "text")
-                    return {"text": text, "calls": calls, "approved_once": sorted(used)}
+                    if any(p.get("state", {}).get("status") != "completed" for p in calls):
+                        write_local(self.corpus.parent / "last-native-failure.txt", text)
+                        write_local(self.corpus.parent / "last-native-failure.json", json.dumps({
+                            "session": session, "approved_once": sorted(used), "receipts": receipts,
+                            "tool_states": [{"tool": p.get("tool"), "status": p.get("state", {}).get("status")}
+                                            for p in calls]}, indent=2) + "\n")
+                        raise RuntimeError("Native tool failed")
+                    return {"session": session, "text": text, "calls": calls, "approved_once": sorted(used), "receipts": receipts}
                 time.sleep(0.25)
             raise RuntimeError("Native turn timed out")
         except BaseException:
             self.api("POST", f"/session/{session}/abort")
             raise
+
+
+def apply_prompt(corpus):
+    listed = listed_patch_paths(corpus)
+    if not listed:
+        raise RuntimeError("No approved patches to apply")
+    return (
+        f"Operator preflight passed. Exact operation-manifest path: {corpus / 'operation.md'} (worktree-relative: operation.md). "
+        f"Exact approved patch file: {corpus / 'approved-edits.md'}. Working directory: {corpus}. "
+        "Load your designated skill, then read those two files completely. "
+        "The owner authorized one-time approvals of the exact listed synthetic patches. "
+        f"Approved native write paths for this turn: {json.dumps(listed)}. "
+        "Apply only these listed patches; paths without a listed patch must stay unchanged. "
+        "The manifest's verified_existing_postimages are operator-checked ALREADY COMPLETE pages, not missing patches. "
+        "Planned-new paths are intentionally absent: do not try to read them before creation. "
+        "For a listed log patch, the operator verifies the other postimages before approval; submit the log request even when completed pages have no listed patch. "
+        "Use apply_patch exactly once per listed file, copying its exact fenced patch text; no reformulation. "
+        "Independent source/concept/index patches may be submitted in one tool-call batch; log last if listed. "
+        "The operator will hold the log permission until the other three exact postimages exist. No other edits. "
+        "The operator validates each request and replies once, never always. "
+        "Do not claim owner content acceptance. Stop on denial/drift. Report actual changes and partial status."
+    )
 
 
 def main():
@@ -320,18 +401,7 @@ def main():
             (corpus / name).chmod(0o600)
     server = NativeServer(env, corpus)
     try:
-        result = server.turn("sb-ingestor", (
-            f"Operator preflight passed. Exact operation-manifest path: {corpus / 'operation.md'} (worktree-relative: operation.md). "
-            f"Exact approved patch file: {corpus / 'approved-edits.md'}. Working directory: {corpus}. "
-            "Load your designated skill, then read those two files completely. "
-            "The owner explicitly authorized one-time approvals of the four validated synthetic patches. "
-            "This application stage supersedes the old proposal-only operation manifest's edit status, not its source scope. "
-            "Use apply_patch exactly once per file, copying its exact fenced patch text from approved-edits.md; no reformulation. "
-            "The three independent source/concept/index patches may be submitted in one tool-call batch; log last. "
-            "The operator will hold the log permission until the other three exact postimages exist. No other edits. "
-            "The operator will validate each tool request and reply once, never always. "
-            "Do not claim owner content acceptance. Stop on any denial/drift. Report actual changed paths and partial status."
-        ), approved)
+        result = server.turn("sb-ingestor", apply_prompt(corpus), approved)
         write_local(base / "native-ingest-response.txt", result["text"])
         write_local(base / "native-ingest-attempt.json", json.dumps({"approved_once": result["approved_once"],
             "tool_calls": [p["tool"] for p in result["calls"]]}, indent=2) + "\n")
@@ -347,6 +417,7 @@ def main():
             raise RuntimeError("Unexpected native corpus file set")
         check_pages(corpus)
         write_local(base / "native-ingest-result.json", json.dumps({"approved_once": result["approved_once"],
+            "receipts": result["receipts"],
             "native_tool_calls": [p["tool"] for p in result["calls"]], "checker": "passed",
             "protected_bytes_unchanged": True, "owner_content_acceptance": "pending"}, indent=2) + "\n")
     finally:

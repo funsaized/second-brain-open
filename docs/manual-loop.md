@@ -1,10 +1,10 @@
 # Manual ingest/query operation
 
-Status: checker and role/skill files delivered; native loading, scoped calls and
-argument preprocessing tested with a fake provider. A live primary-agent rehearsal
-also generated two staged ingests, preserved competing sources, repeated unchanged
-input without changes, and answered with citations. **Accepted native edits,
-source-injection/recovery behavior and owner content acceptance remain unproved.**
+Status: native four-file edits, sourced queries, write-enabled repeat, bounded
+source injection and operator-mediated interruption/recovery now have synthetic
+runtime evidence. See the [native trial report](native-acceptance-trials.md) for
+actual results versus limitations. Missing-resource cases were owner-waived, not
+passed. Owner content judgment remains separate from technical verification.
 Do not install into a personal vault until PLAN.md's P3 entry gate passes,
 including both required CLI ports and private backup/restore proof.
 
@@ -91,8 +91,11 @@ For ingestion, read the entire input before the proposal. The owner checks
 source identity/locators, complete reading, existing-page candidates, competing
 claims, exact paths, raw hash and preimages. Reject unrelated edits. The ingestor
 must request each permitted edit; never choose a broad **always** approval.
-Never use `--auto`. The current runtime suite verifies ask rejection, not the persistence/scope of
-an accepted interactive grant; that remains a P2 acceptance check.
+Never use `--auto`. The live driver now verifies exact native `once` replies,
+preimages and postimages, including recovery and a log-only append. It does not
+test or authorize persistent `always` grants. A conversational confirmation may
+be answered once under explicit owner delegation; each tool request still needs
+its own exact-patch validation and `once` reply.
 
 Update source/concept/entity pages and reciprocal links, update the index in
 the same operation, and append truthful log status. The log header stays fixed.
@@ -148,7 +151,10 @@ The focused `python3 tests/runtime_roles_probe.py --missing-only` currently exit
 both missing designated skills error. Do not rely on `--agent` or exit status
 alone to fail closed. Verify the exact primary prompt, skill and effective scoped
 grants before live launch; missing/mismatched resources must prevent the call.
-This result is native runtime evidence, not model-level refusal or accepted edits.
+This historical result is native runtime evidence, not model-level refusal.
+The owner subsequently waived missing-role/skill scenarios as acceptance blockers
+and will ensure they exist. Retain inexpensive preflight checks; do not describe
+the waived runtime behavior as fixed or passing.
 
 The native proposal helper, `python3 tests/native_chat_proposal.py --live`, now
 produces a valid framed-Markdown proposal. Effective-config inspection belongs to
@@ -165,8 +171,10 @@ never `always`. The retry with absolute manifest/patch paths now has live eviden
 four accepted native edits, exact postimages, passing checker, unchanged protected
 inputs, and a native applied-wiki query with no writes. `--live-repeat-only` adds
 a read-only unchanged-source no-op assessment, including a full log read. It does
-not replay the old patch over changed preimages and does not prove write-enabled
-idempotence. See the dated packet for evidence and remaining recovery/refusal tests.
+not replay the old patch over changed preimages. The separate acceptance trial now
+also tests no-op behavior with four edit ask gates available, a native interruption,
+stale-patch refusal, and operator-rebased native recovery preserving a simulated
+human edit. See the trial report; this is not an autonomous conflict-resolution engine.
 Owner content acceptance was not delegated by the edit authorization.
 
 ### Optional live semantic rehearsal
@@ -210,16 +218,17 @@ repository. Untrusted `@`/shell preprocessing tokens are rejected before calls.
 Only fixed public synthetic inputs are supported. Generated staging is removed;
 the CLI's ordinary session store can retain prompts/replies. No generated page,
 transcript, or owner configuration is published by these helpers. Logs remain
-partial because accepted native edits and owner content acceptance were not tested.
+partial because that older rehearsal did not test native edits or owner content
+acceptance. The later native trial report is separate evidence.
 
-Before claiming P2 complete: exercise end-to-end runs of the actual `sb-ingestor`
-and `sb-researcher`, including accepted edits and sourced answer format, source
-injection, interruption/recovery and missing-role/skill failure handling. The live
-data-path rehearsal and fake-provider role checks are complementary evidence,
-not a replacement for those remaining checks.
+The actual named-role trials now cover accepted edits, sourced answers,
+edit-capable injection, repeat and operator-mediated interruption/recovery.
+Missing-role/skill scenarios are owner-waived. Neither those scoped successes nor
+the older rehearsal imply universal attack resistance, an autonomous merger,
+private restore proof or owner content judgment.
 
-Before personal installation: P2B chat conversion is delivered but its selected
-R8 ingest/query and owner acceptance remain pending; P2A statistics
+Before personal installation: P2B conversion and selected native R8 ingest/query
+are evidenced; owner content judgment remains separate. P2A statistics
 is delivered with its [local report approval procedure](vault-stats.md).
 Approve exact paths/provider/source and R6 backup policy/isolated restore.
 No personal installation has been performed. Existing approved authentication was
