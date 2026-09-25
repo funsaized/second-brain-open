@@ -20,6 +20,8 @@ import sys
 
 
 FOLDERS = {"sources": "source", "concepts": "concept", "entities": "entity", "synthesis": "synthesis"}
+CONTROLS = ("wiki/index.md", "wiki/log.md")
+INSTRUCTIONS = {"AGENTS.md", "CLAUDE.md", "CONTEXT.md"}
 COMMON = {"title", "type", "created", "updated", "aliases", "tags"}
 EXTRA = {"source": {"url", "author", "published", "captured", "raw"},
          "entity": {"kind"}, "concept": set(), "synthesis": set(),
@@ -59,7 +61,7 @@ def metadata(text, page, expected):
     end = next((i for i, line in enumerate(lines[1:], 1) if line.strip() == "---"), None)
     if end is None:
         return {}, "", [diagnostic(page, "metadata", detail="unclosed frontmatter")]
-    fields, issues = {}, []
+    fields, issues, parse_issues = {}, [], []
     for line in lines[1:end]:
         match = re.fullmatch(r"([a-z]+): (.+)\s*", line.rstrip("\r\n"))
         if not match:
@@ -67,12 +69,12 @@ def metadata(text, page, expected):
             continue
         key, value = match.groups()
         if key in fields:
-            issues.append(f"duplicate {key}")
+            parse_issues.append(diagnostic(page, "metadata", detail=f"duplicate {key}", unusable_field=key))
             continue
         try:
             fields[key] = json.loads(value)
         except (ValueError, json.JSONDecodeError):
-            issues.append(f"invalid JSON for {key}")
+            parse_issues.append(diagnostic(page, "metadata", detail=f"invalid JSON for {key}", unusable_field=key))
     for key in sorted((COMMON | EXTRA[expected]) - fields.keys()):
         if key != "url":
             issues.append(f"missing {key}")
@@ -111,7 +113,7 @@ def metadata(text, page, expected):
         issues.append("invalid kind")
     if expected == "log" and fields.get("created") != fields.get("updated"):
         issues.append("log header dates must remain equal")
-    return fields, "".join(lines[end + 1:]), [diagnostic(page, "metadata", detail=issue) for issue in issues]
+    return fields, "".join(lines[end + 1:]), parse_issues + [diagnostic(page, "metadata", detail=issue) for issue in issues]
 
 
 def canonical_parts(path):
@@ -120,8 +122,8 @@ def canonical_parts(path):
             and "\\" not in path and not any(ord(char) < 32 or ord(char) == 127 for char in path))
 
 
-def collect(vault):
-    """Read only adopted content folders and optional index/log, rejecting unsafe entries."""
+def collect(vault, *, include_controls=True):
+    """Collect adopted pages; statistics opt out of even opening control files."""
     vault = Path(vault)
     if ".." in vault.parts:
         raise ValueError("traversal in vault path")
@@ -148,16 +150,19 @@ def collect(vault):
         pages[key] = {"metadata": fields, "body": body}
         issues.extend(diagnostics)
 
-    for control in ("index", "log"):
-        path = wiki / f"{control}.md"
-        if os.path.lexists(path):
-            add(path, control)
+    if include_controls:
+        for control in CONTROLS:
+            path = absolute / control
+            if os.path.lexists(path):
+                add(path, path.stem)
 
     def visit(directory, expected):
         with os.scandir(directory) as entries:
             for entry in sorted(entries, key=lambda e: e.name):
                 path = Path(entry.path)
-                if entry.name in (".obsidian", ".git"):
+                if entry.name in INSTRUCTIONS and not entry.is_dir(follow_symlinks=False):
+                    continue
+                if entry.name in (".obsidian", ".opencode", ".git"):
                     raise ValueError(f"protected entry inside adopted scope: {path}")
                 mode = path.lstat().st_mode
                 if stat.S_ISDIR(mode):
@@ -193,14 +198,16 @@ def body_lines(body):
             yield number, INLINE.sub(lambda m: " " * len(m.group()), line)
 
 
-def resolve_links(pages):
-    """Return unique directed node edges and diagnostics, without guessing aliases."""
+def resolve_links(pages, *, include_controls=True):
+    """Resolve canonical links; statistics report control references as excluded."""
     edges, issues = set(), []
     stems = {}
     for key in pages:
-        if key.startswith("wiki/") and key not in ("wiki/index.md", "wiki/log.md"):
+        if key.startswith("wiki/") and key not in CONTROLS:
             stems.setdefault(Path(key).stem, []).append(key)
     for page, content in sorted(pages.items()):
+        if not include_controls and page in CONTROLS:
+            continue
         for line, text in body_lines(content["body"]):
             for match in TOKEN.finditer(text):
                 token = match.group()
@@ -233,11 +240,17 @@ def resolve_links(pages):
                     issues.append(diagnostic(page, "unsupported_target", token, **detail))
                     continue
                 dest = target + ".md"
+                if Path(dest).name in INSTRUCTIONS:
+                    issues.append(diagnostic(page, "unsupported_target", token, **detail))
+                    continue
+                if not include_controls and dest in CONTROLS:
+                    issues.append(diagnostic(page, "excluded_control", token, **detail))
+                    continue
                 if fragment:
                     issues.append(diagnostic(page, "anchor_unchecked", token, **detail))
                 if dest not in pages:
                     issues.append(diagnostic(page, "missing", token, **detail))
-                elif page != dest and page not in ("wiki/index.md", "wiki/log.md") and dest not in ("wiki/index.md", "wiki/log.md"):
+                elif page != dest and page not in CONTROLS and dest not in CONTROLS:
                     edges.add((page, dest))
     return edges, issues
 

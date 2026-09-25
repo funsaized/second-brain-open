@@ -116,7 +116,9 @@ scope only locally; paths/titles in its report may be private.
 
 - Reads only `wiki/{sources,concepts,entities,synthesis}/` Markdown and optional
   `wiki/index.md`/`wiki/log.md`. Other root folders are not scanned. Protected
-  `.obsidian`/`.git` entries inside the adopted content tree cause refusal.
+  `.obsidian`/`.opencode`/`.git` entries inside the adopted content tree cause refusal.
+  Reserved `AGENTS.md`, `CLAUDE.md` and `CONTEXT.md` instruction files are excluded;
+  links to them are unsupported, not knowledge edges.
 - Validates the contract's flat JSON-valued frontmatter, not arbitrary YAML.
   Source `raw` paths are format-checked but never opened. A valid root without
   `wiki/` is an empty corpus, not an invalid directory.
@@ -189,7 +191,8 @@ injection, interruption/recovery and missing-role/skill failure handling. The li
 data-path rehearsal and fake-provider role checks are complementary evidence,
 not a replacement for those remaining checks.
 
-Before personal installation: P2A statistics and P2B chat conversion must also
-ship; approve exact paths/provider/source and R6 backup policy/isolated restore.
+Before personal installation: P2B chat conversion must also ship; P2A statistics
+is delivered with its [local report approval procedure](vault-stats.md).
+Approve exact paths/provider/source and R6 backup policy/isolated restore.
 No personal installation has been performed. Existing approved authentication was
 used only for the synthetic live checks above; no private-source approval is implied.

@@ -26,6 +26,12 @@ licenses; neither project's MIT license grants rights to that content.
 | `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read/proposal/approval flow, source locators, raw immutability, repeat/recovery and honest status |
 | `framework/skills/second-brain-query/SKILL.md` | `skills/second-brain-query/SKILL.md` | Index-first evidence retrieval, claim citations, abstention, Read/Not covered, no writes |
 | `scripts/link_check.py` | `scripts/link_check.py` | Replaces basename guessing with exact managed paths; validates narrow metadata, reports ambiguity/unsupported forms/unchecked anchors, read-only stdlib CLI |
+| `scripts/vault_stats.py` | `scripts/vault_stats.py`, `docs/05-graphs/metrics.md`, `skills/second-brain-metrics/SKILL.md`, `skills/second-brain-graph/SKILL.md` | Required stdlib port: content-only scope, canonical unique edges, explicit degrees/denominators, weak components, stale/unknown concepts, JSON/as-of and read-only reporting |
+
+P2A extends the checker's shared scanner/resolver with optional control exclusion
+and structured unusable-field diagnostics. Both consumers exclude reserved
+instruction files. The statistics runbook documents intentional differences from
+upstream rather than treating its numbers as equivalent snapshots.
 
 Include this notice and the downstream LICENSE with any copied framework or
 script distribution; placing them in a namespaced notices directory is fine.

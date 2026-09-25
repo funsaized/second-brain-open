@@ -211,6 +211,30 @@ class LinkCheckTests(unittest.TestCase):
             page(root, "wiki/log.md", updated="2026-01-02")
             self.assertIn("log header dates must remain equal", {d.get("detail") for d in link_check.check(root)["errors"]})
 
+    def test_instruction_files_are_not_managed_pages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            page(root, "wiki/concepts/a.md", "[[wiki/concepts/AGENTS]]\n")
+            for name in ("AGENTS.md", "CLAUDE.md", "CONTEXT.md"):
+                page(root, f"wiki/concepts/{name}", "[[wiki/concepts/missing]]\n")
+            report = link_check.check(root)
+            self.assertEqual(report["pages"], 1)
+            self.assertEqual(report["errors"], [])
+            self.assertEqual([d["kind"] for d in report["unsupported"]], ["unsupported_target"])
+            protected = root / "wiki/concepts/.opencode"
+            protected.mkdir()
+            with self.assertRaisesRegex(ValueError, "protected entry"):
+                link_check.collect(root)
+            protected.rmdir()
+            (root / "wiki/concepts/AGENTS.md").unlink()
+            page(root, "wiki/concepts/AGENTS.md/note.md", "[[wiki/concepts/a]]\n")
+            page(root, "wiki/concepts/a.md", "[[wiki/concepts/AGENTS.md/note]]\n")
+            report = link_check.check(root)
+            self.assertEqual((report["pages"], len(report["links"])), (2, 2))
+            (root / "wiki/concepts/AGENTS.md/.git").mkdir()
+            with self.assertRaisesRegex(ValueError, "protected entry"):
+                link_check.collect(root)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,12 +5,12 @@ Reusable OpenCode machinery for a separate Obsidian vault, based on
 `347feee87b305b291f7264890e5024db422e3467`.
 See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-**Status: P0/P1 delivered; P2 checker and scoped roles/skills delivered.**
+**Status: P0/P1 and P2A statistics delivered; P2 checker and roles/skills delivered.**
 P2 is not complete: accepted native edits, injection/recovery and owner content
 acceptance remain pending. A live staged ingest/repeat/query rehearsal has passed.
 Unsafe slash-command wrappers are withheld as the plan permits;
 use explicitly selected roles with plain, vetted requests. The required statistics
-and chat converter ports follow in P2A/P2B; they are not optional. Not ready for
+port is available; the required chat converter is next (P2B). Not ready for
 personal-vault installation. See [PLAN.md](PLAN.md) and the
 [manual loop runbook](docs/manual-loop.md).
 
@@ -57,7 +57,8 @@ reviewed. P1 template/contract review does not waive the P3 entry gate.
 
 Development instructions, tests and PLAN.md stay in this public repository.
 Do not copy its AGENTS.md into a vault. License notices accompany copied material
-in the namespaced locations above. Run `scripts/link_check.py` from this checkout
+in the namespaced locations above. Run `scripts/link_check.py` and
+`scripts/vault_stats.py` from this checkout
 as an operator; no installation or agent shell grant is needed.
 The inactive configuration example has no roles, read grants, provider,
 credential, or private path.
@@ -221,6 +222,24 @@ retention, unlike the isolated permission probes. Only supplied test records
 were synthetic/public; generated staging was removed and no transcript was
 published. See [the live runbook](docs/manual-loop.md#optional-live-semantic-rehearsal).
 
+### Read-only vault statistics
+
+```sh
+python3 scripts/vault_stats.py tests/fixtures/stats --as-of 2026-09-24
+python3 scripts/vault_stats.py tests/fixtures/stats --as-of 2026-09-24 --json
+```
+
+The required P2A port reuses the checker without opening controls or other vault
+folders. It reports unique directed links, both degree definitions, inbound
+orphans, weak components, stale concepts and explicit missing/invalid/future date
+counts. On the fixed fixture: 4 nodes, 3 links, degrees 0.75/1.5, one orphan,
+two components, largest share 75%, and stale 1/2 eligible with one unknown.
+
+Reports are deterministic for fixed input/as-of. Exit 0 means a report, even
+with diagnostics; exit 2 means invalid/unsafe input. It never writes a note,
+repairs links, calls a model or grants agent Bash. Real reports stay local and
+require R7B scope approval. See [definitions and operator runbook](docs/vault-stats.md).
+
 ## Checks
 
 ```sh
@@ -231,9 +250,9 @@ python3 tests/runtime_read_probe.py
 python3 tests/runtime_roles_probe.py
 ```
 
-The offline suite has 29 passing checks: distribution, scope preflight,
+The offline suite has 39 passing checks: distribution, scope preflight,
 synthetic copy/rollback, schema/claim fixtures, framework invariants and checker
-cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
+and statistics cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
 2 on setup/runtime failure. The namespace probes have no unisolated fallback.
 Separate live helpers require explicit `--live --agent ... --model ...`; they
 are not run by unittest discovery or CI. P2 still requires named-role accepted

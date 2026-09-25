@@ -54,6 +54,8 @@ collisions against actual pages and owner-supplied candidates first. Preserve
 existing canonical filenames (including spaces) rather than renaming silently.
 Two pages with the same title remain distinct by path. Do not create one page
 per paragraph or force entities/synthesis without useful reusable content.
+Reserve the exact filenames `AGENTS.md`, `CLAUDE.md` and `CONTEXT.md` for
+instructions, not knowledge pages; the checker and statistics exclude them.
 
 ## Evidence and competing claims
 
