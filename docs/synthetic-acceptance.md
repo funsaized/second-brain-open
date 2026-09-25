@@ -92,14 +92,41 @@ plus Message N, distinguish message date from trial date, name unknown dates,
 reject unsupported external certainty, and end with Read / Not covered. These
 are acceptance expectations, **not a model-generated answer or accepted patch**.
 
-## Next approval boundary (unapproved proposal, not executed)
+## Live-profile extension (approved; execution blocked before first call)
+
+The owner's “approve” after commit `756c085` authorizes the extension below,
+including its six-call / 24,000-output-token ceiling. It does not approve an
+exact patch or accept content. No live call or profile installation has occurred
+under this extension yet.
+
+Pre-execution research found a defect in the proposed budget enforcement.
+The installed binary still reports `1.18.32`. In the matching public source,
+the built-in OpenAI plugin's `chat.params` hook sets `output.maxOutputTokens`
+to `undefined` for provider ID `openai`:
+[pinned OpenAI hook](https://github.com/anomalyco/opencode/blob/v1.18.32/packages/opencode/src/plugin/openai/codex.ts).
+An environment/model output limit cannot therefore be assumed to enforce the
+approved token ceiling. Agent steps are not a total request budget either;
+[retries](https://github.com/anomalyco/opencode/blob/v1.18.32/packages/opencode/src/session/retry.ts)
+can add requests. These are source-inspection findings, not a new live test.
+The original proposal should not have promised that ceiling before checking
+runtime support. No credentials were inspected, authentication changed, proxy
+added or alternate provider selected to work around it.
+
+**Decision needed:** authorize one proposal-only native run with a 180-second
+local process timeout and a six-step target, accepting that neither six provider
+requests nor 24,000 output tokens is a guaranteed hard limit. Cancellation cannot
+guarantee that remote generation stops immediately. All other approved constraints
+remain unchanged; any further run requires another decision. Otherwise retain
+the hard ceiling and remain blocked pending review of an enforceable mechanism.
+
+### Approved scope as originally proposed
 
 The approved live helper uses `dingus` in ordinary owner authentication/profile
 context. It neither installs the two named roles nor loads their skills. Repeating
 that rehearsal cannot prove native-role acceptance. The inert framework cannot
 be activated in this checkout or the owner's global configuration.
 
-Requested extension: a temporary named-role live profile overlay for
+Approved extension: a temporary named-role live profile overlay for
 `sb-ingestor` / `sb-researcher`, using only the existing `openai/gpt-6-luna` route
 (including auxiliary routing), existing native owner authentication and ordinary
 local session retention, up to six model calls / 24,000 output tokens total.
