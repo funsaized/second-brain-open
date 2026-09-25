@@ -64,22 +64,8 @@ def runtime_paths():
     return {"directory": str(Path.cwd()), "worktree": worktree}
 
 
-def isolated_probe():
-    if os.environ.get("SB_P0_ISOLATED") != "1" or Path.cwd() != Path("/workspace"):
-        raise SystemExit("Refusing fixture creation outside the probe namespace")
-    page = Path("wiki/index.md")
-    page.parent.mkdir()
-    marker = "SYNTHETIC_APPROVED_INDEX"
-    page.write_text(marker + "\n")
-    forbidden_marker = "SYNTHETIC_FORBIDDEN_VALUE"
-    forbidden = [Path(".obsidian/fake.md"), Path(".env"), Path("unrelated.md"), Path("/tmp/outside.md")]
-    for path in forbidden:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(forbidden_marker + "\n")
-    requests = []
-    requested_tool = "read"
-    requested_input = {"filePath": str(page.absolute())}
-
+def start_provider(requests, action):
+    """One forced tool call, then stop; shared by baseline and named-role probes."""
     class Provider(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
@@ -89,11 +75,11 @@ def isolated_probe():
             # Force one real tool attempt, then terminate; no model discretion.
             tool = len(requests) == 1
             block = (
-                {"type": "tool_use", "id": "toolu_probe", "name": requested_tool, "input": {}}
+                {"type": "tool_use", "id": "toolu_probe", "name": action["tool"], "input": {}}
                 if tool else {"type": "text", "text": ""}
             )
             delta = (
-                {"type": "input_json_delta", "partial_json": json.dumps(requested_input)}
+                {"type": "input_json_delta", "partial_json": json.dumps(action["input"])}
                 if tool else {"type": "text_delta", "text": "Synthetic probe finished."}
             )
             events = [
@@ -122,13 +108,17 @@ def isolated_probe():
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Provider)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    config = {
+    return server
+
+
+def probe_config(port):
+    return {
         "$schema": "https://opencode.ai/config.json",
         "share": "disabled", "snapshot": False, "autoupdate": False,
         "formatter": False, "lsp": False, "plugin": [], "mcp": {}, "instructions": [],
         "enabled_providers": ["anthropic"], "model": "anthropic/probe", "small_model": "anthropic/probe",
         "provider": {"anthropic": {
-            "options": {"apiKey": "synthetic-not-a-credential", "baseURL": f"http://127.0.0.1:{server.server_port}"},
+            "options": {"apiKey": "synthetic-not-a-credential", "baseURL": f"http://127.0.0.1:{port}"},
             "models": {"probe": {"name": "Synthetic probe", "tool_call": True,
                 "limit": {"context": 64000, "output": 4096}}},
         }},
@@ -139,6 +129,24 @@ def isolated_probe():
             "title": {"disable": True}, "summary": {"disable": True}, "compaction": {"disable": True},
         },
     }
+
+
+def isolated_probe():
+    if os.environ.get("SB_P0_ISOLATED") != "1" or Path.cwd() != Path("/workspace"):
+        raise SystemExit("Refusing fixture creation outside the probe namespace")
+    page = Path("wiki/index.md")
+    page.parent.mkdir()
+    marker = "SYNTHETIC_APPROVED_INDEX"
+    page.write_text(marker + "\n")
+    forbidden_marker = "SYNTHETIC_FORBIDDEN_VALUE"
+    forbidden = [Path(".obsidian/fake.md"), Path(".env"), Path("unrelated.md"), Path("/tmp/outside.md")]
+    for path in forbidden:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(forbidden_marker + "\n")
+    requests = []
+    action = {}
+    server = start_provider(requests, action)
+    config = probe_config(server.server_port)
     os.environ["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
     try:
         version = subprocess.run(["/opencode", "--version"], capture_output=True, text=True, timeout=10)
@@ -170,6 +178,7 @@ def isolated_probe():
             ("symlink-at-approved-path", "read", {"filePath": str(page.absolute())}),
         ])
         for label, requested_tool, requested_input in cases:
+            action.update(tool=requested_tool, input=requested_input)
             requests.clear()
             if label == "symlink-at-approved-path":
                 page.unlink()
@@ -238,7 +247,7 @@ def isolated_probe():
         server.server_close()
 
 
-def launch():
+def launch(script=None, mounts=(), case="baseline-read-boundary"):
     binary = shutil.which("opencode")
     if not binary or not shutil.which("bwrap"):
         raise RuntimeError("Requires opencode and bwrap; no unisolated fallback")
@@ -247,10 +256,12 @@ def launch():
         "--ro-bind", "/usr", "/usr", "--symlink", "usr/bin", "/bin",
         "--symlink", "usr/lib", "/lib", "--symlink", "usr/lib", "/lib64",
         "--ro-bind", str(Path(binary).resolve()), "/opencode",
-        "--ro-bind", str(Path(__file__).resolve()), "/probe.py",
+        "--ro-bind", str(Path(script or __file__).resolve()), "/probe.py",
         "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
         "--dir", "/home/test", "--dir", "/workspace", "--chdir", "/workspace",
     ]
+    for source, destination in mounts:
+        command.extend(["--ro-bind", str(Path(source).resolve()), destination])
     env = {
         "SB_P0_ISOLATED": "1", "HOME": "/home/test", "PATH": "/usr/bin", "PWD": "/workspace",
         "XDG_CONFIG_HOME": "/home/test/.config", "XDG_DATA_HOME": "/home/test/.local/share",
@@ -273,7 +284,7 @@ def launch():
     if not result.stdout.strip():
         raise RuntimeError("Isolated probe produced no summary")
     summary = json.loads(result.stdout)
-    if not isinstance(summary, dict) or summary.get("case") != "baseline-read-boundary":
+    if not isinstance(summary, dict) or summary.get("case") != case:
         raise RuntimeError("Missing probe summary")
     print(json.dumps(summary, indent=2))
     return result.returncode if result.returncode in (0, 1, 2) else 2

@@ -21,6 +21,16 @@ licenses; neither project's MIT license grants rights to that content.
 | `framework/templates/index.md` | `vault-template/wiki/index.md` | Common metadata and explicit control type; actual pages only, plain-text gaps |
 | `framework/templates/log.md` | `vault-template/wiki/log.md` | Append-only dated records with changed paths, verification and partial/completed status; immutable header dates |
 | `framework/templates/project.md` | `vault-template/projects/example-project/CLAUDE.md`, `vault-template/projects/README.md` | Lightweight owner-maintained brief; optional artifact folders and explicit reviewed promotion; no wiki type |
+| `framework/agents/sb-ingestor.md` | `agents/ingestor.md` | Native primary role and designated skill; deny-default until exact local grants, approved per-edit requests |
+| `framework/agents/sb-researcher.md` | `agents/researcher.md` | Native primary read-only role, scoped evidence reads and no delegated/network fallback |
+| `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read/proposal/approval flow, source locators, raw immutability, repeat/recovery and honest status |
+| `framework/skills/second-brain-query/SKILL.md` | `skills/second-brain-query/SKILL.md` | Index-first evidence retrieval, claim citations, abstention, Read/Not covered, no writes |
+| `scripts/link_check.py` | `scripts/link_check.py` | Replaces basename guessing with exact managed paths; validates narrow metadata, reports ambiguity/unsupported forms/unchecked anchors, read-only stdlib CLI |
+
+Include this notice and the downstream LICENSE with any copied framework or
+script distribution; placing them in a namespaced notices directory is fine.
+Do not install unsafe command candidates: their argument-expansion tests live
+only in the synthetic runtime probe, not in the framework's distribution list.
 
 `AGENTS.md`, `.gitignore`, the inactive OpenCode example, and distribution
 tests and wholly invented fixture content are original downstream material. Add a row when implementing each

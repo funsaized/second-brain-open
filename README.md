@@ -5,10 +5,14 @@ Reusable OpenCode machinery for a separate Obsidian vault, based on
 `347feee87b305b291f7264890e5024db422e3467`.
 See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-**Status: P0 baseline verified; P1 contracts and examples delivered.**
-Not ready for personal-vault installation. Next is P2: the ingest/query roles,
-skills, commands and link checker. The required statistics and chat converter
-ports follow in P2A/P2B; they are not optional. See [PLAN.md](PLAN.md).
+**Status: P0/P1 delivered; P2 checker and scoped roles/skills delivered.**
+P2 is not complete: accepted native edits, injection/recovery and owner content
+acceptance remain pending. A live staged ingest/repeat/query rehearsal has passed.
+Unsafe slash-command wrappers are withheld as the plan permits;
+use explicitly selected roles with plain, vetted requests. The required statistics
+and chat converter ports follow in P2A/P2B; they are not optional. Not ready for
+personal-vault installation. See [PLAN.md](PLAN.md) and the
+[manual loop runbook](docs/manual-loop.md).
 
 ## Content contract and examples
 
@@ -44,17 +48,26 @@ reviewed. P1 template/contract review does not waive the P3 entry gate.
 | `framework/templates/index.md` | `templates/second-brain/index.md` | Template only, not an overwrite of a live index |
 | `framework/templates/log.md` | `templates/second-brain/log.md` | Template only, not an overwrite of a live log |
 | `framework/templates/project.md` | `templates/second-brain/project.md` | Brief template; no project scaffolding |
+| `framework/agents/sb-ingestor.md` | `.opencode/agents/sb-ingestor.md` | Primary ingest role; supply reviewed exact local grants |
+| `framework/agents/sb-researcher.md` | `.opencode/agents/sb-researcher.md` | Primary read-only role; supply reviewed exact local grants |
+| `framework/skills/second-brain-ingest/SKILL.md` | `.opencode/skills/second-brain-ingest/SKILL.md` | Designated ingest workflow |
+| `framework/skills/second-brain-query/SKILL.md` | `.opencode/skills/second-brain-query/SKILL.md` | Designated query workflow |
+| `LICENSE` | `.opencode/second-brain/LICENSE` | Retain downstream notice with copied material |
+| `THIRD_PARTY_NOTICES.md` | `.opencode/second-brain/THIRD_PARTY_NOTICES.md` | Retain upstream notice and adaptation map |
 
-Root documentation, license notices, development instructions, tests, and
-PLAN.md stay in this public repository. Do not copy its AGENTS.md into a vault.
-The example has no roles, read grants, provider, credential, or private path.
+Development instructions, tests and PLAN.md stay in this public repository.
+Do not copy its AGENTS.md into a vault. License notices accompany copied material
+in the namespaced locations above. Run `scripts/link_check.py` from this checkout
+as an operator; no installation or agent shell grant is needed.
+The inactive configuration example has no roles, read grants, provider,
+credential, or private path.
 It is a deny-default starting fragment, **not an isolation mechanism**. Empty
 plugin/MCP/instruction collections do not erase inherited configuration.
 No root default agent is changed. Do not activate this fragment in an ordinary
 session: it intentionally grants no tools or providers.
-P2 roles will grant scoped reads, their designated skill and questions; the
-ingestor will additionally ask before approved wiki edits. The research role
-will remain read-only. This does not disable ordinary development tools in
+The role files allow their designated skill and questions; exact reads and
+ingestor ask-to-edit grants are supplied by the approved local manifest. The
+research role remains read-only. This does not disable ordinary development tools in
 the owner's existing OpenCode setup.
 
 ## Reviewed install, upgrade, and rollback
@@ -158,6 +171,56 @@ permissions then restrict actions within that isolated corpus. A preflight
 followed by an ordinary mutable shared folder is **not** an acceptable substitute.
 The named-role/command matrix and live-source/provider/backup gates still apply.
 
+### P2 runtime results and withheld commands
+
+`tests/runtime_roles_probe.py` copies the four public role/skill files into a
+disposable clean native profile with both license notices, verifies their prompts
+loaded, and supplies exact synthetic grants. **25 loading/tool checks pass**: both roles load their
+actual designated skill and read approved data; forbidden reads, other skills,
+wiki/raw/config edits, shell, search, glob, delegation and network calls are
+refused. The ingestor's allowed edit path reaches permission rejection; the
+researcher never obtains edit access. Fixture/installed-file hashes remain unchanged.
+These are forced-tool runtime checks, not model reasoning or ingestion tests.
+
+After role verification, two command candidates are installed only inside the
+disposable profile. Six entry-point cases show: both literal invocations route
+to the intended skill, but both `@file` arguments attach denied synthetic content
+and both shell-like arguments are expanded before tool restrictions. Therefore
+**neither `/sb-ingest` nor `/sb-ask` is distributed or approved for installation**.
+The probe preserves their four failed safety results; exit 0 means the named
+roles passed and unsafe wrappers remain withheld, not that commands are safe.
+Use the [plain-request fallback](docs/manual-loop.md#2-invoke-the-role-directly-not-a-slash-wrapper).
+
+### Link checker
+
+```sh
+python3 scripts/link_check.py tests/fixtures/contract
+python3 scripts/link_check.py tests/fixtures/contract --json
+```
+
+The synthetic fixture reports 5 content pages, 2 controls and 18 unique directed
+content links, with no diagnostics. Exact paths, labels and spaces are supported;
+fragments are file-checked but anchors remain unchecked. Metadata/fenced examples
+are excluded. Broken/malformed/ambiguous and unsupported links are reported, not
+guessed. Exit 0 is clean except possible unchecked anchors, 1 is diagnostics,
+2 is invalid/unsafe scope. See the [full limits](docs/manual-loop.md#checker-contract).
+
+### Live staged rehearsal
+
+With owner approval, the existing `dingus` primary (`openai/gpt-6-luna`) produced
+two synthetic ingest proposals. The test driver applied only fixed temporary
+wiki paths and checked schema, links, provenance, verbatim evidence excerpts,
+reciprocal links for both sources, index entries, raw immutability and append-only partial logs. Unchanged
+repeat input produced no changes. A sourced query preserved the disagreement,
+unknown publication date and coverage gap. The four-turn run passed its 11 final
+semantic/state checks, with one step and zero tool events observed per call.
+
+This **does not prove native edit acceptance or complete P2**. The live helper
+uses existing owner authentication/profile context and normal local session
+retention, unlike the isolated permission probes. Only supplied test records
+were synthetic/public; generated staging was removed and no transcript was
+published. See [the live runbook](docs/manual-loop.md#optional-live-semantic-rehearsal).
+
 ## Checks
 
 ```sh
@@ -165,11 +228,16 @@ python3 -m unittest discover -s tests -v
 git diff --check
 # Manual Linux runtime probe; requires the reviewed OpenCode release and bwrap:
 python3 tests/runtime_read_probe.py
+python3 tests/runtime_roles_probe.py
 ```
 
-The offline suite has 13 passing checks: distribution, scope preflight,
-synthetic copy/rollback, and P1 schema/link/claim fixtures. The separate runtime
-probe exits 0 on acceptance, 1 on a failed check, 2 on setup/runtime failure.
-No unisolated fallback is provided. P2 must repeat and extend these checks for
-the actual ingest/query roles, designated skills, commands, interactive approvals,
-source injection and recovery. No file here has been installed into a vault.
+The offline suite has 29 passing checks: distribution, scope preflight,
+synthetic copy/rollback, schema/claim fixtures, framework invariants and checker
+cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
+2 on setup/runtime failure. The namespace probes have no unisolated fallback.
+Separate live helpers require explicit `--live --agent ... --model ...`; they
+are not run by unittest discovery or CI. P2 still requires named-role accepted
+edits, injection/recovery and missing-role/skill handling. Only disposable
+synthetic framework installation has occurred; no personal vault or persistent
+owner configuration was changed. Normal authentication/session activity applies
+to the separately approved primary-agent calls.
