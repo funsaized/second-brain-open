@@ -101,12 +101,12 @@ Thirteen narrow driver tests and all **76 offline tests** pass;
 
 ## Next logical slice
 
-Implement the R6 backup/isolated-restore/partial-run rehearsal on wholly synthetic
-files using reviewed per-file manifests and hash-gated restoration. Reuse the
-existing scope and rollback primitives; do not add a general recovery engine.
-Then obtain the actual backup destination/encryption/retention, path/provider and
-first-source approvals before P3. A synthetic restore test is not proof of a
-private backup or permission to install into the personal vault.
+The [R6 synthetic backup/restore rehearsal](backup-restore.md) is now delivered,
+using reviewed per-file manifests and hash-gated restoration. Next obtain the
+actual backup policy/destination/encryption/retention and alternate private restore
+approval, followed by path/provider/first-source approvals before P3. A synthetic
+restore test is not proof of a private backup or permission to install into the
+personal vault.
 
 Technical validation is recorded separately from the owner's personal judgment
 of the [R8 content packet](synthetic-acceptance.md). The latter has not been

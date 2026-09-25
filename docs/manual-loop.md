@@ -231,5 +231,7 @@ Before personal installation: P2B conversion and selected native R8 ingest/query
 are evidenced; owner content judgment remains separate. P2A statistics
 is delivered with its [local report approval procedure](vault-stats.md).
 Approve exact paths/provider/source and R6 backup policy/isolated restore.
+The [R6 public rehearsal](backup-restore.md) now passes on synthetic files;
+it does not supply the actual private backup policy or private restore proof.
 No personal installation has been performed. Existing approved authentication was
 used only for the synthetic live checks above; no private-source approval is implied.

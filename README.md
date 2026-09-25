@@ -20,6 +20,10 @@ The [synthetic acceptance packet](docs/synthetic-acceptance.md) records the sele
 conversation, and the [native trial report](docs/native-acceptance-trials.md) records
 the new checks, limitations and waivers. OpenCode's missing-role fallback is not
 fixed; guarded launchers still verify the intended installed resources.
+The [R6 backup/restore rehearsal](docs/backup-restore.md) now verifies a 16-file
+synthetic snapshot, alternate-location restore and drift-safe partial recovery.
+It is not a private backup or a production backup CLI; R6A policy/private restore
+approval still precedes personal-vault installation.
 
 ## Content contract and examples
 
@@ -277,7 +281,7 @@ python3 tests/runtime_read_probe.py
 python3 tests/runtime_roles_probe.py
 ```
 
-The offline suite has 76 passing checks: distribution, scope preflight,
+The offline suite has 82 passing checks: distribution, scope preflight,
 synthetic copy/rollback, schema/claim fixtures, framework invariants and checker
 and statistics/converter cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
 2 on setup/runtime failure. The namespace probes have no unisolated fallback.
