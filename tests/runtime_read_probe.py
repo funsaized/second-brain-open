@@ -247,7 +247,7 @@ def isolated_probe():
         server.server_close()
 
 
-def launch(script=None, mounts=(), case="baseline-read-boundary"):
+def launch(script=None, mounts=(), case="baseline-read-boundary", inside_args=()):
     binary = shutil.which("opencode")
     if not binary or not shutil.which("bwrap"):
         raise RuntimeError("Requires opencode and bwrap; no unisolated fallback")
@@ -277,7 +277,7 @@ def launch(script=None, mounts=(), case="baseline-read-boundary"):
     for key, value in env.items():
         command.extend(["--setenv", key, value])
     result = subprocess.run(
-        command + ["/usr/bin/python3", "/probe.py", "--inside"],
+        command + ["/usr/bin/python3", "/probe.py", "--inside", *inside_args],
         capture_output=True, text=True, timeout=560,
     )
     # Setup failures must not look like the expected permission-denial result.

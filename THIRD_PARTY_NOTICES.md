@@ -43,6 +43,8 @@ only in the synthetic runtime probe, not in the framework's distribution list.
 `AGENTS.md`, `.gitignore`, the inactive OpenCode example, and distribution
 tests and wholly invented fixture content are original downstream material. Add a row when implementing each
 substantial port; proposed files in PLAN.md are not delivered adaptations.
+The selected lantern fixture, its acceptance packet and focused missing-resource
+runtime checks are also original downstream verification, not new upstream ports.
 
 ## Upstream MIT notice (verbatim)
 

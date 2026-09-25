@@ -14,6 +14,10 @@ and chat converter ports are available; R8's converted-conversation ingest/query
 and owner acceptance remain pending. Not ready for
 personal-vault installation. See [PLAN.md](PLAN.md) and the
 [manual loop runbook](docs/manual-loop.md).
+The [synthetic acceptance packet](docs/synthetic-acceptance.md) records a verified
+selected conversion and the remaining gates. A new focused native probe exposes
+a missing-role failure (provider calls despite a nonexistent role); it is not
+reported as a passing refusal test.
 
 ## Content contract and examples
 
@@ -270,7 +274,7 @@ python3 tests/runtime_read_probe.py
 python3 tests/runtime_roles_probe.py
 ```
 
-The offline suite has 62 passing checks: distribution, scope preflight,
+The offline suite has 63 passing checks: distribution, scope preflight,
 synthetic copy/rollback, schema/claim fixtures, framework invariants and checker
 and statistics/converter cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
 2 on setup/runtime failure. The namespace probes have no unisolated fallback.

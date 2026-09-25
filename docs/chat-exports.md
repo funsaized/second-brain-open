@@ -188,6 +188,12 @@ not to an independent experiment. External claims remain unverified until actual
 sources are checked; historical user views are not automatically current beliefs.
 Query acceptance must preserve these distinctions and disclose missing evidence.
 
+The [synthetic acceptance packet](synthetic-acceptance.md) now records one selected
+invented conversion, exact hashes, privacy assessment and Message 1–4 claim oracle.
+Run `python3 tests/test_chat_handoff.py` to reproduce it without provider calls.
+Native ingest/query and owner content acceptance remain pending at the live-profile
+approval boundary; a prepared oracle is not an observed answer.
+
 **Actual evidence:** deterministic offline tests cover conversion, fidelity,
 refusal, rerun and failure behavior using invented temporary records. This slice
 does not claim a native accepted ingest/query of a converted conversation.

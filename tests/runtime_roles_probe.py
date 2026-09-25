@@ -29,7 +29,7 @@ def tool_states(result):
             if (event := json.loads(line)).get("part", {}).get("tool")]
 
 
-def isolated_probe():
+def isolated_probe(missing_only=False):
     if os.environ.get("SB_P0_ISOLATED") != "1" or Path.cwd() != Path("/workspace"):
         raise RuntimeError("Refusing an unisolated probe")
     home_config = Path(os.environ["XDG_CONFIG_HOME"]) / "opencode"
@@ -103,6 +103,38 @@ def isolated_probe():
         results.append({"case": "native-agent-files-loaded", "passed": True})
         baseline = {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
                     for p in [*approved, Path(".obsidian/fake.md"), *installed]}
+        if missing_only:
+            action.update(tool="read", input={"filePath": "/workspace/raw/source.md"})
+            result = run_role("sb-missing-role", requests)
+            calls = tool_states(result)
+            results.append({"case": "missing-role", "exit": result.returncode,
+                            "provider_calls": len(requests), "tool_calls": len(calls),
+                            "tool_statuses": [call.get("state", {}).get("status") for call in calls],
+                            "passed": not requests and not calls})
+            for role, skill in roles.items():
+                skill_file = home_config / f"skills/{skill}/SKILL.md"
+                original = skill_file.read_bytes()
+                skill_file.unlink()
+                try:
+                    action.update(tool="skill", input={"name": skill})
+                    result = run_role(role, requests)
+                    calls = tool_states(result)
+                    error = calls[0].get("state", {}).get("error", "") if len(calls) == 1 else ""
+                    results.append({"case": "missing-designated-skill", "role": role,
+                                    "provider_calls": len(requests), "tool_calls": len(calls),
+                                    "skill_tool_error": bool(error),
+                                    "passed": len(calls) == 1 and calls[0]["tool"] == "skill"
+                                    and calls[0].get("state", {}).get("status") == "error"
+                                    and bool(error)})
+                finally:
+                    skill_file.write_bytes(original)
+            unchanged = all(hashlib.sha256(Path(p).read_bytes()).hexdigest() == digest
+                            for p, digest in baseline.items())
+            passed = unchanged and all(item["passed"] for item in results)
+            print(json.dumps({"case": "named-role-boundary", "mode": "missing-only",
+                              "results": results, "files_unchanged": unchanged,
+                              "passed": passed}, indent=2))
+            return 0 if passed else 1
         for role, skill in roles.items():
             other_skill = next(value for value in roles.values() if value != skill)
             cases = [
@@ -191,14 +223,15 @@ def isolated_probe():
 
 if __name__ == "__main__":
     try:
-        if sys.argv[1:] == ["--inside"]:
-            sys.exit(isolated_probe())
+        if "--inside" in sys.argv[1:]:
+            sys.exit(isolated_probe(missing_only="--missing-only" in sys.argv[1:]))
         root = Path(__file__).resolve().parents[1]
         sys.exit(launch(__file__, [(root / "framework", "/framework"),
                                   (root / "tests/runtime_read_probe.py", "/runtime_read_probe.py"),
                                   (root / "LICENSE", "/notices/LICENSE"),
                                   (root / "THIRD_PARTY_NOTICES.md", "/notices/THIRD_PARTY_NOTICES.md")],
-                        case="named-role-boundary"))
+                        case="named-role-boundary",
+                        inside_args=("--missing-only",) if "--missing-only" in sys.argv[1:] else ()))
     except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired) as error:
         print(json.dumps({"case": "named-role-boundary", "setup_error": type(error).__name__,
                           "reason": str(error) if isinstance(error, RuntimeError) else "Runtime output withheld"}))

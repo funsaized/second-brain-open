@@ -142,6 +142,14 @@ zero files, including the log; persisting an answer is another approved operatio
 
 ## Remaining proof and installation gates
 
+See the [dated acceptance matrix and selected-conversation packet](synthetic-acceptance.md).
+The focused `python3 tests/runtime_roles_probe.py --missing-only` currently exits
+**1**: a nonexistent role still causes fake-provider requests (CLI exit 0), while
+both missing designated skills error. Do not rely on `--agent` or exit status
+alone to fail closed. Verify the exact primary prompt, skill and effective scoped
+grants before live launch; missing/mismatched resources must prevent the call.
+This result is native runtime evidence, not model-level refusal or accepted edits.
+
 ### Optional live semantic rehearsal
 
 The owner approved the existing `dingus` primary agent, whose inspected routing
@@ -191,7 +199,8 @@ injection, interruption/recovery and missing-role/skill failure handling. The li
 data-path rehearsal and fake-provider role checks are complementary evidence,
 not a replacement for those remaining checks.
 
-Before personal installation: P2B chat conversion must also ship; P2A statistics
+Before personal installation: P2B chat conversion is delivered but its selected
+R8 ingest/query and owner acceptance remain pending; P2A statistics
 is delivered with its [local report approval procedure](vault-stats.md).
 Approve exact paths/provider/source and R6 backup policy/isolated restore.
 No personal installation has been performed. Existing approved authentication was
