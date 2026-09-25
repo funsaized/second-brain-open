@@ -7,7 +7,7 @@
 | Conversion fidelity, refusal, safe reruns | 23 converter regressions previously passed; selected lantern packet below now passes | Owner acceptance of downstream interpretation |
 | Native role/skill loading and permissions | Previously recorded 25 forced-tool checks; ask-edit rejection, not approval | Accepted native edits and scope after approval |
 | Ingest, contradiction, repeat, sourced query | Previously recorded `dingus` rehearsal: driver-applied patches, 11 final checks | Actual named-role behavior; not evidence for this conversation |
-| Selected conversation handoff | Local conversion and claim/locator acceptance oracle below | Native ingest, repeat and read-only query; no generated wiki or answer yet |
+| Selected conversation handoff | Local conversion and claim/locator oracle; native skill and full required reads observed in one proposal attempt, but its JSON was rejected | Valid bounded proposal, accepted native ingest, repeat and read-only query |
 | Missing designated skill | New focused native probe: both roles return a skill-tool error when their designated file is absent | Model stops rather than inventing a replacement workflow |
 | Missing role | **Failed:** nonexistent role still produces two fake-provider requests and one errored tool call; CLI exits 0 | Fail-closed launch preflight; direct CLI selection alone is unsafe |
 | Source injection | Injection text preserved literally in Message 4 | Native role ignores its instructions; immutable raw/config and truthful status |
@@ -92,12 +92,12 @@ plus Message N, distinguish message date from trial date, name unknown dates,
 reject unsupported external certainty, and end with Read / Not covered. These
 are acceptance expectations, **not a model-generated answer or accepted patch**.
 
-## Live-profile extension (approved; execution blocked before first call)
+## Live-profile extension and subsequent runs
 
 The owner's “approve” after commit `756c085` authorizes the extension below,
 including its six-call / 24,000-output-token ceiling. It does not approve an
-exact patch or accept content. No live call or profile installation has occurred
-under this extension yet.
+exact patch or accept content. The budget blocker below was found before any
+live call; subsequent authorization and actual runs are recorded separately.
 
 Pre-execution research found a defect in the proposed budget enforcement.
 The installed binary still reports `1.18.32`. In the matching public source,
@@ -112,12 +112,71 @@ The original proposal should not have promised that ceiling before checking
 runtime support. No credentials were inspected, authentication changed, proxy
 added or alternate provider selected to work around it.
 
-**Decision needed:** authorize one proposal-only native run with a 180-second
-local process timeout and a six-step target, accepting that neither six provider
-requests nor 24,000 output tokens is a guaranteed hard limit. Cancellation cannot
-guarantee that remote generation stops immediately. All other approved constraints
-remain unchanged; any further run requires another decision. Otherwise retain
-the hard ceiling and remain blocked pending review of an enforceable mechanism.
+The owner subsequently authorized continuing runs for this feature slice and
+objective after the non-guaranteed budget was disclosed. The helper uses a
+180-second local timeout and six-step target; neither six provider requests nor
+24,000 output tokens is a guaranteed hard limit. Cancellation cannot guarantee
+that remote generation stops immediately. Exact-patch and content approval remain
+separate; no new provider, credentials or edit grants were authorized implicitly.
+
+### Actual native attempts (2026-09-25)
+
+`tests/native_chat_proposal.py` installs the two unchanged roles/skills and license
+notices into a disposable profile outside this checkout, using existing native
+authentication. It verifies selected prompts/routes, effective scoped permissions,
+designated skill locations and the native project worktree before inference.
+It reads only a fixed invented export and public machinery; a generated synthetic
+operation manifest records the operator's preflight and exact preimages. All
+agent edits remain denied. It does not apply a proposal, even if parsing succeeds.
+
+Eight live CLI attempts were made during driver development, in addition to
+preflight-only failures; this is a count of CLI invocations, not provider requests
+or a verified total token count. Earlier attempts stopped for missing setup
+evidence or a denied approved read. The cause of the latter was found in the
+[pinned run command](https://github.com/anomalyco/opencode/blob/v1.18.32/packages/opencode/src/cli/cmd/run.ts):
+`run` uses inherited `PWD` for its SDK directory while debug uses process cwd.
+The driver now aligns `PWD`, cwd and explicit `--dir`; it did **not** widen read
+or external-directory permissions to compensate.
+
+After that correction, one attempt passed the native skill/full-required-read
+gate and produced a candidate covering user preferences, unknown dates,
+unsupported assistant assertions and the untrusted injection. It was rejected:
+the source path was outside the `files` object and `notes` followed an already
+closed JSON object. Inspection also found missing capture metadata and an
+unqualified inferred year. No malformed packet was repaired into an accepted
+native result. The subsequent attempt, with explicit capture date/output shape,
+loaded its skill but again refused to read the operator manifest. Retries stopped;
+suspected remaining issue: the role treats operator preflight as something it
+must independently audit before reading the very manifest containing that proof.
+This is a diagnosis to investigate, not proof of a runtime permission failure.
+
+No wiki patch was applied, no native edit grant was accepted, and no researcher
+query was run. The recorded successful read gate is not full injection resistance
+under edit authorization. Some early failed staging was discarded; later failed
+responses are retained only in generated `/tmp/opencode/sb-native-r8-*` directories
+and ordinary OpenCode session history, never in this repository. A local review-only
+extraction of the malformed response is not an ingest or native-role edit.
+
+The public helper preserves failure status (exit 2), validates partial logs and
+exact output paths, and refuses missing/shadowed roles or skills before inference.
+Offline regression checks cover role/skill guards, overridden permissions, exact
+output-directory exceptions, PWD alignment, closed stdin and process-group timeout
+cleanup. The final timeout guard is offline-tested; the extra-file guard was
+added after the last live attempt and has not been exercised live. Neither is
+claimed as a new successful live run. All 66 offline tests and `git diff --check` pass.
+
+```sh
+# Only under the approved synthetic scope; currently no accepted proposal claimed:
+python3 tests/native_chat_proposal.py --live
+python3 -m unittest discover -s tests -p 'test_native_chat_proposal.py' -v
+```
+
+Next technical gate: resolve the role/manifest bootstrap ambiguity and obtain a
+valid, source-faithful four-file proposal. Then stop for exact patch approval.
+No further approval of synthetic runs is being requested here, and permission
+relaxation is not the proposed fix. The overlay is still ordinary owner-profile
+execution, not filesystem isolation; normal OpenCode session/dependency activity
+is not claimed absent. No framework files were installed into owner configuration.
 
 ### Approved scope as originally proposed
 

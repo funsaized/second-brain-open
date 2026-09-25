@@ -150,6 +150,15 @@ alone to fail closed. Verify the exact primary prompt, skill and effective scope
 grants before live launch; missing/mismatched resources must prevent the call.
 This result is native runtime evidence, not model-level refusal or accepted edits.
 
+The approved native proposal overlay now has a separate opt-in helper,
+`python3 tests/native_chat_proposal.py --live`. Its attempts have **not** produced
+an accepted patch: one fully read candidate failed JSON parsing and review found
+date issues; the last run refused the preflight manifest. See the dated packet for failures and
+the remaining bootstrap diagnosis. Keep `PWD`, process cwd and `run --dir`
+aligned; OpenCode 1.18.32 otherwise may inspect one directory but run in another.
+Never fix that mismatch by widening permissions. Native edits remain denied
+until a valid exact patch reaches owner review.
+
 ### Optional live semantic rehearsal
 
 The owner approved the existing `dingus` primary agent, whose inspected routing
