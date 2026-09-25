@@ -6,10 +6,36 @@ import unittest
 from unittest import mock
 import subprocess
 
-from native_chat_proposal import ROLES, native_run, verify_agent, verify_skills
+from native_chat_proposal import CHANGES, ROLES, native_run, parse_proposal, verify_agent, verify_skills
 
 
 class NativePreflightTests(unittest.TestCase):
+    def test_edit_gates_require_default_deny_and_exact_asks(self):
+        agent = {"name": "sb-ingestor", "mode": "primary", "prompt": "exact", "steps": 6,
+                 "model": {"providerID": "openai", "modelID": "gpt-6-luna"},
+                 "permission": [{"permission": "*", "pattern": "*", "action": "deny"},
+                                {"permission": "edit", "pattern": "wiki/log.md", "action": "ask"}]}
+        verify_agent(agent, "sb-ingestor", "exact", set(), edits={"wiki/log.md"})
+        for extra in ({"permission": "edit", "pattern": "*", "action": "ask"},
+                      {"permission": "edit", "pattern": "wiki/log.md", "action": "allow"}):
+            changed = copy.deepcopy(agent)
+            changed["permission"].append(extra)
+            with self.assertRaises(RuntimeError):
+                verify_agent(changed, "sb-ingestor", "exact", set(), edits={"wiki/log.md"})
+        agent["permission"].pop(0)
+        with self.assertRaises(RuntimeError):
+            verify_agent(agent, "sb-ingestor", "exact", set(), edits={"wiki/log.md"})
+
+    def test_unescaped_proposal_requires_exact_unique_complete_files(self):
+        text = "".join(f'<<<FILE {p}>>>\nA "quoted" line.\n<<<END FILE>>>\n' for p in sorted(CHANGES))
+        self.assertEqual(set(parse_proposal(text + "<<<NOTES>>>\nPending.")["files"]), CHANGES)
+        with self.assertRaises(RuntimeError):
+            parse_proposal(text)
+        for bad in ("", text.replace("<<<END FILE>>>", "", 1),
+                    text.replace("wiki/log.md", "raw/other.md"), text + text):
+            with self.subTest(text=bad), self.assertRaises(RuntimeError):
+                parse_proposal(bad + "<<<NOTES>>>\nPending.")
+
     def test_missing_changed_or_overgranted_role_fails(self):
         agent = {"name": "sb-ingestor", "mode": "primary", "prompt": "exact prompt", "steps": 6,
                  "model": {"providerID": "openai", "modelID": "gpt-6-luna"},

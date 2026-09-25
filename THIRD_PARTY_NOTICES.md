@@ -21,9 +21,9 @@ licenses; neither project's MIT license grants rights to that content.
 | `framework/templates/index.md` | `vault-template/wiki/index.md` | Common metadata and explicit control type; actual pages only, plain-text gaps |
 | `framework/templates/log.md` | `vault-template/wiki/log.md` | Append-only dated records with changed paths, verification and partial/completed status; immutable header dates |
 | `framework/templates/project.md` | `vault-template/projects/example-project/CLAUDE.md`, `vault-template/projects/README.md` | Lightweight owner-maintained brief; optional artifact folders and explicit reviewed promotion; no wiki type |
-| `framework/agents/sb-ingestor.md` | `agents/ingestor.md` | Native primary role and designated skill; deny-default until exact local grants, approved per-edit requests |
-| `framework/agents/sb-researcher.md` | `agents/researcher.md` | Native primary read-only role, scoped evidence reads and no delegated/network fallback |
-| `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read/proposal/approval flow, source locators, raw immutability, repeat/recovery and honest status |
+| `framework/agents/sb-ingestor.md` | `agents/ingestor.md` | Native primary role and designated skill; operator-preflight/manifest bootstrap; deny-default until exact local grants, approved per-edit requests |
+| `framework/agents/sb-researcher.md` | `agents/researcher.md` | Native primary read-only role, operator-preflight/manifest bootstrap, scoped evidence reads and no delegated/network fallback |
+| `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read/proposal/approval flow, operator preflight distinguished from model access, source locators, raw immutability, repeat/recovery and honest status |
 | `framework/skills/second-brain-query/SKILL.md` | `skills/second-brain-query/SKILL.md` | Index-first evidence retrieval, claim citations, abstention, Read/Not covered, no writes |
 | `scripts/link_check.py` | `scripts/link_check.py` | Replaces basename guessing with exact managed paths; validates narrow metadata, reports ambiguity/unsupported forms/unchecked anchors, read-only stdlib CLI |
 | `scripts/vault_stats.py` | `scripts/vault_stats.py`, `docs/05-graphs/metrics.md`, `skills/second-brain-metrics/SKILL.md`, `skills/second-brain-graph/SKILL.md` | Required stdlib port: content-only scope, canonical unique edges, explicit degrees/denominators, weak components, stale/unknown concepts, JSON/as-of and read-only reporting |

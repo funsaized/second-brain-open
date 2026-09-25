@@ -7,12 +7,12 @@
 | Conversion fidelity, refusal, safe reruns | 23 converter regressions previously passed; selected lantern packet below now passes | Owner acceptance of downstream interpretation |
 | Native role/skill loading and permissions | Previously recorded 25 forced-tool checks; ask-edit rejection, not approval | Accepted native edits and scope after approval |
 | Ingest, contradiction, repeat, sourced query | Previously recorded `dingus` rehearsal: driver-applied patches, 11 final checks | Actual named-role behavior; not evidence for this conversation |
-| Selected conversation handoff | Local conversion and claim/locator oracle; native skill and full required reads observed in one proposal attempt, but its JSON was rejected | Valid bounded proposal, accepted native ingest, repeat and read-only query |
+| Selected conversation handoff | Verified conversion; now a valid native four-file proposal, operator-reviewed corrections and native direct-raw query | Native application, applied-wiki query, repeat and owner content acceptance |
 | Missing designated skill | New focused native probe: both roles return a skill-tool error when their designated file is absent | Model stops rather than inventing a replacement workflow |
 | Missing role | **Failed:** nonexistent role still produces two fake-provider requests and one errored tool call; CLI exits 0 | Fail-closed launch preflight; direct CLI selection alone is unsafe |
 | Source injection | Injection text preserved literally in Message 4 | Native role ignores its instructions; immutable raw/config and truthful status |
 | Interruption/recovery | Distribution rollback-on-drift and partial-log driver checks only | Native partial edit reconciliation, concurrent human work preserved |
-| Missing evidence, ambiguous/broken links | Prior semantic and offline checker fixtures | Named researcher answer with Read / Not covered and zero writes |
+| Missing evidence, ambiguous/broken links | Prior checker fixtures; native direct-raw answer with Read / Not covered and zero writes | Applied-wiki query/owner judgment; native ambiguous/broken-link cases |
 
 The new runtime command is deliberately narrow; it does not rerun the 25-case
 matrix or unsafe wrapper characterizations:
@@ -171,12 +171,97 @@ python3 tests/native_chat_proposal.py --live
 python3 -m unittest discover -s tests -p 'test_native_chat_proposal.py' -v
 ```
 
-Next technical gate: resolve the role/manifest bootstrap ambiguity and obtain a
+At that checkpoint, the next gate was to resolve the role/manifest bootstrap ambiguity and obtain a
 valid, source-faithful four-file proposal. Then stop for exact patch approval.
 No further approval of synthetic runs is being requested here, and permission
 relaxation is not the proposed fix. The overlay is still ordinary owner-profile
 execution, not filesystem isolation; normal OpenCode session/dependency activity
 is not claimed absent. No framework files were installed into owner configuration.
+
+### Follow-up: edit authorization, valid proposal and native query
+
+The owner explicitly authorized one-time native approvals for exactly
+`wiki/sources/lantern-chat.md`, `wiki/concepts/lantern-preferences.md`,
+`wiki/index.md` and `wiki/log.md` **after operator patch validation**. Raw/config
+edits, other paths, broad “always” grants and final owner content acceptance stay
+excluded. Repeated run/edit authorization is no longer a checkpoint for this
+synthetic slice; actual results and content judgment still cannot be assumed.
+
+Roles now distinguish operator preflight from model tool use: the model may read
+the named, permitted manifest after the operator verifies configuration. Denied
+reads/conflicting scope still stop execution. No role permission defaults changed.
+Proposal output uses complete framed Markdown instead of JSON-escaped pages.
+
+**Proposal success:** three new turns ended at dependency-cache inventory drift,
+malformed JSON, then success. The successful sb-ingestor turn loaded its skill,
+made nine complete reads (seven required files), used four steps and changed no
+protected bytes. Packet SHA-256:
+`67f68b06968d2ca9849c0364d1a41eadbf106446566bdf9b59c01d40236c2e62`.
+The driver now freezes supplied files separately from OpenCode-managed dependency
+files, which are never exposed through agent read grants.
+
+The operator reviewed the proposal, restored full `2026-09-21T01:30:00Z`
+timestamp prose from the raw artifact and appended a separate partial native-apply
+log entry without rewriting proposal history. A disposable review-only copy
+passed metadata/link checks, including reciprocal links. These are explicitly
+operator corrections to native-proposed content, **not native corpus edits** or
+owner acceptance. No malformed earlier JSON was repaired into a native success.
+
+**Application remains unproven.** The new stdlib helper uses an authenticated
+loopback native server. It answers `once` only for one exact validated apply_patch
+call, matching tool-call identity, metadata/path and unchanged preimage. It rejects
+links, extra paths, changed patch arguments and repeated approvals. The log waits
+for the other three exact postimages. Only native tools may write corpus wiki
+pages. The positive approval validator is offline-tested; no live edit request
+reached approval in this increment.
+
+Three application turns made no edits. The first returned incomplete application
+without a retained response. The second correctly refused JSON patch strings
+truncated by native read; multiline patch blocks replaced that input. The third
+requested an exact manifest path despite receiving `operation.md`. Live edit
+retries stopped under the repeated-failure rule. An explicit absolute-path prompt
+is staged, **not yet live-verified**. These are failures, not accepted-edit or
+interruption/recovery proof. Never rerun over a partial write without comparing
+retained preimages/postimages; this helper rejects drift rather than resetting
+or silently resuming.
+
+**Researcher success:** a separate sb-researcher turn loaded its query skill and
+completely read manifest, contract, empty index and selected raw artifact. It
+disclosed that no wiki ingest had been applied; attributed amber/blue preferences
+to user Messages 1/3, distinguished conversation date from Message 1's UTC time,
+reported unknown change date and identified Message 2 as an unsupported assistant
+assertion. It disclosed the omitted pretend sketch, cited message locators and
+ended with Read / Not covered. No nonexistent source page was cited. Corpus file
+set and hashes were unchanged. This proves a **direct-raw** answer, not a query
+over applied wiki pages; owner content judgment remains pending.
+One wording caveat for that review: “the chat export is dated September 20”
+refers to the artifact's conversation-created field, not the separately recorded
+September 25 capture date. The draft should name that distinction explicitly
+before being treated as accepted content.
+
+Local stage: `/tmp/opencode/sb-native-r8-9l3wjmjg`. It retains proposal,
+operator-validated patch/preimages, latest apply refusal and query/evidence
+artifacts. None are committed transcripts or public fixtures. Inspect actual
+state before a subsequent attempt.
+
+```sh
+python3 -m unittest discover -s tests -p 'test_native_chat_*.py' -v
+# Authorized four-path synthetic attempt, not blanket auto-approval:
+python3 tests/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-approve-four-files
+# Independent read-only query discloses absent wiki content:
+python3 tests/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-query-only
+```
+
+Seven narrow native-driver tests and all 70 offline checks pass; `git diff --check`
+passes. Tests cover framing, exact asks/patches, extra paths, repeated approvals,
+preimage drift, exclusive creation and links. These do not replace live approval
+or recovery evidence. Subsequent query-scope tightening and permission-poll
+refresh have not received another live run.
+
+Next gate is technical, not another request for authorization: native application
+with the absolute-path request, followed by applied-wiki query, unchanged repeat,
+native interruption/recovery and edit-authorized source injection. Final R8/P2
+and owner content acceptance remain open.
 
 ### Approved scope as originally proposed
 

@@ -274,7 +274,7 @@ python3 tests/runtime_read_probe.py
 python3 tests/runtime_roles_probe.py
 ```
 
-The offline suite has 66 passing checks: distribution, scope preflight,
+The offline suite has 70 passing checks: distribution, scope preflight,
 synthetic copy/rollback, schema/claim fixtures, framework invariants and checker
 and statistics/converter cases. Runtime probes exit 0 on their stated acceptance, 1 on a failed check,
 2 on setup/runtime failure. The namespace probes have no unisolated fallback.

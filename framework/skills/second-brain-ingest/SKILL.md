@@ -14,6 +14,13 @@ privacy-reviews the capture and provider exposure. Never fetch/capture, edit
 instructions. The owner must prepare a frozen corpus without symlinks, linked
 ancestors or hardlinks; tool permissions alone cannot enforce this.
 
+The operator verifies effective configuration before launch. If the operator
+reports successful preflight and names an approved operation manifest, read it
+with the native read tool; you need not independently inspect runtime config.
+Stop on a denied/unavailable manifest or conflicting scope. Its record documents
+existing grants, never grants itself access. Proposal-only work needs reads;
+native edit permissions are requested only after patch authorization.
+
 1. Read the **entire** approved capture and `wiki/index.md` before proposing
    writes. Check completeness, encoding and available locators. If truncated,
    unreadable, or over the context budget, stop for an owner-approved bounded

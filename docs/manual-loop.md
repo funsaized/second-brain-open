@@ -150,14 +150,22 @@ alone to fail closed. Verify the exact primary prompt, skill and effective scope
 grants before live launch; missing/mismatched resources must prevent the call.
 This result is native runtime evidence, not model-level refusal or accepted edits.
 
-The approved native proposal overlay now has a separate opt-in helper,
-`python3 tests/native_chat_proposal.py --live`. Its attempts have **not** produced
-an accepted patch: one fully read candidate failed JSON parsing and review found
-date issues; the last run refused the preflight manifest. See the dated packet for failures and
-the remaining bootstrap diagnosis. Keep `PWD`, process cwd and `run --dir`
+The native proposal helper, `python3 tests/native_chat_proposal.py --live`, now
+produces a valid framed-Markdown proposal. Effective-config inspection belongs to
+the operator, not the model before its initial permitted manifest read.
+Keep `PWD`, process cwd and `run --dir`
 aligned; OpenCode 1.18.32 otherwise may inspect one directory but run in another.
 Never fix that mismatch by widening permissions. Native edits remain denied
-until a valid exact patch reaches owner review.
+until a valid exact patch reaches the applicable approval gate.
+
+For this invented four-file slice only, the owner authorized operator patch
+validation and one-time native edit approvals. `native_chat_handoff.py` checks
+exact patch arguments, tool-call identity, paths and preimages before `once`,
+never `always`. Its live application attempts still made no edits; positive
+approval is only offline-tested. A separate native researcher turn answered from
+the selected raw artifact with no writes, disclosing no applied wiki pages.
+See the dated packet for actual evidence and commands. Owner content acceptance
+was not delegated by the edit authorization.
 
 ### Optional live semantic rehearsal
 
