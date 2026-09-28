@@ -7,12 +7,12 @@
 ## Current delivery status
 
 This summary is the current implementation checklist, reconciled against public
-code and evidence through `415d72b`. The execution history below preserves earlier
+code and evidence through the 2026-09-28 review-backlog slice. The execution history below preserves earlier
 results and failures; its old test counts and "next step" statements are not the
 current backlog. The phase specifications and runbooks describe requirements and
 repeatable procedures, not a list of features that are all still unimplemented.
 
-**Verification baseline:** 83 offline tests pass with
+**Verification baseline:** 93 offline tests pass with
 `python3 -m unittest discover -s tests`. Live native probes are opt-in and are not
 part of that count. Static fixtures, driver-applied model proposals, native tool
 edits, and owner content acceptance are different evidence classes.
@@ -22,8 +22,8 @@ edits, and owner content acceptance are different evidence classes.
 | Phase / runbook | Delivery status | Evidence and limits |
 |---|---|---|
 | **P0 / R0** — provenance and distribution | Delivered | `LICENSE`, `THIRD_PARTY_NOTICES.md`, inert config example, [installation manifest](docs/installation.md#file-manifest), scope/distribution tests. Per-file installation remains an approved operator action, not a sync service. |
-| **P1 / R2** — page and project contracts | Delivered | Contract, seven templates, populated synthetic fixtures and `tests/test_contract.py`. `415d72b` adds flexible learning/reference content and proposal coverage review; no new metadata types or permissions. |
-| **P2 / R1A–B, R3–R4** — ingest/query core | Delivered, with evidence limits | Two roles, two skills, `scripts/link_check.py`, manual invocation runbook and opt-in native drivers. Native ingest/query/repeat/recovery/injection cases are documented; see the evidence table below rather than assuming every planned variant passed natively. |
+| **P1 / R2** — page and project contracts | Delivered | Contract, seven templates, populated synthetic fixtures and `tests/test_contract.py`. `415d72b` adds flexible learning/reference content and proposal coverage review; the review-backlog slice adds owner acceptance levels (`technical`/`sampled`/`full`). No new metadata types or permissions. |
+| **P2 / R1A–B, R3–R4** — ingest/query core | Delivered, with evidence limits | Two roles, two skills, `scripts/link_check.py` (including placeholder, index-coverage and reciprocity checks), manual invocation runbook, opt-in native drivers and the opt-in researcher evaluation. Native ingest/query/repeat/recovery/injection cases are documented; see the evidence table below rather than assuming every planned variant passed natively. |
 | **P2A / R7** — vault statistics | Delivered | `scripts/vault_stats.py`, deterministic synthetic tests and `docs/vault-stats.md`; read-only human/JSON output, fixed `--as-of`, defined denominators. Running a real-corpus report is an owner-local operation. |
 | **P2B / R8** — selected chat-export conversion | Delivered | `scripts/chat_export_to_md.py`, supported export/branch tests and `docs/chat-exports.md`. Selected synthetic handoff has native evidence; real-export privacy review and content acceptance remain local decisions. |
 | **R6B–C** — reporting and restore rehearsal | Public tools/rehearsal delivered | Checker/statistics plus `tests/test_r6_backup_restore.py` and `docs/backup-restore.md`. The six restore tests prove the invented rehearsal, not an operational private backup or a production backup CLI. |
@@ -59,12 +59,15 @@ edits, and owner content acceptance are different evidence classes.
    implementation is claimed. These are optional projects, not a setup backlog
    that must all be completed. Scheduling, publication and private Git adoption
    also require separate decisions; none is a default automation requirement.
+6. **Review backlog.** [BACKLOG.md](BACKLOG.md) holds the 2026-09-28 review's
+   prioritized proposals and records which were closed, implemented or deferred.
 
 ### Evidence map
 
 | Evidence class | What is established | Where to inspect |
 |---|---|---|
-| Offline distribution suite | 83 passing static/CLI/guard tests; includes the new structured source-template case | `tests/`, current verification baseline above |
+| Offline distribution suite | 93 passing static/CLI/guard tests; includes checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
+| Live researcher evaluation | Scored native `sb-researcher` answers on a staged wiki copy (OpenCode 1.18.33); the synthetic fixture passed 3/3 | `docs/researcher-evaluation.md`; private-wiki results stay local |
 | Isolated native runtime probes | Documented version-specific loading/read/refusal behavior; fake-provider cases are not semantic ingest proof | `tests/runtime_read_probe.py`, `tests/runtime_roles_probe.py`, historical execution record below |
 | Live, driver-applied semantic rehearsal | Two-source proposals, contradiction retention, repeat and sourced answering; driver applied the pages | `docs/manual-loop.md`, `docs/synthetic-acceptance.md` |
 | Live native named-role trials | Actual approved edits, applied-wiki and raw-source queries, no-op repeat, bounded injection assessment, interruption/operator-mediated recovery and log append | `docs/native-acceptance-trials.md`, `docs/synthetic-acceptance.md` |
@@ -416,7 +419,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-Current result: **83 tests pass**. The structured source-template test is static
+Current result: **93 tests pass**. The structured source-template test is static
 compatibility evidence, not proof of model editorial quality. Historical counts
 in the execution record and dated evidence reports describe their own checkpoints.
 
@@ -1083,3 +1086,27 @@ provider calls, private fixtures, runtime configuration or vault writes are need
 Verification: all 83 offline tests pass. The documented tutorial commands produce
 the expected results and preserve all fixture bytes and paths. Local documentation
 links and referenced headings were checked. No native/model trials were rerun.
+
+## 2026-09-28 — Review backlog: checker contract checks, acceptance, evaluation
+
+Owner direction closed backlog items F1 (re-verify on OpenCode 1.18.33) and F2
+(deployment recovery point) without further checks; native evidence stays dated
+to 1.18.32 unless a run names another version.
+
+- **C1:** `scripts/link_check.py` reports `placeholder`, `not_indexed` and
+  `not_reciprocal` errors, which the contract already required but only the
+  fixture tests checked. The contract fixture stays clean.
+- **A3:** the contract, log template and ingest skill define `technical`,
+  `sampled` and `full` owner acceptance. `completed` requires `sampled` or
+  `full`, recorded as a new log record.
+- **A2:** `tests/researcher_eval.py` stages a wiki copy without vault
+  instructions, verifies exact read grants, asks each question in its own native
+  run and scores index-first reads, cited-and-read pages, expected pages/terms,
+  sections, abstention and zero writes. `docs/researcher-evaluation.md` explains
+  it. A live run on the invented fixture passed 3/3 on OpenCode 1.18.33 through
+  the previously approved route.
+- **C2:** the fix is to bring a deployment's control pages up to the contract,
+  not a legacy exception in the checker. Deployment edits are owner-local.
+
+Verification: 93 offline tests pass; `git diff --check` passes. The helper
+changes keep the earlier drivers' defaults (OpenCode 1.18.32, six steps).

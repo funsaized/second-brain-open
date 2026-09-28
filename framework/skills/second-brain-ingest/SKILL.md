@@ -62,7 +62,8 @@ native edit permissions are requested only after patch authorization.
    dated record to `wiki/log.md` with source identity, actual changed paths,
    contradictions/gaps, checks actually performed and `partial` or `completed`
    status. Keep the log header dates fixed; never alter past records. Do not
-   claim completion before owner review and read-only checks. If interrupted,
+   claim completion before read-only checks pass and the owner records
+   `sampled` or `full` acceptance (contract: Owner acceptance). If interrupted,
    report actual vs remaining writes as partial (append a partial record only
    if permitted); owner compares manifest, backup, preimage hashes, pages,
    index and log before any retry. Preserve concurrent work; never broad-reset,

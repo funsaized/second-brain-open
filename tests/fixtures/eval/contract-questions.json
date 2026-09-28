@@ -1,0 +1,22 @@
+{
+  "questions": [
+    {
+      "id": "trial-a-times",
+      "question": "What cooking times did Trial A record for the open and closed vent settings?",
+      "expect": "answer",
+      "expected_pages": ["wiki/sources/trial-a.md"],
+      "expected_terms": ["18", "24"]
+    },
+    {
+      "id": "vent-disagreement",
+      "question": "Do the two trials agree on which vent setting to use, and does the wiki settle it?",
+      "expect": "answer",
+      "expected_pages": ["wiki/sources/trial-a.md", "wiki/sources/trial-b.md"]
+    },
+    {
+      "id": "trial-b-published",
+      "question": "On what date was the Trial B record published?",
+      "expect": "abstain"
+    }
+  ]
+}

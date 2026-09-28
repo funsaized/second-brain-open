@@ -33,7 +33,7 @@ def decoded(text, stage):
         ) from None
 
 
-def prepare_environment(agent_name, approved_model):
+def prepare_environment(agent_name, approved_model, opencode_version="1.18.32"):
     provider, separator, model_id = approved_model.partition("/")
     if not separator or not provider or not model_id or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", agent_name):
         raise RuntimeError("Supply an approved primary agent and provider/model")
@@ -51,7 +51,7 @@ def prepare_environment(agent_name, approved_model):
     if not hasattr(os, "memfd_create"):
         raise RuntimeError("This opt-in diagnostic requires Linux memory-backed inspection")
     version = subprocess.run(["opencode", "--version"], env=env, capture_output=True, text=True, timeout=10)
-    if version.returncode or version.stdout.strip() != "1.18.32":
+    if version.returncode or version.stdout.strip() != opencode_version:
         raise RuntimeError("Review this live profile before using a different OpenCode release")
     # Keep the same environment for inspection and inference. The owner's native
     # authentication plugins remain available; --pure disables external plugins.

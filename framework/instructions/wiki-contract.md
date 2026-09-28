@@ -111,7 +111,7 @@ These are body/proposal rules, not additional page types or metadata fields.
 - Use exact vault-relative extensionless targets, optionally with display labels:
   `[[wiki/concepts/vent-choice|Vent choice]]`. Link the first meaningful mention.
   Source ↔ concept/entity links must be reciprocal where the relationship exists.
-- Fragment suffixes may name headings/blocks; the planned checker strips them
+- Fragment suffixes may name headings/blocks; the managed checker strips them
   only for file existence and reports anchor validity as **unchecked**. Bare
   basenames, alias-only targets and embeds are unsupported by the managed
   checker until adopted explicitly. Frontmatter/fenced examples are not edges.
@@ -121,7 +121,8 @@ These are body/proposal rules, not additional page types or metadata fields.
 - In the same operation as content changes, update the index and append a dated
   log record: source identity, actual changed paths, contradictions/gaps,
   verification and `partial` or `completed` status. Do not log success before
-  verification. If checks happen after a partial entry, append completion later.
+  verification. If checks or owner acceptance happen after a partial entry,
+  append a later record (see Owner acceptance).
 - Resolve or remove every template placeholder before acceptance. Templates are
   plain text; no Templater or Dataview installation is assumed.
 
@@ -131,14 +132,31 @@ These are body/proposal rules, not additional page types or metadata fields.
    exact changed paths, reciprocal links, contradictions and gaps.
 2. After approval and backup, check preimage hashes. On drift, preserve human
    changes and stop for reconciliation. Apply only the bounded patch.
-3. Owner checks the diff, evidence/locators, raw hashes, index and appended log.
-   Mechanical link checks do not prove factual support or completed ingestion.
+3. Owner checks the diff, evidence/locators, raw hashes, index and appended log,
+   then records acceptance. Mechanical checks do not prove factual support.
 4. Repeating an unchanged input must not duplicate pages/claims; a meaningful
    revision retains the old provenance. Reconcile interrupted work against the
    approved manifest and backup; never broad-reset or trust a log entry alone.
 5. The researcher reads index → pages → evidence, cites claims and ends with
    **Read** and **Not covered**. No hidden model-memory/web fallback; no writes,
    even to the log. Saving an answer is a separate approved operation.
+
+## Owner acceptance
+
+An operation stays `partial` until the read-only checker passes and the owner
+records acceptance at one of these levels:
+
+| Level | What the owner did | Allows `completed` |
+|---|---|---|
+| `technical` | Confirmed the checker passes and the raw/preimage hashes match | No |
+| `sampled` | Read a sample of changed pages, including every page recording a contradiction, and found no blocking defect | Yes |
+| `full` | Reviewed every changed page | Yes |
+
+`sampled` suits learning and reference sources. Use `full` where a wrong claim
+is costly. Record acceptance as a new log record naming the accepted
+operations, the level, the pages sampled (or that the sample was not itemized)
+and any defects. Do not edit the original record. A defect found later gets a
+correction record.
 
 ## Project handoff
 

@@ -53,7 +53,8 @@ def apply_proposal(root, proposal, expected):
         path.write_text(body)
     report = link_check.check(root)
     if report["errors"] or report["unsupported"] or report["unchecked"]:
-        raise RuntimeError("Generated wiki failed managed metadata/link validation")
+        kinds = sorted({d["kind"] for key in ("errors", "unsupported", "unchecked") for d in report[key]})
+        raise RuntimeError("Generated wiki failed managed metadata/link validation: " + ", ".join(kinds))
     pages, _ = link_check.collect(root)
     source = next(name for name in expected if name.startswith("wiki/sources/"))
     edges = set(map(tuple, report["links"]))

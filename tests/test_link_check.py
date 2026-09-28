@@ -205,6 +205,45 @@ class LinkCheckTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "protected entry"):
                 link_check.collect(root)
 
+    def test_placeholder_residue_outside_code_and_in_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            page(root, "wiki/concepts/a.md", "{{SUMMARY}}\n<!-- {{NOTE}} -->\n"
+                 "```text\n{{EXAMPLE}}\n```\n`{{inline}}` and {not} {{\n", title="{{TITLE}}")
+            report = link_check.check(root)
+            found = [(d["kind"], d["target"], d.get("detail")) for d in report["errors"]]
+            self.assertEqual(found, [("placeholder", "", "template placeholder in title"),
+                                     ("placeholder", "{{SUMMARY}}", None),
+                                     ("placeholder", "{{NOTE}}", None)])
+
+    def test_index_coverage_only_when_index_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            page(root, "wiki/concepts/listed.md")
+            page(root, "wiki/concepts/unlisted.md")
+            self.assertEqual(link_check.check(root)["errors"], [])
+            page(root, "wiki/index.md", "[[wiki/concepts/listed|Listed]] [[wiki/log]]\n")
+            page(root, "wiki/log.md")
+            errors = link_check.check(root)["errors"]
+            self.assertEqual([(d["page"], d["kind"]) for d in errors],
+                             [("wiki/concepts/unlisted.md", "not_indexed")])
+
+    def test_source_concept_entity_links_are_reciprocal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            page(root, "wiki/sources/s.md", "[[wiki/concepts/c]] [[wiki/entities/e]] [[wiki/sources/t]]\n")
+            page(root, "wiki/sources/t.md")
+            page(root, "wiki/concepts/c.md", "[[wiki/sources/s]]\n")
+            page(root, "wiki/entities/e.md")
+            page(root, "wiki/concepts/d.md", "[[wiki/sources/t]]\n")
+            page(root, "wiki/synthesis/y.md", "[[wiki/sources/t]]\n")
+            report = link_check.check(root)
+            self.assertEqual([(d["page"], d["kind"], d["target"]) for d in report["errors"]],
+                             [("wiki/entities/e.md", "not_reciprocal", "wiki/sources/s.md"),
+                              ("wiki/sources/t.md", "not_reciprocal", "wiki/concepts/d.md")])
+            result = subprocess.run([sys.executable, str(CLI), str(root)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+
     def test_log_header_date_exception(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

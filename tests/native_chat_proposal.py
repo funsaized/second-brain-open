@@ -59,11 +59,12 @@ def debug(env, cwd, *args):
         return decoded(output.read().decode(), "native inspection")
 
 
-def verify_agent(agent, role, prompt, allowed, edits=()):
+def verify_agent(agent, role, prompt, allowed, edits=(), model=MODEL, steps=6):
+    provider, _, model_id = model.partition("/")
     if (agent.get("name") != role or agent.get("mode") != "primary"
             or agent.get("prompt", "").strip() != prompt
-            or agent.get("model") != {"providerID": "openai", "modelID": "gpt-6-luna"}
-            or agent.get("steps") != 6):
+            or agent.get("model") != {"providerID": provider, "modelID": model_id}
+            or agent.get("steps") != steps):
         raise RuntimeError("Selected native role/prompt/route/steps mismatch")
     rules = agent.get("permission")
     if not isinstance(rules, list) or not rules:

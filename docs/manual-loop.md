@@ -121,7 +121,10 @@ its own exact-patch validation and `once` reply.
 
 Update source/concept/entity pages and reciprocal links, update the index in
 the same operation, and append truthful log status. The log header stays fixed.
-Until the owner reviews the changed set and checks, the operation is partial.
+The operation stays partial until the checker passes and the owner records
+acceptance in a new log record: `sampled` (a sample that includes every page
+recording a contradiction) or `full`. See
+[Owner acceptance](../framework/instructions/wiki-contract.md#owner-acceptance).
 Repeating unchanged input must not duplicate pages/claims. On interruption or
 preimage drift, preserve human work, reconcile only approved paths against the
 backup, and append a correction/completion record. Never broad-reset.
@@ -152,6 +155,11 @@ scope only locally; paths/titles in its report may be private.
   edges. Controls are still checked, but are not counted as knowledge pages.
 - Reports missing/malformed/ambiguous targets, and unsupported embeds, bare
   basenames, aliases or out-of-scope forms. It does not guess a unique basename.
+- Reports contract errors: `placeholder` for leftover `{{...}}` text in metadata
+  or in the body outside code (HTML comments included); `not_indexed` for a
+  content page that `wiki/index.md` does not link, when the index exists; and
+  `not_reciprocal` for a source ↔ concept/entity link without its back-link,
+  reported on the page that lacks it.
 - Strips fragments only to check the file; heading/block validity is **unchecked**.
   A zero exit with unchecked anchors is not proof that those anchors exist.
 - Excludes leading frontmatter, ordinary fenced code and simple inline-code
@@ -161,9 +169,11 @@ scope only locally; paths/titles in its report may be private.
 - Exit 0: no error/unsupported form (review unchecked items separately).
   Exit 1: errors or unsupported forms. Exit 2: invalid/unsafe scope or read failure.
 
-The checker does not establish factual support, index completeness, reciprocal
-meaning or transaction completion. Review those separately. Query role writes
+The checker does not establish factual support, whether a link's meaning is
+right, or transaction completion. Review those separately. Query role writes
 zero files, including the log; persisting an answer is another approved operation.
+To measure answer quality on your own wiki, see
+[Evaluate the researcher](researcher-evaluation.md).
 
 ## Remaining proof and installation gates
 

@@ -18,7 +18,8 @@ an unattended capture or publishing service.
 | Turn a source into knowledge | Complete-source reading, full Markdown proposals, useful source/concept/entity/synthesis pages, provenance and coverage review. | [Ingest and query](docs/manual-loop.md) |
 | Ask a question of the wiki | A read-only researcher follows approved pages and evidence, cites supporting passages and names coverage gaps. | [Sourced-query operation](docs/manual-loop.md#2-invoke-the-role-directly-not-a-slash-wrapper) |
 | Bring in selected chat history | Local conversion of supported Claude, simple-message and ChatGPT branch exports, with versioned files and omission reporting. No model calls during conversion. | [Convert and review exports](docs/chat-exports.md) |
-| Check a managed wiki | Read-only metadata and canonical-link validation, with explicit errors and unsupported/unchecked cases. | [Checker reference](docs/manual-loop.md#checker-contract) |
+| Check a managed wiki | Read-only metadata and canonical-link validation, plus leftover template placeholders, pages missing from the index and one-way source links. Explicit errors and unsupported/unchecked cases. | [Checker reference](docs/manual-loop.md#checker-contract) |
+| Measure answer quality | Opt-in live evaluation of the researcher on a staged copy of your wiki: index-first reads, citations it actually read, expected pages and abstention. | [Evaluate the researcher](docs/researcher-evaluation.md) |
 | Understand the wiki's structure | Reproducible page/link counts, components, orphans, stale concepts and date diagnostics. No automatic repairs. | [Calculate statistics](docs/vault-stats.md) |
 
 Ingestion maintains the index and append-only log alongside approved page changes.
@@ -55,11 +56,13 @@ Choose the reader job, rather than working through development phases.
 - [Run an approved ingest and read-only query](docs/manual-loop.md).
 - [Convert chat exports, review them and select a conversation](docs/chat-exports.md).
 - [Calculate managed-wiki statistics](docs/vault-stats.md).
+- [Evaluate the researcher's answers on your wiki](docs/researcher-evaluation.md).
 
 ### Look up the contract
 
 - [Wiki types, metadata, evidence and links](framework/instructions/wiki-contract.md).
 - [Content-preservation rules](framework/instructions/wiki-contract.md#content-preservation).
+- [Owner acceptance levels](framework/instructions/wiki-contract.md#owner-acceptance).
 - [Seven page and project templates](framework/templates/).
 - [Distribution file manifest](docs/installation.md#file-manifest).
 - [Checker syntax, exit codes and limits](docs/manual-loop.md#checker-contract).
@@ -98,13 +101,14 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-The offline suite currently has **83 passing tests**. It uses synthetic fixtures
+The offline suite currently has **93 passing tests**. It uses synthetic fixtures
 and does not make model calls. Live native trials require separate opt-in setup
 and approvals; they are not part of this command.
 
 For implementation status and evidence, rather than user instructions, see:
 
 - [Current delivery status and remaining work](PLAN.md#current-delivery-status).
+- [Review backlog of proposals](BACKLOG.md).
 - [Native synthetic trial results, failures and waivers](docs/native-acceptance-trials.md).
 - [Selected-conversation acceptance packet](docs/synthetic-acceptance.md).
 - [Synthetic backup and restore rehearsal](docs/backup-restore.md).

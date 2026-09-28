@@ -15,19 +15,19 @@ licenses; neither project's MIT license grants rights to that content.
 | `docs/installation.md` | `vault-template/README.md`, root `README.md`; the earlier downstream README | Separates the approved file manifest, setup, upgrade and recovery procedure from the overview; no automatic installer |
 | `docs/how-it-works.md` | `vault-template/CLAUDE.md`, `vault-template/projects/README.md`, knowledge templates via the ported contract | Explains evidence, knowledge types, projects and review boundaries without changing runtime permissions |
 | `THIRD_PARTY_NOTICES.md` | `LICENSE` | Complete notice reproduced below, without adding a holder |
-| `framework/instructions/wiki-contract.md` | `vault-template/CLAUDE.md`, `vault-template/projects/README.md`, and the four knowledge templates below | Reconciles schema, claim locators, unknown provenance, canonical paths, control types, isolated input scope and approved project promotion; adds purpose-sensitive content preservation and proposal coverage review |
+| `framework/instructions/wiki-contract.md` | `vault-template/CLAUDE.md`, `vault-template/projects/README.md`, and the four knowledge templates below | Reconciles schema, claim locators, unknown provenance, canonical paths, control types, isolated input scope and approved project promotion; adds purpose-sensitive content preservation, proposal coverage review and owner acceptance levels |
 | `framework/templates/source.md` | `vault-template/templates/source.md` | Adds capture/archive fields and per-claim locators; unknown values explicit; flexible learning/reference body without a fixed claim count or forced concept link |
 | `framework/templates/concept.md` | `vault-template/templates/concept.md` | Preserves support/opposition/questions; canonical source links and locators |
 | `framework/templates/entity.md` | `vault-template/templates/entity.md` | Documents kind and source-backed identity/mentions |
 | `framework/templates/synthesis.md` | `vault-template/templates/synthesis.md` | Separates source claims, author views and inference; preserves disagreement |
 | `framework/templates/index.md` | `vault-template/wiki/index.md` | Common metadata and explicit control type; actual pages only, plain-text gaps |
-| `framework/templates/log.md` | `vault-template/wiki/log.md` | Append-only dated records with changed paths, verification and partial/completed status; immutable header dates |
+| `framework/templates/log.md` | `vault-template/wiki/log.md` | Append-only dated records with changed paths, verification and partial/completed status; immutable header dates; separate owner-acceptance records |
 | `framework/templates/project.md` | `vault-template/projects/example-project/CLAUDE.md`, `vault-template/projects/README.md` | Lightweight owner-maintained brief; optional artifact folders and explicit reviewed promotion; no wiki type |
 | `framework/agents/sb-ingestor.md` | `agents/ingestor.md` | Native primary role and designated skill; operator-preflight/manifest bootstrap; deny-default until exact local grants, approved per-edit requests |
 | `framework/agents/sb-researcher.md` | `agents/researcher.md` | Native primary read-only role, operator-preflight/manifest bootstrap, scoped evidence reads and no delegated/network fallback |
-| `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read/proposal/approval flow, operator preflight distinguished from model access, source locators, raw immutability, repeat/recovery and honest status; full-Markdown proposals and retained/summarized/omitted coverage review |
+| `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read/proposal/approval flow, operator preflight distinguished from model access, source locators, raw immutability, repeat/recovery and honest status; full-Markdown proposals and retained/summarized/omitted coverage review; completion only after recorded owner acceptance |
 | `framework/skills/second-brain-query/SKILL.md` | `skills/second-brain-query/SKILL.md` | Index-first evidence retrieval, claim citations, abstention, Read/Not covered, no writes |
-| `scripts/link_check.py` | `scripts/link_check.py` | Replaces basename guessing with exact managed paths; validates narrow metadata, reports ambiguity/unsupported forms/unchecked anchors, read-only stdlib CLI |
+| `scripts/link_check.py` | `scripts/link_check.py` | Replaces basename guessing with exact managed paths; validates narrow metadata, reports ambiguity/unsupported forms/unchecked anchors, leftover template placeholders, index coverage and source/concept/entity reciprocity; read-only stdlib CLI |
 | `scripts/vault_stats.py` | `scripts/vault_stats.py`, `docs/05-graphs/metrics.md`, `skills/second-brain-metrics/SKILL.md`, `skills/second-brain-graph/SKILL.md` | Required stdlib port: content-only scope, canonical unique edges, explicit degrees/denominators, weak components, stale/unknown concepts, JSON/as-of and read-only reporting |
 | `scripts/chat_export_to_md.py` | `scripts/chat_export_to_md.py` | Required stdlib port: explicit selection/dry-run, Claude/simple and ChatGPT active ancestry, preserved roles/text/UTC dates, quoted metadata, omissions, digest versions and no-overwrite descriptor-based writes |
 | `docs/chat-exports.md` | `docs/03-ingestion/chat-exports.md`, `skills/second-brain-chat-import/SKILL.md`, `commands/ingest-chats.md` | Replaces direct-to-raw bulk conversion/agent triage with local staging, privacy approval and selected R3/R4 handoff; assistant assertions remain attributed; no wrapper port |
@@ -51,7 +51,9 @@ runtime checks and native proposal/handoff/recovery trial drivers are original d
 not new upstream ports. The acceptance packet links pinned OpenCode implementation
 evidence for runtime-specific behavior; no OpenCode source is copied into the driver.
 The R6 filesystem rehearsal and invented binary asset are original downstream
-verification; no upstream backup implementation is copied.
+verification; no upstream backup implementation is copied. The researcher
+evaluation harness, its guide and invented question file are original
+downstream verification.
 
 ## Upstream MIT notice (verbatim)
 

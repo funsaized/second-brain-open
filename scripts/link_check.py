@@ -4,6 +4,8 @@
 collect(vault) returns canonical-path -> {metadata, body}, metadata diagnostics.
 resolve_links(pages) returns unique directed node edges, link diagnostics.
 The two functions can also be used by read-only statistics consumers.
+contract_checks() adds placeholder residue, index coverage and source <->
+concept/entity reciprocity; check() reports all of them as errors.
 Run locally as the owner on an approved, frozen corpus. Path checks do not lock
 against concurrent replacement. Raw references are format-checked, never opened.
 Unclosed fenced code suppresses the remaining body; anchors are not verified.
@@ -30,6 +32,8 @@ TOKEN = re.compile(r"!?\[\[.*?\]\]|!?\[\[.*$|\]\]")
 FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 INLINE = re.compile(r"(`+)(?!`)[^`\n]*?\1(?!`)")
 ISO = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
+PLACEHOLDER = re.compile(r"\{\{[^{}\n]*\}\}")
+RECIPROCAL = {("source", "concept"), ("source", "entity"), ("concept", "source"), ("entity", "source")}
 
 
 def diagnostic(page, kind, target="", **details):
@@ -200,7 +204,13 @@ def body_lines(body):
 
 def resolve_links(pages, *, include_controls=True):
     """Resolve canonical links; statistics report control references as excluded."""
-    edges, issues = set(), []
+    edges, issues, _ = _resolve(pages, include_controls)
+    return edges, issues
+
+
+def _resolve(pages, include_controls):
+    """Also return control -> content references, which are not graph edges."""
+    edges, issues, references = set(), [], set()
     stems = {}
     for key in pages:
         if key.startswith("wiki/") and key not in CONTROLS:
@@ -252,13 +262,44 @@ def resolve_links(pages, *, include_controls=True):
                     issues.append(diagnostic(page, "missing", token, **detail))
                 elif page != dest and page not in CONTROLS and dest not in CONTROLS:
                     edges.add((page, dest))
-    return edges, issues
+                elif page in CONTROLS and dest not in CONTROLS:
+                    references.add((page, dest))
+    return edges, issues, references
+
+
+def page_type(path):
+    """Folder-derived content type; declared types are validated by metadata()."""
+    parts = path.split("/")
+    return FOLDERS.get(parts[1]) if len(parts) > 2 and parts[0] == "wiki" else None
+
+
+def contract_checks(pages, edges, references):
+    """Report contract rules a mechanical scan can decide; never repairs pages."""
+    issues = []
+    for page, content in pages.items():
+        for key, value in content["metadata"].items():
+            values = value if isinstance(value, list) else [value]
+            if any(isinstance(item, str) and PLACEHOLDER.search(item) for item in values):
+                issues.append(diagnostic(page, "placeholder", detail=f"template placeholder in {key}"))
+        for line, text in body_lines(content["body"]):
+            for match in PLACEHOLDER.finditer(text):
+                issues.append(diagnostic(page, "placeholder", match.group(), line=line))
+    if "wiki/index.md" in pages:
+        indexed = {dest for source, dest in references if source == "wiki/index.md"}
+        for page in pages:
+            if page not in CONTROLS and page not in indexed:
+                issues.append(diagnostic(page, "not_indexed", "wiki/index.md"))
+    for source, dest in sorted(edges):
+        if (page_type(source), page_type(dest)) in RECIPROCAL and (dest, source) not in edges:
+            issues.append(diagnostic(dest, "not_reciprocal", source))
+    return sorted(issues, key=lambda d: (d["page"], d.get("line", 0), d["kind"], d["target"]))
 
 
 def check(vault):
     pages, metadata_issues = collect(vault)
-    edges, issues = resolve_links(pages)
+    edges, issues, references = _resolve(pages, True)
     errors = metadata_issues + [d for d in issues if d["kind"] in ("missing", "malformed", "ambiguous")]
+    errors += contract_checks(pages, edges, references)
     unsupported = [d for d in issues if d["kind"] in ("embed", "bare_or_alias", "unsupported_target")]
     return {"pages": len(pages) - sum(p in pages for p in ("wiki/index.md", "wiki/log.md")),
             "controls": [p for p in ("wiki/index.md", "wiki/log.md") if p in pages],

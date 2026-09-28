@@ -76,9 +76,12 @@ The researcher has a different job. It reads approved pages and evidence, then
 answers with citations and coverage limits. It writes no files, including the
 log. Saving an answer requires a separate approved operation.
 
-Mechanical checks catch metadata and link problems. Editorial review asks
-whether the note is faithful, sufficiently detailed and useful. A passing test
-does not establish every claim's truth or grant permission to publish.
+Mechanical checks catch metadata and link problems, leftover template
+placeholders, pages missing from the index and one-way source links. Editorial
+review asks whether the note is faithful, sufficiently detailed and useful. The
+owner records that review as `sampled` or `full` acceptance; only then is the
+operation completed. A passing test does not establish every claim's truth or
+grant permission to publish.
 
 This is a complete manual source-to-wiki-to-answer workflow, not an unattended
 capture service. Additional automation is a choice driven by use, not a missing
