@@ -18,20 +18,17 @@ Run: python3 tests/researcher_eval.py --live --vault VAULT --questions FILE \\
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
-import signal
 import subprocess
 import sys
 import tempfile
-import time
 
-from runtime_read_probe import validate_scope
-from semantic_probe import ROOT, decoded
-
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from scripts import link_check
+from scripts import link_check  # noqa: E402
+from scripts.sb_runtime import (  # noqa: E402
+    answer_text, configure_worker, relative_read, run_role, tool_calls, validate_scope)
 
 
 ROLE, SKILL = "sb-researcher", "second-brain-query"
@@ -135,21 +132,9 @@ def extract_citations(text):
     return sorted({path if path.endswith(".md") else path + ".md" for path in found})
 
 
-def relative_read(corpus, file_path):
-    path = Path(file_path)
-    if path.is_absolute():
-        try:
-            return path.relative_to(corpus).as_posix()
-        except ValueError:
-            return None
-    return path.as_posix()
-
-
 def score(question, events, corpus, before, after, returncode=0):
     """Deterministic checks for one answer; returns checks, metrics and answer."""
-    calls = [e["part"] for e in events if isinstance(e.get("part"), dict) and e["part"].get("tool")]
-    text = "\n".join(e["part"].get("text", "") for e in events
-                     if e.get("type") == "text" and isinstance(e.get("part"), dict)).strip()
+    calls, text = tool_calls(events), answer_text(events)
     reads = []
     for call in calls:
         state = call.get("state", {})
@@ -202,41 +187,6 @@ def summarize(results):
             "seconds_total": round(sum(r["metrics"].get("seconds", 0) for r in results), 1)}
 
 
-def configure(corpus, profile, reads, agent, model, version, steps):
-    """Temporary overlay: exact read grants for the researcher, everything else denied."""
-    from native_chat_proposal import debug, verify_agent
-    from semantic_probe import prepare_environment
-
-    env = prepare_environment(agent, model, version)
-    env.update(PWD=str(corpus), OPENCODE_CONFIG_DIR=str(profile))
-    config = json.loads(env["OPENCODE_CONFIG_CONTENT"])
-    config["compaction"] = {"auto": False}
-    skill_dir = str(profile / f"skills/{SKILL}/*")
-    config["agent"][ROLE] = {"model": model, "steps": steps, "permission": {
-        "*": "deny", "read": {"*": "deny", **{p: "allow" for p in reads}}, "edit": "deny",
-        "question": "deny", "skill": {"*": "deny", SKILL: "allow"},
-        "external_directory": {"*": "deny", skill_dir: "allow"}}}
-    env["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
-    effective = debug(env, corpus, "config")
-    if not any(p.get("worktree") == str(corpus) for p in debug(env, corpus, "scrap")):
-        raise RuntimeError("Native worktree does not match the staged corpus")
-    provider = model.partition("/")[0]
-    if (effective.get("model") != model or effective.get("small_model") != model
-            or effective.get("instructions") or effective.get("enabled_providers") != [provider]
-            or effective.get("skills", {}).get("paths") or effective.get("skills", {}).get("urls")
-            or any(m.get("enabled") is not False for m in effective.get("mcp", {}).values())):
-        raise RuntimeError("Unreviewed evaluation profile")
-    output_gate = ("external_directory", str(Path(env.get("XDG_DATA_HOME", str(Path.home() / ".local/share")))
-                                              / "opencode/tool-output/*"))
-    body = (profile / f"agents/{ROLE}.md").read_text().split("---", 2)[2].strip()
-    allowed = {("read", p) for p in reads} | {("skill", SKILL), ("external_directory", skill_dir), output_gate}
-    verify_agent(debug(env, corpus, "agent", ROLE), ROLE, body, allowed, model=model, steps=steps)
-    skills = [s for s in debug(env, corpus, "skill") if s.get("name") == SKILL]
-    if len(skills) != 1 or Path(skills[0].get("location", "")) != profile / f"skills/{SKILL}/SKILL.md":
-        raise RuntimeError("Designated query skill is missing or shadowed")
-    return env
-
-
 def prompt_for(question, corpus, include_raw):
     raw = ("Approved raw captures are staged under raw/." if include_raw else
            "Raw captures are not staged for this evaluation; rely on the wiki's recorded locators and "
@@ -251,25 +201,6 @@ def prompt_for(question, corpus, include_raw):
         "wiki/sources/name.md beside each claim, with section locators. If the wiki does not answer, say so. "
         "End with a line starting 'Read:' and a line starting 'Not covered:'. Do not write files."
     )
-
-
-def ask(env, corpus, prompt, timeout):
-    if "@" in prompt or re.search(r"!\s*`", prompt):
-        raise RuntimeError("Refusing native preprocessing tokens in model input")
-    started = time.monotonic()
-    with os.fdopen(os.memfd_create("sb-researcher-eval", os.MFD_CLOEXEC), "w+b") as output:
-        with subprocess.Popen(["opencode", "run", "--pure", "--dir", str(corpus), "--agent", ROLE,
-                               "--format", "json", prompt], cwd=corpus, env=env, stdin=subprocess.DEVNULL,
-                              stdout=output, stderr=subprocess.DEVNULL, start_new_session=True) as process:
-            try:
-                process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-        output.seek(0)
-        events = [decoded(line, "native event") for line in output.read().decode().splitlines()
-                  if line.startswith("{")]
-    return events, process.returncode, round(time.monotonic() - started, 1)
 
 
 def main():
@@ -299,11 +230,13 @@ def main():
             "approved_reads": f"{len(reads)} staged files: wiki pages, {CONTRACT}, this manifest"
                               + (", raw captures" if args.include_raw else ""),
             "limitation": "owner auth/session context; staged copy, not filesystem isolation"}, indent=2) + "\n```\n")
-    env = configure(corpus, profile, reads, args.agent, args.model, args.opencode_version, args.steps)
+    env = configure_worker(corpus, profile, ROLE, SKILL, reads, args.agent, args.model,
+                           args.opencode_version, args.steps)
     results = []
     for question in questions:
         before = corpus_state(corpus)
-        events, returncode, seconds = ask(env, corpus, prompt_for(question, corpus, args.include_raw), args.timeout)
+        events, returncode, seconds = run_role(env, corpus, ROLE, prompt_for(question, corpus, args.include_raw),
+                                               args.timeout)
         result = score(question, events, corpus, before, corpus_state(corpus), returncode)
         result["question"] = question["question"]
         result["metrics"]["seconds"] = seconds

@@ -1,0 +1,11 @@
+{
+  "cli": "/path/to/second-brain-open/scripts/sb_operator.py",
+  "agent": "YOUR_PRIMARY_AGENT",
+  "model": "provider/model",
+  "opencode_version": "1.18.33",
+  "workdir": "/path/outside/the/vault/sb-operations",
+  "max_pages": 10,
+  "steps": 10,
+  "timeout": 600,
+  "auto_apply": true
+}

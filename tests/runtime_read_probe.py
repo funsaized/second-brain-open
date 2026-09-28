@@ -15,22 +15,8 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-
-def validate_scope(root, relative_paths):
-    """Reject links before launch; use only a frozen, owner-prepared corpus.
-
-    This check is not a lock against concurrent filesystem replacement.
-    The probe's namespace has no outside writers or mounted private corpus.
-    """
-    for relative in relative_paths:
-        relative = Path(relative)
-        if relative.is_absolute() or ".." in relative.parts:
-            raise ValueError("Scope must contain only confined relative files")
-        path = root / relative
-        if any(part.is_symlink() for part in (path, *path.parents)):
-            raise ValueError("Symlinks are not allowed in the prepared corpus")
-        if not path.is_file() or path.stat().st_nlink != 1:
-            raise ValueError("Scope must contain regular, non-hardlinked files")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts.sb_runtime import validate_scope  # noqa: E402,F401  (shared with drivers and tests)
 
 
 def runtime_paths():

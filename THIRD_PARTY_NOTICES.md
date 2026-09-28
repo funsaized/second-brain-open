@@ -11,8 +11,8 @@ licenses; neither project's MIT license grants rights to that content.
 | Downstream file | Pinned upstream source | Use / changes |
 |---|---|---|
 | `PLAN.md` | Paths enumerated in its Upstream Inventory and Research Coverage | Research synthesis and proposed adaptations; not an installed catalog |
-| `README.md` | `vault-template/README.md`, root `README.md` | User-facing capability overview and documentation navigation; reviewed distribution instructions are linked separately |
-| `docs/installation.md` | `vault-template/README.md`, root `README.md`; the earlier downstream README | Separates the approved file manifest, setup, upgrade and recovery procedure from the overview; no automatic installer |
+| `README.md` | `vault-template/README.md`, root `README.md` | User-facing capability overview and Diataxis documentation navigation; installation is linked separately |
+| `docs/installation.md` | `vault-template/README.md`, root `README.md`; the earlier downstream README | Per-file install/upgrade of the framework and operator config; no automatic installer |
 | `docs/how-it-works.md` | `vault-template/CLAUDE.md`, `vault-template/projects/README.md`, knowledge templates via the ported contract | Explains evidence, knowledge types, projects and review boundaries without changing runtime permissions |
 | `THIRD_PARTY_NOTICES.md` | `LICENSE` | Complete notice reproduced below, without adding a holder |
 | `framework/instructions/wiki-contract.md` | `vault-template/CLAUDE.md`, `vault-template/projects/README.md`, and the four knowledge templates below | Reconciles schema, claim locators, unknown provenance, canonical paths, control types, isolated input scope and approved project promotion; adds purpose-sensitive content preservation, proposal coverage review and owner acceptance levels |
@@ -23,9 +23,9 @@ licenses; neither project's MIT license grants rights to that content.
 | `framework/templates/index.md` | `vault-template/wiki/index.md` | Common metadata and explicit control type; actual pages only, plain-text gaps |
 | `framework/templates/log.md` | `vault-template/wiki/log.md` | Append-only dated records with changed paths, verification and partial/completed status; immutable header dates; separate owner-acceptance records |
 | `framework/templates/project.md` | `vault-template/projects/example-project/CLAUDE.md`, `vault-template/projects/README.md` | Lightweight owner-maintained brief; optional artifact folders and explicit reviewed promotion; no wiki type |
-| `framework/agents/sb-ingestor.md` | `agents/ingestor.md` | Native primary role and designated skill; operator-preflight/manifest bootstrap; deny-default until exact local grants, approved per-edit requests |
-| `framework/agents/sb-researcher.md` | `agents/researcher.md` | Native primary read-only role, operator-preflight/manifest bootstrap, scoped evidence reads and no delegated/network fallback |
-| `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read/proposal/approval flow, operator preflight distinguished from model access, source locators, raw immutability, repeat/recovery and honest status; full-Markdown proposals and retained/summarized/omitted coverage review; completion only after recorded owner acceptance |
+| `framework/agents/sb-ingestor.md` | `agents/ingestor.md` | Native primary worker role and designated skill; deny-default, launched by the operator with exact read grants; proposal-only, never edits |
+| `framework/agents/sb-researcher.md` | `agents/researcher.md` | Native primary read-only worker, launched by the operator with exact read grants; no delegated/network fallback |
+| `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read ingest and compile-from-notes into a framed proposal the operator applies; source locators, reciprocal links, no-op repeats, page limit, full-Markdown pages and coverage review |
 | `framework/skills/second-brain-query/SKILL.md` | `skills/second-brain-query/SKILL.md` | Index-first evidence retrieval, claim citations, abstention, Read/Not covered, no writes |
 | `scripts/link_check.py` | `scripts/link_check.py` | Replaces basename guessing with exact managed paths; validates narrow metadata, reports ambiguity/unsupported forms/unchecked anchors, leftover template placeholders, index coverage and source/concept/entity reciprocity; read-only stdlib CLI |
 | `scripts/vault_stats.py` | `scripts/vault_stats.py`, `docs/05-graphs/metrics.md`, `skills/second-brain-metrics/SKILL.md`, `skills/second-brain-graph/SKILL.md` | Required stdlib port: content-only scope, canonical unique edges, explicit degrees/denominators, weak components, stale/unknown concepts, JSON/as-of and read-only reporting |
@@ -53,7 +53,10 @@ evidence for runtime-specific behavior; no OpenCode source is copied into the dr
 The R6 filesystem rehearsal and invented binary asset are original downstream
 verification; no upstream backup implementation is copied. The researcher
 evaluation harness, its guide and invented question file are original
-downstream verification.
+downstream verification. The operator (`scripts/sb_operator.py`, `scripts/sb_runtime.py`,
+`framework/skills/second-brain-operator/SKILL.md`, `framework/operator.example.json`)
+and its guides (`docs/operator.md`, `docs/reference.md`) are original downstream work;
+the runtime helpers were extracted from the earlier downstream live drivers.
 
 ## Upstream MIT notice (verbatim)
 

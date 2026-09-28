@@ -12,7 +12,7 @@ results and failures; its old test counts and "next step" statements are not the
 current backlog. The phase specifications and runbooks describe requirements and
 repeatable procedures, not a list of features that are all still unimplemented.
 
-**Verification baseline:** 93 offline tests pass with
+**Verification baseline:** 102 offline tests pass with
 `python3 -m unittest discover -s tests`. Live native probes are opt-in and are not
 part of that count. Static fixtures, driver-applied model proposals, native tool
 edits, and owner content acceptance are different evidence classes.
@@ -21,9 +21,10 @@ edits, and owner content acceptance are different evidence classes.
 
 | Phase / runbook | Delivery status | Evidence and limits |
 |---|---|---|
-| **P0 / R0** — provenance and distribution | Delivered | `LICENSE`, `THIRD_PARTY_NOTICES.md`, inert config example, [installation manifest](docs/installation.md#file-manifest), scope/distribution tests. Per-file installation remains an approved operator action, not a sync service. |
+| **P0 / R0** — provenance and distribution | Delivered | `LICENSE`, `THIRD_PARTY_NOTICES.md`, inert config example, [installation manifest](docs/installation.md#1-copy-the-files), scope/distribution tests. Per-file installation remains an approved operator action, not a sync service. |
 | **P1 / R2** — page and project contracts | Delivered | Contract, seven templates, populated synthetic fixtures and `tests/test_contract.py`. `415d72b` adds flexible learning/reference content and proposal coverage review; the review-backlog slice adds owner acceptance levels (`technical`/`sampled`/`full`). No new metadata types or permissions. |
 | **P2 / R1A–B, R3–R4** — ingest/query core | Delivered, with evidence limits | Two roles, two skills, `scripts/link_check.py` (including placeholder, index-coverage and reciprocity checks), manual invocation runbook, opt-in native drivers and the opt-in researcher evaluation. Native ingest/query/repeat/recovery/injection cases are documented; see the evidence table below rather than assuming every planned variant passed natively. |
+| **Operator** — autonomous ingest/compile/query | Delivered | `scripts/sb_operator.py` (stage/run/revise/apply/undo), `scripts/sb_runtime.py`, the `second-brain-operator` skill and `docs/operator.md`. Live synthetic runs on OpenCode 1.18.33, including a fully autonomous ingest by the primary agent, are in `docs/native-acceptance-trials.md`. |
 | **P2A / R7** — vault statistics | Delivered | `scripts/vault_stats.py`, deterministic synthetic tests and `docs/vault-stats.md`; read-only human/JSON output, fixed `--as-of`, defined denominators. Running a real-corpus report is an owner-local operation. |
 | **P2B / R8** — selected chat-export conversion | Delivered | `scripts/chat_export_to_md.py`, supported export/branch tests and `docs/chat-exports.md`. Selected synthetic handoff has native evidence; real-export privacy review and content acceptance remain local decisions. |
 | **R6B–C** — reporting and restore rehearsal | Public tools/rehearsal delivered | Checker/statistics plus `tests/test_r6_backup_restore.py` and `docs/backup-restore.md`. The six restore tests prove the invented rehearsal, not an operational private backup or a production backup CLI. |
@@ -66,10 +67,10 @@ edits, and owner content acceptance are different evidence classes.
 
 | Evidence class | What is established | Where to inspect |
 |---|---|---|
-| Offline distribution suite | 93 passing static/CLI/guard tests; includes checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
+| Offline distribution suite | 102 passing static/CLI/guard tests; includes operator stage/apply/undo/revise, checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
 | Live researcher evaluation | Scored native `sb-researcher` answers on a staged wiki copy (OpenCode 1.18.33); the synthetic fixture passed 3/3 | `docs/researcher-evaluation.md`; private-wiki results stay local |
 | Isolated native runtime probes | Documented version-specific loading/read/refusal behavior; fake-provider cases are not semantic ingest proof | `tests/runtime_read_probe.py`, `tests/runtime_roles_probe.py`, historical execution record below |
-| Live, driver-applied semantic rehearsal | Two-source proposals, contradiction retention, repeat and sourced answering; driver applied the pages | `docs/manual-loop.md`, `docs/synthetic-acceptance.md` |
+| Live, driver-applied semantic rehearsal | Two-source proposals, contradiction retention, repeat and sourced answering; driver applied the pages | `docs/native-acceptance-trials.md` (earlier rehearsals), `docs/synthetic-acceptance.md` |
 | Live native named-role trials | Actual approved edits, applied-wiki and raw-source queries, no-op repeat, bounded injection assessment, interruption/operator-mediated recovery and log append | `docs/native-acceptance-trials.md`, `docs/synthetic-acceptance.md` |
 | Owner acceptance / private deployment | Not inferred from any test count; maintained outside this repository | Local owner records, never private fixtures or transcripts here |
 
@@ -95,7 +96,7 @@ test counts without erasing their failure history.
 * Baseline forced edit/write/bash/grep/glob/webfetch/task/skill calls are rejected as unavailable under deny-default policy. A narrowly ask-scoped edit requests permission and is rejected by noninteractive CLI, leaving fixture bytes unchanged. A new process is used for each case. Named-role skill loads and command expansion are now tested as detailed below; accepted interactive approval and full model-driven named-role behavior remain future checks.
 * Boundary distinction: an earlier native symlink characterization returned denied synthetic content through an approved filename. Native read permissions do not confine link targets. The adopted profile rejects linked files/ancestors and hardlinks before launch, freezes the prepared corpus against outside writers, and never mounts private settings/credentials. Its symlink test now stops at preflight with zero provider calls; this is not a claim that OpenCode fixed symlinks or that a preflight alone prevents races.
 * P1 delivered: generic contract, seven templates, all four content types plus index/log populated, two conflicting wholly invented sources, and a project brief. Claim/locator matrix, reciprocal links, complete index, explicit unknown provenance and no placeholder residue pass static checks. The log labels this as hand-authored fixture creation, not runtime ingest. Generated metadata is a flat JSON-value YAML subset; append-only log header dates remain at creation and operation dates are in entries.
-* P2 machinery delivered: read-only `scripts/link_check.py`, two native primary role files, two designated skills, synthetic tests and `docs/manual-loop.md`. The checker validates exact managed paths and generated metadata, reports ambiguity/unsupported forms and unchecked anchors, and supplies pure collection/link functions for the required statistics port. The synthetic contract fixture has five nodes, two controls and 18 unique directed content links with no diagnostics.
+* P2 machinery delivered: read-only `scripts/link_check.py`, two native primary role files, two designated skills, synthetic tests and `docs/manual-loop.md` (replaced by `docs/operator.md` and `docs/reference.md` on 2026-09-28). The checker validates exact managed paths and generated metadata, reports ambiguity/unsupported forms and unchecked anchors, and supplies pure collection/link functions for the required statistics port. The synthetic contract fixture has five nodes, two controls and 18 unique directed content links with no diagnostics.
 * Four role/skill files were copied into a disposable clean native profile, not the owner's configuration. Native prompts/skills loaded; approved reads worked; cross-skill/private-path/tool/write refusals passed. The ingestor's wiki edit reached ask rejection. This is not proof of accepted edits, source reasoning or a complete ingest.
 * P2 command decision: both candidate wrappers routed literal input to the right skill, but `@file` attached denied synthetic content and shell-like arguments expanded before role tool restrictions. As explicitly permitted in the plan, wrappers are withheld from `framework/` and installation. Continue with explicitly selected roles and plain vetted requests; do not treat arbitrary prompt interpolation as safe. No attempt is made to patch OpenCode itself.
 * Owner additionally approved the existing `dingus` primary agent for live synthetic provider calls and ingestion tests; allowlisted inspection identified `openai/gpt-6-luna`. The opt-in helpers take local agent/model arguments, not public default provider configuration. An eight-expectation semantic check passed, with one step and zero tool events observed.
@@ -163,7 +164,7 @@ Current delivery status and Execution history above.
 
 ## Delivery approach
 
-The shipped core uses two narrowly permissioned agent roles and two skills for manual ingestion and read-only querying. The two proposed slash wrappers are withheld after failed safety characterization. Page contracts, a project brief/handoff contract, a read-only link checker, **first-class chat-export conversion and vault-statistics CLIs**, and synthetic fixtures support the loop. Both CLI ports are delivered even though their optional skill/command wrappers are deferred. Do not ship the whole upstream catalog.
+The shipped core uses two narrowly permissioned worker roles and their skills for ingestion and read-only querying, launched by an operator skill and CLI that stage, verify and apply each operation. The two proposed slash wrappers are withheld after failed safety characterization. Page contracts, a project brief/handoff contract, a read-only link checker, **first-class chat-export conversion and vault-statistics CLIs**, and synthetic fixtures support the loop. Both CLI ports are delivered even though their optional skill/command wrappers are deferred. Do not ship the whole upstream catalog.
 
 Keep distribution files inert under a public `framework/` directory until explicitly installed. Integrate by reviewing an allowlisted, one-way file manifest; add only approved framework files into the local vault. Never recursively copy a vault, overwrite its root instructions, or use a two-way synchronization tool. First test in a synthetic disposable vault, then use one owner-approved real source.
 
@@ -194,7 +195,7 @@ tests/                              wholly synthetic fixtures and runnable check
 
 There is no distributed `framework/commands/` directory. The framework is inert in the public checkout: it does not auto-load under `.opencode/`. Approved integration maps reviewed files to vault-local `.opencode/{agents,skills}/`, a namespaced template folder, and an explicit contract instruction. Keep installed revision and hashes in a local manifest. Local configuration contains resolved paths and provider choices; public examples contain placeholders only.
 
-Use two explicitly selected **primary** roles rather than a delegation tree. This avoids treating `task` permissions as a control on agents invoked directly by the user. Do not replace the owner's existing default agent. Use plain vetted requests as documented in `docs/manual-loop.md`. Any future wrapper must name `agent:`, omit `subtask`, verify the designated skill call and pass argument-expansion safety tests. The earlier namespaced candidates failed those tests; do not copy them into an installation or treat their absence as an accidental missing feature.
+Use two explicitly selected **primary** roles rather than a delegation tree. This avoids treating `task` permissions as a control on agents invoked directly by the user. Do not replace the owner's existing default agent. Since 2026-09-28 an operator (the owner's primary agent with the `second-brain-operator` skill, or the owner) launches the worker roles through `scripts/sb_operator.py`; see `docs/operator.md`. Any future wrapper must name `agent:`, omit `subtask`, verify the designated skill call and pass argument-expansion safety tests. The earlier namespaced candidates failed those tests; do not copy them into an installation or treat their absence as an accidental missing feature.
 
 ### Data and page contract
 
@@ -419,7 +420,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-Current result: **93 tests pass**. The structured source-template test is static
+Current result: **102 tests pass**. The structured source-template test is static
 compatibility evidence, not proof of model editorial quality. Historical counts
 in the execution record and dated evidence reports describe their own checkpoints.
 
@@ -1110,3 +1111,29 @@ to 1.18.32 unless a run names another version.
 
 Verification: 93 offline tests pass; `git diff --check` passes. The helper
 changes keep the earlier drivers' defaults (OpenCode 1.18.32, six steps).
+
+## 2026-09-28 — Operator: autonomous ingest run by OpenCode
+
+The owner chose "agent as operator": the primary agent runs the worker roles
+through an operator skill and CLI. The workers stay deny-by-default and
+proposal-only.
+
+- **CLI:** `scripts/sb_operator.py` stages a copy outside the vault, runs the
+  worker with exact read grants, and gives it one `revise` with the dry-run
+  problems. `apply` writes only allowed `wiki/` pages and one `partial` log
+  record, after drift and checker validation, with backups for `undo`.
+- **Shared runtime:** helpers moved from the test drivers into
+  `scripts/sb_runtime.py`.
+- **Prompts:** the ingest skill gains a compile operation and a framed
+  proposal format. The worker roles lose the per-edit approval text.
+- **Docs:** follow Diataxis. `docs/operator.md` (how-to) and `docs/reference.md`
+  (reference) replace `docs/manual-loop.md`, whose evidence sections moved to
+  `docs/native-acceptance-trials.md`. Installation, how-it-works and the README
+  are rewritten for the operator model.
+- **Evidence:** live synthetic runs on OpenCode 1.18.33 are recorded in the
+  trials doc, including a fully autonomous ingest by the primary agent from one
+  request.
+- **Unattended use:** needs an `external_directory` allow for the CLI and
+  workdir in the vault's `opencode.json`.
+
+Verification: 102 offline tests pass; `git diff --check` passes.

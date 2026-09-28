@@ -1,96 +1,93 @@
 # second-brain-open
 
-**A manual, source-grounded knowledge workflow for OpenCode and plain Markdown.**
+**A source-grounded knowledge wiki that OpenCode maintains for you, in plain Markdown.**
 
-Turn approved sources into useful, linked notes, then ask questions with citations
-back to the evidence. The repository provides the ingest/query roles and skills,
-page contracts, templates, local conversion tools and read-only checks for that loop.
+Turn sources into linked notes, build concept pages across them, and ask
+questions answered with citations back to the evidence. Ask your primary
+OpenCode agent in plain language. It runs sandboxed worker roles that read and
+propose, and an operator that checks every proposal before it reaches the
+vault.
 
-Keep your notes in a separate private folder and retain your existing primary
-assistant. Obsidian can be the editor and viewer; its REST API and community
-plugins are not required. The workflow is reviewed and operator-controlled, not
-an unattended capture or publishing service.
+Your notes stay in a separate private vault, and your existing primary agent
+stays in charge. Obsidian can be the editor and viewer; its REST API and
+community plugins are not required.
 
 ## What you can do
 
 | Task | Included capability | Guide |
 |---|---|---|
-| Turn a source into knowledge | Complete-source reading, full Markdown proposals, useful source/concept/entity/synthesis pages, provenance and coverage review. | [Ingest and query](docs/manual-loop.md) |
-| Ask a question of the wiki | A read-only researcher follows approved pages and evidence, cites supporting passages and names coverage gaps. | [Sourced-query operation](docs/manual-loop.md#2-invoke-the-role-directly-not-a-slash-wrapper) |
+| Turn a source into knowledge | A worker reads the whole capture and proposes source, concept and entity pages with claim-level locators; the operator checks and applies them, with undo. | [Ingest with the operator](docs/operator.md#ingest-a-capture) |
+| Build concept pages | Compile concept, entity or synthesis pages from source notes you already have, with links in both directions. | [Compile concepts](docs/operator.md#build-concept-pages-from-existing-notes) |
+| Ask a question of the wiki | A read-only worker follows the index to the relevant pages, cites them and names what the wiki does not cover. | [Ask a question](docs/operator.md#ask-a-question) |
 | Bring in selected chat history | Local conversion of supported Claude, simple-message and ChatGPT branch exports, with versioned files and omission reporting. No model calls during conversion. | [Convert and review exports](docs/chat-exports.md) |
-| Check a managed wiki | Read-only metadata and canonical-link validation, plus leftover template placeholders, pages missing from the index and one-way source links. Explicit errors and unsupported/unchecked cases. | [Checker reference](docs/manual-loop.md#checker-contract) |
-| Measure answer quality | Opt-in live evaluation of the researcher on a staged copy of your wiki: index-first reads, citations it actually read, expected pages and abstention. | [Evaluate the researcher](docs/researcher-evaluation.md) |
-| Understand the wiki's structure | Reproducible page/link counts, components, orphans, stale concepts and date diagnostics. No automatic repairs. | [Calculate statistics](docs/vault-stats.md) |
+| Check a managed wiki | Metadata and canonical-link validation, leftover template placeholders, pages missing from the index and one-way source links. | [Checker reference](docs/reference.md#link-checker) |
+| Measure answer quality | Live evaluation of the researcher on a staged copy of your wiki. | [Evaluate the researcher](docs/researcher-evaluation.md) |
+| Understand the wiki's structure | Reproducible page/link counts, components, orphans, stale concepts and date diagnostics. | [Calculate statistics](docs/vault-stats.md) |
 
-Ingestion maintains the index and append-only log alongside approved page changes.
-Project briefs can consume wiki knowledge; promoting project findings is a separate
-reviewed decision. No particular folder tree, optional learning track or extra
-agent catalog must be installed to use the core workflow.
+Every change updates the index and appends a log record. Operations stay
+`partial` until you record a sampled or full review.
 
 ## Start here
 
 **New to this approach?** Follow the [read-only tutorial](docs/tutorial.md).
-Trace a claim through an invented wiki and run the checks. It needs Python 3,
-uses no provider credentials and changes no notes.
+It traces a claim through an invented wiki and runs the checks. It needs only
+Python 3 and changes no notes.
 
-**Ready to use your own vault?** Follow [installation and upgrades](docs/installation.md),
-then [operate one approved ingest and sourced query](docs/manual-loop.md).
-The supplied roles deny access until exact local grants and the runtime are prepared.
+**Ready to use your own vault?** Follow [installation](docs/installation.md),
+then [ingest, compile and ask with the operator](docs/operator.md).
 
 **Only need a command-line tool?** Use the [chat converter](docs/chat-exports.md),
-[link checker](docs/manual-loop.md#checker-contract) or [statistics tool](docs/vault-stats.md)
-directly. These Python standard-library tools do not require OpenCode or Obsidian.
+[link checker](docs/reference.md#link-checker) or [statistics tool](docs/vault-stats.md)
+directly. These Python standard-library tools need neither OpenCode nor Obsidian.
 
 ## Documentation
 
-Choose the reader job, rather than working through development phases.
-
-### Learn by doing
+### Tutorial
 
 - [Explore a source-grounded wiki](docs/tutorial.md): follow evidence, inspect a
-  disagreement and check the same synthetic corpus without a model.
+  disagreement and run the checks without a model.
 
-### Complete a task
+### How-to guides
 
-- [Install, upgrade or recover framework files](docs/installation.md).
-- [Run an approved ingest and read-only query](docs/manual-loop.md).
+- [Install or upgrade the framework in a vault](docs/installation.md).
+- [Ingest, compile and ask with the operator](docs/operator.md).
 - [Convert chat exports, review them and select a conversation](docs/chat-exports.md).
 - [Calculate managed-wiki statistics](docs/vault-stats.md).
 - [Evaluate the researcher's answers on your wiki](docs/researcher-evaluation.md).
 
-### Look up the contract
+### Reference
 
-- [Wiki types, metadata, evidence and links](framework/instructions/wiki-contract.md).
-- [Content-preservation rules](framework/instructions/wiki-contract.md#content-preservation).
-- [Owner acceptance levels](framework/instructions/wiki-contract.md#owner-acceptance).
-- [Seven page and project templates](framework/templates/).
-- [Distribution file manifest](docs/installation.md#file-manifest).
-- [Checker syntax, exit codes and limits](docs/manual-loop.md#checker-contract).
+- [Operator CLI, config, checks and worker roles](docs/reference.md).
+- [Link checker syntax, exit codes and limits](docs/reference.md#link-checker).
+- [Managed-wiki contract](framework/instructions/wiki-contract.md): types,
+  metadata, evidence, links, [content preservation](framework/instructions/wiki-contract.md#content-preservation)
+  and [owner acceptance](framework/instructions/wiki-contract.md#owner-acceptance).
+- [Page and project templates](framework/templates/).
 - [Statistics definitions](docs/vault-stats.md#what-is-counted) and
   [supported export shapes](docs/chat-exports.md#supported-synthetic-shapes-and-fidelity).
 
-### Understand the design
+### Explanation
 
 - [How the workflow fits together](docs/how-it-works.md): sources versus concepts,
-  raw evidence, project work, review and the public/private boundary.
+  operators and workers, review, projects and the public/private boundary.
 - [Why statistics differ from upstream reports](docs/vault-stats.md#comparing-with-upstream-or-older-snapshots).
 
 ## Operating boundaries
 
-- Keep private notes, exports, credentials, settings and receipts out of this
-  repository. Ignore rules are not a security boundary.
-- Approve source/provider exposure and exact changed paths. Preserve raw captures,
-  local edits and the existing default agent; do not grant blanket approval.
-- Native tool permissions are not filesystem isolation. Prepare and verify an
-  appropriately confined runtime before exposing private data.
-- Invoke the named roles directly. `/sb-ingest` and `/sb-ask` are withheld because
-  tested command preprocessing could bypass the intended argument boundary.
-- Treat copied examples as source material, not commands to run. A valid link,
-  copied code block or passing test does not establish factual correctness.
-
-The [installation guide](docs/installation.md) and [manual runbook](docs/manual-loop.md)
-explain these requirements in execution order. There is no automatic installer,
-global configuration replacement, scheduled writer or publication step.
+- **Keep private material out of this repository.** Private notes, exports,
+  credentials, settings and operation directories never go in; ignore rules are
+  not a security boundary.
+- **The workers never write.** Only the operator's `apply` writes, only under
+  `wiki/`, after mechanical checks, and it keeps backups for `undo`. Raw
+  captures, instructions and settings are never written.
+- **Provider exposure is your approval.** The workers send the pages they read
+  to your approved model route. Native tool permissions are not filesystem
+  isolation.
+- **No slash commands.** `/sb-ingest` and `/sb-ask` are withheld: OpenCode's
+  command preprocessing expands `@file` and shell text before role permissions
+  apply.
+- **Checks aren't truth.** Copied examples are source material, not commands.
+  A valid link or passing check does not establish factual correctness.
 
 ## Verification and development
 
@@ -101,7 +98,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-The offline suite currently has **93 passing tests**. It uses synthetic fixtures
+The offline suite currently has **102 passing tests**. It uses synthetic fixtures
 and does not make model calls. Live native trials require separate opt-in setup
 and approvals; they are not part of this command.
 
@@ -109,7 +106,7 @@ For implementation status and evidence, rather than user instructions, see:
 
 - [Current delivery status and remaining work](PLAN.md#current-delivery-status).
 - [Review backlog of proposals](BACKLOG.md).
-- [Native synthetic trial results, failures and waivers](docs/native-acceptance-trials.md).
+- [Native trial results, operator runs, failures and waivers](docs/native-acceptance-trials.md).
 - [Selected-conversation acceptance packet](docs/synthetic-acceptance.md).
 - [Synthetic backup and restore rehearsal](docs/backup-restore.md).
 

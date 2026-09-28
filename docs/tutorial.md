@@ -111,8 +111,8 @@ and ran two read-only checks. You did not test model behavior or create a vault.
 
 Next, choose the task you need:
 
-- [Install the framework into a separate vault](installation.md).
-- [Operate an approved ingest and read-only query](manual-loop.md).
+- [Install the framework into a vault](installation.md).
+- [Ingest, compile and ask with the operator](operator.md).
 - [Understand sources, concepts and the approval boundary](how-it-works.md).
-- [Look up checker limits](manual-loop.md#checker-contract) or
+- [Look up checker limits](reference.md#link-checker) or
   [statistics definitions](vault-stats.md#what-is-counted).

@@ -16,7 +16,13 @@
 - **C2 and A3 on the deployment:** cleaned control pages and a `sampled`
   acceptance record are prepared and verified against a staged copy. The owner
   applies them locally.
-- **Suggested next step:** A1 (concept layer), then B1 and B2.
+- **Operator (B1, B2):** delivered on the "agent as operator" model. The
+  owner's primary agent ingests autonomously through the
+  `second-brain-operator` skill and the `sb_operator.py` CLI. E1 and D4 are
+  partly done: shared helpers moved to `scripts/`, and the worker prompts were
+  rewritten for the operator flow.
+- **Suggested next step:** A1. Compile the first concept pages in the
+  deployment with the operator, then rerun the A2 evaluation.
 
 ## How the review was done
 
@@ -116,8 +122,8 @@ Deployment facts (sanitized):
 | A3 | ✅ Define owner acceptance that can finish — deployment record awaits owner | Decide | P0 | S | Yes |
 | A4 | Collection captures and batch size | Decide | P1 | S | Yes |
 | A5 | Ingest one non-meta source tied to actual goals | Verify | P1 | S | Yes |
-| B1 | Ship an operator launcher (manifest → overlay → verify → run) | Implement | P0 | M | — |
-| B2 | Make "propose → operator apply" the primary write path | Simplify | P0 | M | Yes |
+| B1 | ✅ Ship an operator launcher (manifest → overlay → verify → run) — `sb_operator.py` | Implement | P0 | M | — |
+| B2 | ✅ Make "propose → operator apply" the primary write path — agent as operator | Simplify | P0 | M | Yes |
 | B3 | Install/upgrade planner | Implement | P1 | M | Yes |
 | B4 | Reconcile the isolation requirement with practice | Decide | P1 | S | Yes |
 | B5 | Scoped search inside a confined corpus — not needed per A2 | Decide | P2 | M | Yes |
@@ -279,7 +285,19 @@ concepts from A1.
 
 ## B. Make the workflow operable without the test harness
 
-### B1. Ship an operator launcher — P0
+### B1. Ship an operator launcher — P0 · ✅ Done
+
+**Resolution (2026-09-28).** `scripts/sb_operator.py` handles `stage`, `run`,
+`revise`, `apply`, `undo` and `status`. The shared runtime helpers moved from
+the test drivers into `scripts/sb_runtime.py`:
+
+- the tool-denying overlay
+- `opencode debug` verification
+- `validate_scope`
+- native runs
+
+The worker's route, version and limits come from the vault's
+`.opencode/second-brain/operator.json`, not hard-coded values.
 
 **Problem.** The installed roles deny all reads. The grants come from pieces
 that live only in test code:
@@ -310,7 +328,24 @@ the overlay without credentials.
   waived today but cheap to prevent.
 - Unit tests run against a fake `opencode` binary.
 
-### B2. Make "propose → operator apply" the primary write path — P0 · Owner decision
+### B2. Make "propose → operator apply" the primary write path — P0 · Owner decision · ✅ Done
+
+**Resolution (2026-09-28).** The owner chose option 1: the agent is the
+operator. The owner's primary agent uses the new `second-brain-operator` skill
+to run the CLI. The workers stay deny-by-default and proposal-only.
+
+`apply` refuses the whole proposal unless every check passes:
+
+- allowed `wiki/` paths only
+- the page cap
+- no drift since staging
+- a single `partial` log record
+- the checker clean on the result
+
+It backs up replaced files for `undo` and undoes itself if the post-write check
+fails. `revise` gives the worker one retry with the refusal reasons.
+Unattended runs need an `external_directory` allow for the CLI and workdir in
+the vault's `opencode.json`.
 
 **Problem.** Every real and synthetic ingest wrote through an operator or
 driver. The one exception is the bounded four-file native trial, which needed a

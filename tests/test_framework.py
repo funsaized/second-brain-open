@@ -20,12 +20,15 @@ class FrameworkTests(unittest.TestCase):
             self.assertIn(f"  skill:\n    '*': deny\n    {skill}: allow", header)
             self.assertIn("  question: allow", header)
             self.assertNotIn("tools:", header)
+            self.assertRegex(header, r"  edit:(\n    .\*.: deny| deny)")
             self.assertIn(skill, body)
-            self.assertIn("fails closed", body)
+            self.assertIn("launched by an operator", body)
+            self.assertIn("denies every", body)
 
     def test_native_skill_names_and_descriptions(self):
         paths = list((FRAMEWORK / "skills").glob("*/SKILL.md"))
-        self.assertEqual({path.parent.name for path in paths}, {"second-brain-ingest", "second-brain-query"})
+        self.assertEqual({path.parent.name for path in paths},
+                         {"second-brain-ingest", "second-brain-query", "second-brain-operator"})
         for path in paths:
             header, body = path.read_text().removeprefix("---\n").split("\n---\n", 1)
             fields = dict(line.split(": ", 1) for line in header.splitlines())

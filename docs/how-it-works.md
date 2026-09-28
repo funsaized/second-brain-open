@@ -1,21 +1,24 @@
 # How the knowledge workflow fits together
 
 second-brain-open separates captured evidence, maintained knowledge and project
-work. OpenCode supplies the model and tools. This repository supplies the roles,
-instructions, templates and checks for using them in a reviewed workflow.
+work. OpenCode supplies the model and tools. This repository supplies the worker
+roles, the operator, the contract, templates and checks that run them.
 
 ```text
-approved capture in raw/
+capture in raw/  (or existing source notes, for a compile)
         |
         v
-ingestor reads evidence and proposes Markdown
+operator stages a copy  --->  sb-ingestor reads it and proposes pages
+        |                                   |
+        v                                   v
+operator checks the proposal (paths, drift, checker), applies it, keeps undo
         |
         v
-reviewed changes to wiki pages, index and log
+wiki pages, index and a partial log record  --->  owner review: sampled / full
         |
-        +----> researcher reads pages and evidence, then answers with citations
+        +----> operator stages a query ---> sb-researcher answers with citations
         |
-        +----> project work uses knowledge; durable findings may be proposed back
+        +----> project work uses knowledge; durable findings may be compiled back
 ```
 
 ## Evidence is not the same as a note
@@ -66,47 +69,71 @@ that preserves evidence, context and limitations. The
 [handoff contract](../framework/instructions/wiki-contract.md#project-handoff)
 describe that boundary.
 
-## Manual review is part of the capability
+## Operators and workers
 
-The ingestor reads an approved source and proposes exact changes. The owner or
-an explicitly delegated operator reviews the patch and its evidence. Approved
-changes update actual pages, the index and the append-only log.
+Two tiers of agent do the work.
 
-The researcher has a different job. It reads approved pages and evidence, then
-answers with citations and coverage limits. It writes no files, including the
-log. Saving an answer requires a separate approved operation.
+- **Workers** (`sb-ingestor`, `sb-researcher`) read sources and wiki pages and
+  produce proposals or answers. They are the only agents that read untrusted
+  source text, so they get the least access. Their role files deny every tool.
+  When launched, they get exact read grants on a staged copy of the wiki, and
+  nothing else: no edits, shell, search or network.
+- **The operator** is your primary agent, using the `second-brain-operator`
+  skill, or you at a terminal. It stages each operation, launches a worker,
+  checks the result mechanically and applies it. It never edits pages itself;
+  the operator CLI is the only writer, and only under `wiki/`.
 
-Mechanical checks catch metadata and link problems, leftover template
-placeholders, pages missing from the index and one-way source links. Editorial
-review asks whether the note is faithful, sufficiently detailed and useful. The
-owner records that review as `sampled` or `full` acceptance; only then is the
-operation completed. A passing test does not establish every claim's truth or
+The split puts the trust where it can be checked. A hostile source can
+influence what a worker proposes, but a proposal only reaches the vault after
+`apply` confirms:
+
+- the paths are allowed pages
+- the page count is within the limit
+- no target changed since staging
+- the log gains exactly one `partial` record
+- the managed checker passes on the result
+
+Every applied operation keeps backups for `undo`. The staged copy also keeps
+the vault's `AGENTS.md`, which holds your personal instructions, out of the
+workers' provider context.
+
+This makes ingest autonomous without giving any model standing write access.
+What the checks cannot establish is whether each claim is faithful to its
+source. That is the owner's review.
+
+## Review is part of the capability
+
+The ingestor reads an approved source and proposes complete pages. The
+operator's checks catch metadata and link problems, leftover template
+placeholders, pages missing from the index and one-way source links. When a
+proposal fails them, the worker gets one chance to revise.
+
+The researcher reads pages and evidence, then answers with citations and
+coverage limits. It writes no files, including the log. Saving an answer
+requires a separate compile operation.
+
+Editorial review asks whether a note is faithful, sufficiently detailed and
+useful. Applied operations stay `partial` until the owner records `sampled` or
+`full` acceptance. A passing check does not establish every claim's truth or
 grant permission to publish.
-
-This is a complete manual source-to-wiki-to-answer workflow, not an unattended
-capture service. Additional automation is a choice driven by use, not a missing
-prerequisite for maintaining notes.
 
 ## Why the public repository stays separate
 
 This checkout contains reusable machinery and invented fixtures. The private
 vault contains the owner's captures, notes and project material. Installation
-is a reviewed one-way distribution of framework files, not synchronization
-between the two repositories.
+is a one-way copy of framework files, not synchronization between the two.
 
-Native permissions restrict tools, but are not filesystem isolation. A scoped
-runtime needs an appropriately confined, frozen input corpus. Provider exposure,
-authentication and local retention need review even when sharing is disabled.
-
-The supplied roles deny reads and edits until exact local grants are prepared.
-Unsafe slash wrappers are withheld because command preprocessing can act before
-role permissions apply. Neither copying definitions nor selecting a role proves
-that the current runtime is properly restricted.
+Native permissions restrict tools, but they are not filesystem isolation. The
+staged copy refuses symlinks and hardlinks. Provider exposure, authentication
+and local session retention still need your approval, even with sharing
+disabled. Slash-command wrappers are withheld because OpenCode's command
+preprocessing expands `@file` and shell text before role permissions apply.
 
 ## Related documentation
 
 - [Explore an invented wiki without a model](tutorial.md).
-- [Install, upgrade or roll back framework files](installation.md).
-- [Run a scoped ingest and sourced query](manual-loop.md).
+- [Install or upgrade the framework](installation.md).
+- [Ingest, compile and ask with the operator](operator.md).
+- [Reference: CLI, checks and roles](reference.md).
 - [Look up the managed-wiki contract](../framework/instructions/wiki-contract.md).
 - [Inspect public delivery status and evidence limits](../PLAN.md#current-delivery-status).

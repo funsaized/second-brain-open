@@ -108,7 +108,7 @@ ancestors and adopted entries, hardlinks and non-regular files. Protected
 `.obsidian`, `.opencode` and `.git` entries inside content trees cause refusal.
 Excluded files are not inspected merely because a content page mentions them.
 
-This is the [managed subset](manual-loop.md#checker-contract), not a general
+This is the [managed subset](reference.md#link-checker), not a general
 YAML/Markdown/Obsidian parser. Leading generated metadata and ordinary fenced
 code/simple inline spans are excluded from graph links. Shared parser diagnostics
 mark unusable fields so a duplicate valid-looking date cannot count as fresh.

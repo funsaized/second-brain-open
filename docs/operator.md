@@ -1,0 +1,97 @@
+# Ingest, compile and ask with the operator
+
+Use this guide to add a source to your wiki, build concept pages from notes you
+already have, or ask a question, and to undo a change you don't want. It
+assumes the framework and operator are installed; if not, start with
+[installation](installation.md).
+
+Most of the time you ask your primary agent in plain language, and it runs the
+operator for you through the `second-brain-operator` skill. You can run the same
+steps yourself with the CLI.
+
+## Ingest a capture
+
+1. Save the source under `raw/` in the vault. Capturing is your job; the
+   agents never fetch sources.
+2. Ask your primary agent, for example:
+
+   > Use the second-brain-operator skill to ingest raw/2026-10-01-article.md as a
+   > learning reference and connect it to related pages.
+
+3. The agent stages the operation, runs `sb-ingestor`, checks the proposal and,
+   with `auto_apply` on, applies it. It reports the pages it created or updated,
+   the checker result, the operation directory and the undo command.
+
+A large source may need more pages than `max_pages` allows. The worker then
+proposes the most important pages and lists the rest as follow-up operations.
+
+## Build concept pages from existing notes
+
+Name the source notes and the idea:
+
+> Use the second-brain-operator skill to compile a concept page on
+> "contradictions and supersession" from wiki/sources/a.md and wiki/sources/b.md.
+
+The worker writes the concept page with claim-level links into those notes and
+adds the back-links to each note.
+
+## Ask a question
+
+> Use the second-brain-operator skill to answer: how should the log differ from
+> the index?
+
+The answer cites the pages it read and ends with `Read:` and `Not covered:`. Asking
+writes nothing. To keep an answer, ask for a compile operation.
+
+## Run the steps yourself
+
+From the vault root, with `CLI` set to the `sb_operator.py` path in your
+operator config:
+
+```sh
+python3 "$CLI" stage . ingest --input raw/2026-10-01-article.md --task "Ingest as a learning reference"
+python3 "$CLI" run   OPERATION        # OPERATION is the directory stage printed
+python3 "$CLI" apply OPERATION --dry-run
+python3 "$CLI" apply OPERATION
+```
+
+For a question, use `stage . query --question "..."` and `run`; the answer is in
+the operation's `response.md`.
+
+## When a step fails
+
+- **The worker run fails verification.** `run` prints the failed checks and
+  any required input it did not read completely. A capture too long to read in
+  one pass has to be split into smaller captures first. Stage a new operation
+  afterwards.
+- **The dry run lists problems.** Run `revise OPERATION` once. The worker gets
+  the problems and its previous reply, and returns a corrected proposal. Check
+  it with `apply --dry-run` again. The operator skill does this for you. If the
+  problems remain, stage a new operation with a narrower task.
+- **A vault file changed since staging.** `apply` refuses rather than
+  overwrite your edit. Stage the operation again.
+
+## Undo an operation
+
+```sh
+python3 "$CLI" undo OPERATION
+```
+
+`undo` restores every file the operation changed, including the log. It keeps
+any file you edited after the operation and names it under
+`skipped_changed_since`.
+
+## Record your review
+
+Applied operations are logged as `partial`. After you review the changes,
+append an acceptance record to `wiki/log.md` in the form the
+[log template](../framework/templates/log.md) shows. Use `sampled` for a
+reviewed sample or `full` for every page; see
+[Owner acceptance](../framework/instructions/wiki-contract.md#owner-acceptance).
+The operator never records acceptance for you.
+
+## Related
+
+- [Reference: CLI commands, checks, config and roles](reference.md).
+- [Why operators and workers are separate](how-it-works.md#operators-and-workers).
+- [Measure the researcher's answers](researcher-evaluation.md).
