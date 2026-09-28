@@ -1,10 +1,87 @@
 # Plan: OpenCode-native second-brain machinery
 
-> Status: 14-file owner-approved greenfield bootstrap copied; private-source grants/integration proof still gated
-> Updated: 2026-09-25
+> Status: public core delivered; native evidence is bounded; project round-trip demonstration outstanding; deployment acceptance is owner-local
+> Updated: 2026-09-28
 > Execution update (2026-09-24): the owner authorized implementation up to the first blocker/approval gate, including operational autonomy. After the D1 question, “continue” approved MIT with `Copyright (c) 2026 Funsaized`. The original planning record below remains historical; its planning-only restrictions do not revoke that later authorization. Named integration checkpoints remain in force.
 
-## Implementation progress
+## Current delivery status
+
+This summary is the current implementation checklist, reconciled against public
+code and evidence through `415d72b`. The execution history below preserves earlier
+results and failures; its old test counts and "next step" statements are not the
+current backlog. The phase specifications and runbooks describe requirements and
+repeatable procedures, not a list of features that are all still unimplemented.
+
+**Verification baseline:** 83 offline tests pass with
+`python3 -m unittest discover -s tests`. Live native probes are opt-in and are not
+part of that count. Static fixtures, driver-applied model proposals, native tool
+edits, and owner content acceptance are different evidence classes.
+
+### Delivered public machinery
+
+| Phase / runbook | Delivery status | Evidence and limits |
+|---|---|---|
+| **P0 / R0** — provenance and distribution | Delivered | `LICENSE`, `THIRD_PARTY_NOTICES.md`, inert config example, README allowlist, scope/distribution tests. Per-file installation remains an approved operator action, not a sync service. |
+| **P1 / R2** — page and project contracts | Delivered | Contract, seven templates, populated synthetic fixtures and `tests/test_contract.py`. `415d72b` adds flexible learning/reference content and proposal coverage review; no new metadata types or permissions. |
+| **P2 / R1A–B, R3–R4** — ingest/query core | Delivered, with evidence limits | Two roles, two skills, `scripts/link_check.py`, manual invocation runbook and opt-in native drivers. Native ingest/query/repeat/recovery/injection cases are documented; see the evidence table below rather than assuming every planned variant passed natively. |
+| **P2A / R7** — vault statistics | Delivered | `scripts/vault_stats.py`, deterministic synthetic tests and `docs/vault-stats.md`; read-only human/JSON output, fixed `--as-of`, defined denominators. Running a real-corpus report is an owner-local operation. |
+| **P2B / R8** — selected chat-export conversion | Delivered | `scripts/chat_export_to_md.py`, supported export/branch tests and `docs/chat-exports.md`. Selected synthetic handoff has native evidence; real-export privacy review and content acceptance remain local decisions. |
+| **R6B–C** — reporting and restore rehearsal | Public tools/rehearsal delivered | Checker/statistics plus `tests/test_r6_backup_restore.py` and `docs/backup-restore.md`. The six restore tests prove the invented rehearsal, not an operational private backup or a production backup CLI. |
+
+### Not the same as missing shared code
+
+| Item | Status / next action |
+|---|---|
+| **P3 / R1C, R3–R4** — deployment and real-source acceptance | Owner-local. Public documentation contains a scoped bootstrap record, not a complete deployment ledger. Consult the relevant local approvals and receipts; absence of private evidence here does not mean an operation has not happened. Do not copy private results into this plan to mark a box complete. |
+| **R6A / private R6C** — backup policy and real restore proof | Per-deployment responsibility. Check the actual mechanism, scope, retention and restore evidence locally. The recorded greenfield bootstrap waiver is limited to that completed add-only bootstrap; do not reopen it or treat it as a successful restore test. |
+| **R7B / R8B–C** — real reports, export selection and acceptance | Tools are shipped. Whether to run them, which data may be read/sent, and whether their output is accepted are owner-local choices, not unfinished CLI implementation. |
+
+### Outstanding, withheld and deferred work
+
+1. **Outstanding public demonstration: P4 / R5 project round trip.** The project
+   brief template and fixture exist. An end-to-end synthetic test of wiki context
+   selection → project output/feedback → approved durable promotion is not yet
+   documented. Implement that bounded demonstration when this phase is selected;
+   do not rebuild the already delivered checker, statistics or restore rehearsal.
+2. **Native evidence gaps:** contradiction handling has driver-applied live
+   evidence; ambiguous/broken-link handling has offline checker evidence. Native
+   variants are not claimed. These are coverage distinctions, not authorization
+   to start new model trials or an assertion that the shipped core is absent.
+3. **Withheld for safety: `/sb-ingest` and `/sb-ask`.** They are intentionally not
+   distributed because command preprocessing exposed denied synthetic content
+   and evaluated shell-like arguments. Use direct named-role invocation. Revisit
+   wrappers only after a separately approved safe-entry-point change is verified.
+4. **Waived, not passed: missing-skill/nonexistent-agent negative scenarios.**
+   Historical failures and cheap resource preflight remain. They are not release
+   blockers under the recorded amendment; do not restart that campaign merely
+   to make the status table uniformly green.
+5. **Deferred by need: P5 / T1–T5 and extra agents, skills or wrappers.** No track
+   implementation is claimed. These are optional projects, not a setup backlog
+   that must all be completed. Scheduling, publication and private Git adoption
+   also require separate decisions; none is a default automation requirement.
+
+### Evidence map
+
+| Evidence class | What is established | Where to inspect |
+|---|---|---|
+| Offline distribution suite | 83 passing static/CLI/guard tests; includes the new structured source-template case | `tests/`, current verification baseline above |
+| Isolated native runtime probes | Documented version-specific loading/read/refusal behavior; fake-provider cases are not semantic ingest proof | `tests/runtime_read_probe.py`, `tests/runtime_roles_probe.py`, README runtime sections |
+| Live, driver-applied semantic rehearsal | Two-source proposals, contradiction retention, repeat and sourced answering; driver applied the pages | `docs/manual-loop.md`, `docs/synthetic-acceptance.md` |
+| Live native named-role trials | Actual approved edits, applied-wiki and raw-source queries, no-op repeat, bounded injection assessment, interruption/operator-mediated recovery and log append | `docs/native-acceptance-trials.md`, `docs/synthetic-acceptance.md` |
+| Owner acceptance / private deployment | Not inferred from any test count; maintained outside this repository | Local owner records, never private fixtures or transcripts here |
+
+The native results above are documented observations, not claims that the live
+suite was rerun for this status update. Runtime receipts are not committed;
+preserve the qualifications and historical failures in the linked evidence docs.
+
+## Execution history (historical checkpoints)
+
+The entries below record what was known at each checkpoint. Later entries and
+the current delivery status supersede earlier blockers, "future checks" and
+test counts without erasing their failure history.
+
+<details>
+<summary>Expand the historical implementation and bootstrap record</summary>
 
 * D1 resolved: downstream MIT notice added; pinned upstream notice preserved verbatim in `THIRD_PARTY_NOTICES.md`.
 * P0 baseline delivered: inert config example, guidance, ignore rules, one-way distribution/rollback rehearsal, isolated runtime baseline and corpus preflight checks. The owner approved the distinction between native tool permissions and prepared-corpus/OS controls, then authorized delivery in logical increments.
@@ -45,7 +122,9 @@
 * Bootstrap actual result: public revision `1e987fda10279b6cacd9dedd6906c271d88bd416` supplied all 14 files via exclusive, link-rejecting per-file creation. A temporary wholly synthetic smoke check first verified dry preflight, exact copies, preservation and collision refusal. Private preflight found zero destination collisions. All installed hashes match that public revision, the root instruction hash is unchanged, the new namespaces contain exactly the approved files with no links, and no root OpenCode config was created. No existing raw/wiki/settings file contents were opened, no OpenCode/provider process was started, and no default-agent config was changed.
 * Audit limitation retained: after the 14 copies, the initial broad top-level metadata comparison failed. Its before-metadata values were not retained, so the change is not attributed or declared harmless. A separate read-only reconciliation verified the payloads, root instruction hash and expected root layout without inspecting existing note/settings contents. The private install and verification receipts remain outside the public repository and private notes folder. This is verified payload delivery with an unresolved metadata-audit caveat, not a full private-content integrity audit or runtime permission proof. No recopy, rollback or note modification was attempted.
 * Next integration step: restart the owner's OpenCode session to discover the added roles/skills, then approve one source, its provider exposure and exact local grants before any real ingest. The copied role files deny reads/edits by default; effective inherited configuration has not been inspected in this bootstrap. Existing notes, instructions and settings remain outside the bootstrap write scope. The public checkout stays inert.
-* Public P0/P1 commit `074e700` was pushed under the owner's explicit request. No personal-vault installation occurred; only disposable framework installation and the explicitly approved live synthetic calls were performed. No permanent owner configuration was edited. Private-vault Git remains separately gated.
+* Earlier public P0/P1 checkpoint `074e700` was pushed under the owner's explicit request. At that earlier checkpoint, no personal-vault installation was recorded; the later add-only bootstrap above supersedes that installation status. This cross-reference does not describe current private deployment state. Private-vault Git remains separately gated.
+
+</details>
 
 ## Objective
 
@@ -53,22 +132,25 @@ Supply a small, reusable OpenCode framework from this public repository to a sep
 
 `raw/` is an input archive, not a third knowledge layer. A project hub is not a replacement for the wiki. Obsidian remains an editor/viewer; direct Markdown file access is sufficient.
 
-## Requirements
+## Standing requirements
 
-* [ ] Keep public machinery and private vault data physically separate; no reverse sync, vault symlink, public fixtures made from private notes, or automatic publication.
-* [ ] Preserve provenance, competing claims, bidirectional links, and same-run `wiki/index.md` and append-only `wiki/log.md` maintenance.
-* [ ] Query from actual pages and their sources; name coverage gaps and do not silently substitute model knowledge.
-* [ ] Preserve project inputs/process/outputs/feedback and an explicit project-to-wiki promotion step.
-* [ ] Verify native OpenCode formats and actual permission behavior rather than transplant Claude tool declarations, hooks, or scheduling flags.
-* [ ] Require owner approval at each integration checkpoint; preserve existing vault instructions, notes, and Obsidian settings.
-* [ ] Retain upstream MIT notices for adapted material and keep third-party content licenses distinct.
-* [ ] Give every phase a testable exit criterion, including negative safety tests and recovery.
-* [ ] Deliver `chat_export_to_md.py` and `vault_stats.py` as **first-class required core ports**, with documented CLIs, synthetic regression tests, and operator runbooks—not deferred optional utilities.
+These are continuing constraints, not unchecked implementation tasks. Delivery
+and remaining evidence are tracked in Current delivery status above.
+
+* Keep public machinery and private vault data physically separate; no reverse sync, vault symlink, public fixtures made from private notes, or automatic publication.
+* Preserve provenance, competing claims, bidirectional links, and same-run `wiki/index.md` and append-only `wiki/log.md` maintenance.
+* Query from actual pages and their sources; name coverage gaps and do not silently substitute model knowledge.
+* Preserve project inputs/process/outputs/feedback and an explicit project-to-wiki promotion step.
+* Verify native OpenCode formats and actual permission behavior rather than transplant Claude tool declarations, hooks, or scheduling flags.
+* Require owner approval at each integration checkpoint; preserve existing vault instructions, notes, and Obsidian settings.
+* Retain upstream MIT notices for adapted material and keep third-party content licenses distinct.
+* Give every phase a testable exit criterion, including required safety tests and recovery; keep waivers and failed checks explicit.
+* Keep `chat_export_to_md.py` and `vault_stats.py` as **delivered first-class core ports**, with documented CLIs, synthetic regression tests, and operator runbooks—not deferred optional utilities.
 
 ## Current State at planning time (historical)
 
 Implementation-time results supersede these initial observations; see
-Implementation progress above, including the tested P0 runtime subset.
+Current delivery status and Execution history above.
 
 * At investigation start this repository contained only `.git/`, with no commits, application, tests, dependencies, or existing plan. This consolidated `PLAN.md` is the only new repository file. The configured remote is the user's public `funsaized/second-brain-open` repository. No commit or push was performed.
 * Only the explicitly permitted vault `AGENTS.md` was read. Its integration constraints require small approved steps, direct file access, preservation of notes/settings, source grounding, and optional—not mandatory—tracks. No personal notes or plugin credential file were read. Personal context from that file is deliberately not reproduced here.
@@ -76,15 +158,15 @@ Implementation progress above, including the tested P0 runtime subset.
 * Research covered all ten guide sections, all five tracks, 18 skills, 72 commands, six agents, six scripts, the complete vault template, and root licensing/setup material. The detailed inventory and source coverage are recorded below.
 * OpenCode's installed version was reported as `1.18.32`. Current public docs/schema were inspected, but runtime config and permission compatibility have not been tested. No local credential/config contents were inspected.
 
-## Proposed Approach
+## Delivery approach
 
-Start with two narrowly permissioned agent roles, two skills, and two explicit commands: manual ingestion and read-only querying. Page contracts, project handoffs, a read-only link checker, **first-class chat-export conversion and vault-statistics CLIs**, and synthetic fixtures support that loop. The two CLI ports are required even if their optional skill/command wrappers are deferred. Do not ship the whole upstream catalog.
+The shipped core uses two narrowly permissioned agent roles and two skills for manual ingestion and read-only querying. The two proposed slash wrappers are withheld after failed safety characterization. Page contracts, a project brief/handoff contract, a read-only link checker, **first-class chat-export conversion and vault-statistics CLIs**, and synthetic fixtures support the loop. Both CLI ports are delivered even though their optional skill/command wrappers are deferred. Do not ship the whole upstream catalog.
 
 Keep distribution files inert under a public `framework/` directory until explicitly installed. Integrate by reviewing an allowlisted, one-way file manifest; add only approved framework files into the local vault. Never recursively copy a vault, overwrite its root instructions, or use a two-way synchronization tool. First test in a synthetic disposable vault, then use one owner-approved real source.
 
 The public/private boundary is a data-management boundary, not merely `.gitignore`. Agent permissions constrain tool use but are not an OS sandbox. Restrict filesystem exposure and provider context before authorizing private data processing.
 
-### Future file layout (proposal, not files created by this task)
+### Delivered file layout (key paths)
 
 ```text
 AGENTS.md                          public machinery development guidance only
@@ -96,8 +178,6 @@ framework/
   instructions/wiki-contract.md     merge/reference, never replace local AGENTS.md
   agents/sb-ingestor.md
   agents/sb-researcher.md
-  commands/sb-ingest.md
-  commands/sb-ask.md
   skills/second-brain-ingest/SKILL.md
   skills/second-brain-query/SKILL.md
   templates/{source,concept,entity,synthesis}.md
@@ -105,12 +185,13 @@ framework/
 scripts/link_check.py                read-only, managed-wiki scope
 scripts/chat_export_to_md.py         first-class local converter, never automatic ingest
 scripts/vault_stats.py               first-class read-only wiki health report
+docs/                               operating runbooks and evidence summaries
 tests/                              wholly synthetic fixtures and runnable checks
 ```
 
-The framework is inert in the public checkout: it does not auto-load under `.opencode/`. Future integration maps reviewed files to vault-local `.opencode/{agents,commands,skills}/`, a namespaced template folder, and an explicit contract instruction. Keep installed revision and hashes in a local manifest. Local configuration contains resolved paths and provider choices; public examples contain placeholders only.
+There is no distributed `framework/commands/` directory. The framework is inert in the public checkout: it does not auto-load under `.opencode/`. Approved integration maps reviewed files to vault-local `.opencode/{agents,skills}/`, a namespaced template folder, and an explicit contract instruction. Keep installed revision and hashes in a local manifest. Local configuration contains resolved paths and provider choices; public examples contain placeholders only.
 
-Use two explicitly selected **primary** roles rather than a delegation tree. This avoids treating `task` permissions as a control on agents invoked directly by the user. Do not replace the owner's existing default agent. Namespaced `/sb-ingest` and `/sb-ask` avoid collisions. Each command must name `agent:` and omit `subtask`; its body instructs the agent to load the corresponding skill, but the actual skill-tool call must be verified. No shell interpolation or file attachments in templates. Test argument expansion through the command entry point, not just direct agent prompts. If untrusted arguments can trigger unsafe expansion, withhold that wrapper and use the explicitly selected role with a plain conversational request until a safe native invocation is verified.
+Use two explicitly selected **primary** roles rather than a delegation tree. This avoids treating `task` permissions as a control on agents invoked directly by the user. Do not replace the owner's existing default agent. Use plain vetted requests as documented in `docs/manual-loop.md`. Any future wrapper must name `agent:`, omit `subtask`, verify the designated skill call and pass argument-expansion safety tests. The earlier namespaced candidates failed those tests; do not copy them into an installation or treat their absence as an accidental missing feature.
 
 ### Data and page contract
 
@@ -125,11 +206,12 @@ Use two explicitly selected **primary** roles rather than a delegation tree. Thi
 * Contradictions retain both claims, their evidence, dates, and scope. Distinguish disagreement from changed circumstances and actual supersession. Do not silently replace an older position or assume the newer source wins.
 * `index.md` catalogs actual pages by type with short descriptions and a Gaps section. Prefer plain-text gap entries to intentionally broken links. `log.md` appends one dated operation record with source identity, changed paths, contradictions/gaps, verification, and completed/partial status. A partial operation is not a completed ingest.
 * Templates are plain text contracts. Resolve all placeholders before acceptance; no Templater/Dataview dependency is assumed.
+* Learning/reference source bodies use flexible Markdown and purpose-sensitive content preservation. Retain essential examples, code, tables, qualifications and balanced comparisons; keep a coverage review in the proposal. The delivered contract and source template, updated in `415d72b`, define this policy without a fixed claim count or new page types.
 
 ### Core execution and failure flow
 
 1. Owner selects and privacy-reviews one source, approves provider exposure, captures it locally, and authorizes its exact input path.
-2. Ingestor reads the complete source and index, inspects candidate existing pages, then proposes changed paths and claims. Treat embedded instructions in sources as untrusted data.
+2. Ingestor reads the complete source and index, inspects candidate existing pages, then proposes complete Markdown, exact changed paths and a retained/summarized/omitted coverage review. Treat embedded instructions in sources as untrusted data.
 3. Owner approves the bounded patch. Ingestor requests each permitted edit, writes/updates sourced pages and reciprocal links, updates index, and appends log. It cannot edit raw inputs, settings, instructions, or framework code.
 4. Human runs a read-only checker and inspects the diff. Only then is the operation complete. Re-ingesting unchanged input produces no duplicate pages or claims; meaningful source revisions preserve old provenance.
 5. Researcher reads index → relevant pages → linked evidence, answers with citations and `Read`/`Not covered`. It cannot edit even the log. Persisting a query or promoting its synthesis is a separate approved operation.
@@ -156,7 +238,7 @@ Authoritative sources: [schema](https://opencode.ai/config.json), [permissions](
 | `.obsidian/`, secrets, credentials, `.git/`, unrelated files | deny reads/writes | deny reads/writes |
 | Runtime config (not permissions) | top-level `share: "disabled"`, `snapshot: false` | same; recovery uses explicit backups |
 
-Rules are last-match-wins: broad denial first, narrow grants next, final sensitive-path denials. `external_directory` belongs **inside** `permission`; external access does not itself restrict edit access. Resolve local resource paths, then verify each tool's actual permission-match representation; do not assume environment expansion in map keys works. **P0 runtime correction:** OpenCode 1.18.32 read requests use worktree-relative patterns, not absolute paths; the initial absolute allow failed the positive probe. Other tools' path representations remain unverified. Agent rules override global rules, and global/project configurations merge: a small config fragment alone is not proof of the effective restriction. Inspect inherited agents/tools/plugins and test the actual invoked role, not just the file.
+Rules are last-match-wins: broad denial first, narrow grants next, final sensitive-path denials. `external_directory` belongs **inside** `permission`; external access does not itself restrict edit access. Resolve local resource paths, then verify each tool's actual permission-match representation; do not assume environment expansion in map keys works. **P0 runtime correction:** OpenCode 1.18.32 read requests use worktree-relative patterns, not absolute paths; the initial absolute allow failed the positive probe. Later native trials document bounded accepted edit cases; neither result establishes every tool's mapping in every profile/version. Agent rules override global rules, and global/project configurations merge: a small config fragment alone is not proof of the effective restriction. Inspect inherited agents/tools/plugins and test the actual invoked role, not just the file.
 
 `grep` matches the search regex and `glob` the requested glob, **not every returned file path**. Denying `read` on secrets does not deny search leakage. The minimal loop therefore uses index-first scoped reads, not unrestricted search. Owner-assisted candidate lists cover discovery/recovery until an approved corpus can be searched in filesystem isolation. Do not promise full-vault retrieval recall from index-only reads; disclose incomplete coverage.
 
@@ -172,11 +254,11 @@ Provider calls and local transcripts can retain private content even with sharin
 
 ## Decisions
 
-See the Decision Register below for owner choices, defaults, and consequences. Proposed defaults are not permission to execute them. The active tool policy permits writing only root `PLAN.md`, so the requested runbooks and decision register are consolidated here rather than written as separate files.
+See the Decision Register below for resolved choices, per-deployment decisions and their consequences. Proposed defaults are not permission to execute them. The original planning-only write restriction is historical; delivered operating runbooks now also live under `docs/`.
 
 ### Minimal core, not a catalog port
 
-**Choice:** Two skills, two commands, two roles, explicit contracts, a read-only link check, and required chat-export/statistics CLI ports. Maintenance, chat triage, and project handoffs start as reviewed procedures. The owner explicitly promoted both CLI tools to core deliverables; automation around them is not required to make them first-class.
+**Choice:** Two skills, two explicitly invoked roles, explicit contracts, a read-only link check, and delivered chat-export/statistics CLI ports. The two command wrappers remain withheld. Maintenance, chat triage, and project handoffs start as reviewed procedures; automation around them is not required to make the underlying tools first-class.
 
 **Rationale:** Upstream identifies ingest/query as load-bearing. Most of its 72 commands are thin prompts routing to 18 skills, not independent implementations. Broad command coverage adds risk before proving the loop.
 
@@ -194,15 +276,20 @@ See the Decision Register below for owner choices, defaults, and consequences. P
 
 **Rationale:** A source summary without links or a confident uncited answer fails the user's goal even if a command reports success.
 
-## Implementation Plan
+## Phase specifications and exit criteria
 
 Dependency order: provenance/distribution and safety → page contract → synthetic ingest/query and link checker → required statistics/chat-export ports (P2A/P2B, independent of each other) → approved local integration and real-source proof → project handoff and operations. Optional tracks branch only after a relevant need exists.
 
-The Implementation Runbooks below specify what to inspect, implement later, verify, and present for approval. Phases below are **future work**, not completed implementation.
+The phase descriptions retain the intended scope and exit criteria. Status lines
+distinguish delivered artifacts from evidence gaps and owner-local gates; do not
+interpret a procedural "implement" or "verify" step as proof that it is still
+outstanding. The current delivery summary is authoritative for public status.
 
 ### P0. Establish provenance and safe distribution
 
-**Files:** future `README.md`, `LICENSE`, `THIRD_PARTY_NOTICES.md`, public `AGENTS.md`, `.gitignore`, `framework/opencode.example.json`; synthetic security fixtures under `tests/`.
+**Status:** public baseline delivered; per-deployment runtime checks remain necessary.
+
+**Files:** `README.md`, `LICENSE`, `THIRD_PARTY_NOTICES.md`, public `AGENTS.md`, `.gitignore`, `framework/opencode.example.json`; synthetic security fixtures under `tests/`.
 
 **Changes:** choose the downstream license; preserve the exact upstream MIT notice; record source SHA/file mapping for adaptations. Define the allowlisted install/upgrade/rollback manifest and inert framework layout. Deny public data directories, runtime captures, credentials, and Obsidian settings without hiding intended synthetic fixtures. Resolve an isolated test profile and validate effective OpenCode permissions before any private input.
 
@@ -212,7 +299,9 @@ The Implementation Runbooks below specify what to inspect, implement later, veri
 
 ### P1. Establish page and project contracts
 
-**Files:** future `framework/instructions/wiki-contract.md`, seven templates listed above, synthetic fixture pages.
+**Status:** delivered, including the content-preservation policy follow-up.
+
+**Files:** `framework/instructions/wiki-contract.md`, seven templates listed above, synthetic fixture pages.
 
 **Changes:** reconcile schema with all four content templates and index/log exceptions; document claim locators, links, gaps, contradictions/supersession, immutable source archive, and project-to-wiki promotion. Define canonical filename/metadata handling and distinguish unknown facts from inferred facts.
 
@@ -222,13 +311,17 @@ The Implementation Runbooks below specify what to inspect, implement later, veri
 
 ### P2. Implement and prove the smallest loop in a synthetic vault
 
-**Files:** future two agents, two skills, two commands; `scripts/link_check.py`; synthetic tests.
+**Status:** core delivered with documented native evidence; wrappers withheld,
+missing-resource scenarios waived, and native contradiction/ambiguity variants
+not claimed. See the evidence map above for the level of each result.
 
-**Changes:** adapt upstream ingest/query semantics; use explicit OpenCode roles and `$ARGUMENTS`, not Claude tool declarations or shell interpolation. Strengthen the link check only to support the documented managed-page contract: vault-relative paths, display labels, fragment handling, ambiguous basename reporting, frontmatter exclusion from link counts, managed-wiki scope, non-mutating reports, failure exit status. Do not build a general Obsidian/YAML parser. Unsupported link forms must be reported, not silently counted as valid. Validate the narrow generated metadata format; defer arbitrary legacy YAML normalization.
+**Files:** two agents, two skills, `scripts/link_check.py`, synthetic tests and native trial drivers. Proposed command wrappers are not distributed.
+
+**Changes:** adapt upstream ingest/query semantics using explicit OpenCode roles, not Claude tool declarations or unsafe command interpolation. Strengthen the link check only to support the documented managed-page contract: vault-relative paths, display labels, fragment handling, ambiguous basename reporting, frontmatter exclusion from link counts, managed-wiki scope, non-mutating reports, failure exit status. Do not build a general Obsidian/YAML parser. Unsupported link forms must be reported, not silently counted as valid. Validate the narrow generated metadata format; defer arbitrary legacy YAML normalization.
 
 **Dependencies/risks:** P1 + permission smoke tests; prompt injection in source text; incomplete read; broken reciprocal links; partial writes; false linter reassurance. Existing upstream scripts conflate wiki/project/output and resolve aliases inconsistently.
 
-**Order within P2:** define checker fixture pairs before adapting the checker; build the two roles/skills; repeat the complete boundary matrix on those roles; then add and test command wrappers before running ingestion. Baseline checker grammar is `[[vault/relative/path]]` or `[[vault/relative/path|label]]`, resolving to an in-scope `.md` file with exact path identity. Fixtures include valid display label/space path, missing target, two identical basenames in different directories, and malformed syntax. Strip a fragment only for file-existence checking, and report heading/block-anchor validity as **unchecked**, not verified. Report embeds and bare/alias-only targets as unsupported until explicitly adopted. Do not count frontmatter/fenced-code examples as graph links. These limited checks do not prove full Obsidian compatibility or factual support.
+**Order within P2:** checker fixtures preceded adaptation, then roles/skills and their boundary matrix. Candidate wrappers were tested and withheld; direct named-role invocation became the approved path for subsequent native ingestion trials. Baseline checker grammar is `[[vault/relative/path]]` or `[[vault/relative/path|label]]`, resolving to an in-scope `.md` file with exact path identity. Fixtures include valid display label/space path, missing target, two identical basenames in different directories, and malformed syntax. Strip a fragment only for file-existence checking, and report heading/block-anchor validity as **unchecked**, not verified. Report embeds and bare/alias-only targets as unsupported until explicitly adopted. Do not count frontmatter/fenced-code examples as graph links. These limited checks do not prove full Obsidian compatibility or factual support.
 
 **Exit:** one synthetic ingest, repeat-ingest, contradiction, interruption/recovery, source-injection, missing-evidence query, ambiguous/broken-link fixture, and sourced query pass. Raw files are unchanged, index/log agree with actual changes, researcher writes zero files, and the checker itself changes zero files. Show diffs, claim/source matrix, refusal evidence, and test output. See R3–R4.
 
@@ -238,7 +331,9 @@ not waive path/permission scope, provenance, raw immutability or recovery checks
 
 ### P2A. Deliver the first-class vault statistics port
 
-**Files:** future `scripts/vault_stats.py`, reusable pure collection/link-resolution functions in `scripts/link_check.py`, synthetic CLI tests and usage documentation. Reuse those functions between the two real consumers; do not add a generic graph framework.
+**Status:** delivered; real-corpus reporting is an owner-local choice, not a missing port.
+
+**Files:** `scripts/vault_stats.py`, reusable pure collection/link-resolution functions in `scripts/link_check.py`, synthetic CLI tests and usage documentation. Reuse those functions between the two real consumers; do not add a generic graph framework.
 
 **Upstream purpose/consumers:** `scripts/vault_stats.py`; `skills/second-brain-metrics/SKILL.md`, `skills/second-brain-graph/SKILL.md`, and `docs/05-graphs/metrics.md`. The existing script does not supply component count or stale-concept rate even though its consumers request them.
 
@@ -252,7 +347,10 @@ not waive path/permission scope, provenance, raw immutability or recovery checks
 
 ### P2B. Deliver the first-class chat-export converter
 
-**Files:** future `scripts/chat_export_to_md.py`, synthetic Claude/ChatGPT fixtures, CLI regression checks and usage documentation.
+**Status:** converter and selected synthetic native handoff delivered; owner content
+acceptance is separate from technical evidence. Real-export approval is per deployment.
+
+**Files:** `scripts/chat_export_to_md.py`, synthetic Claude/ChatGPT fixtures, CLI regression checks and usage documentation.
 
 **Upstream purpose/consumers:** `scripts/chat_export_to_md.py`; `docs/03-ingestion/chat-exports.md`, `skills/second-brain-chat-import/SKILL.md`, and `commands/ingest-chats.md`. Convert conversations to faithful local Markdown before privacy review/triage, not directly into wiki knowledge.
 
@@ -268,11 +366,15 @@ not waive path/permission scope, provenance, raw immutability or recovery checks
 
 ### P3. Approve local integration and perform one real ingest/query
 
+**Status:** owner-local deployment checklist, not unfinished shared implementation.
+Consult local approvals and evidence before calling an item outstanding. The public
+bootstrap record below is not a complete account of later private operations.
+
 **Files:** only the owner-approved local install targets and managed pages; no local content enters public files.
 
 **Changes:** inspect non-sensitive topology and path conflicts locally; preserve settings and existing instructions; create/verify an external private backup before writes; review the one-way manifest; approve provider exposure and exact source. Apply the same tested loop to one real source, not a bulk import.
 
-**Dependencies/risks:** P0–P2 including required P2A/P2B tool ports; owner's explicit path/provider/source/backup approvals; concurrent note editing; real source complexity/confidentiality. **Entry gate before any local installation or note write:** R6A backup policy and R6C isolated restore proof are complete. R6 is a reusable procedure first used here, not deferred until P4. If direct runtime confinement is unavailable, use the separately isolated staging mode and owner-applied patch, not an unisolated staging folder or sync.
+**Dependencies/risks:** P0–P2 including delivered P2A/P2B tool ports; owner's explicit path/provider/source/backup approvals; concurrent note editing; real source complexity/confidentiality. **Default deployment gates:** R6A backup policy and R6C isolated restore proof, subject only to explicit narrowly scoped owner exceptions such as the recorded add-only bootstrap waiver below. Check local completion records and applicable exceptions before treating a step as outstanding. This plan grants no new waiver and does not reopen completed bootstrap checks. R6 is a reusable procedure, not work automatically deferred until P4. If direct runtime confinement is unavailable, use separately isolated staging and an owner-applied patch, not an unisolated staging folder or sync.
 
 **Scoped owner exception:** the later greenfield approval waives initial backup
 for the approved new-file-only machinery bootstrap. It is not a passing private
@@ -283,7 +385,11 @@ private sources, or expand provider/tool access. Those decisions remain separate
 
 ### P4. Establish project handoffs and routine recovery/maintenance
 
-**Files:** future project template and operating instructions; any needed checker regression fixtures. Local project files only with specific approval.
+**Status:** partial. Project contract/template and maintenance/reporting tools exist;
+the end-to-end synthetic project-to-wiki round-trip demonstration is outstanding.
+Private backup/restore and operating cadence are owner-local checks.
+
+**Files:** delivered project template, operating instructions and checker/restore fixtures; add the missing round-trip evidence when approved. Local project files only with specific approval.
 
 **Changes:** demonstrate wiki → project context selection → output/feedback → reviewed durable promotion with source lineage. Define report-only lint, index/log reconciliation, safe rename/merge proposals, private versioning options, backups, restore drills, and retention. No scheduler or autonomous git operation.
 
@@ -293,6 +399,8 @@ private sources, or expand provider/tool access. Those decisions remain separate
 
 ### P5. Optional tracks, each separately approved
 
+**Status:** deferred by need; no optional-track implementation is claimed in this repository.
+
 **Files:** a separate owner-approved lab/project, never prerequisites inside the vault framework. See runbooks T1–T5 below.
 
 **Dependencies:** working core plus a concrete graph, routing, harness, bounded-loop, or evaluation need. These tracks do not depend on each other.
@@ -301,18 +409,30 @@ private sources, or expand provider/tool access. Those decisions remain separate
 
 ## Validation
 
-The following paragraphs are the original planning record. Runnable checks and
-actual results now appear in Implementation progress and README.md.
+Run the offline distribution suite from the repository root:
 
-No implementation checks exist yet. Future checks must use public or synthetic fixtures, never private vault content in this repository or CI. Research is not evidence that upstream examples or OpenCode runtime behavior work.
+```sh
+python3 -m unittest discover -s tests
+git diff --check
+```
 
-Confirmed diagnostic command: `opencode --version`. Local help lists `opencode run --pure --agent <name> --format json "<prompt>"`; runtime semantics remain untested. `--format json` is an event-output mode, not a promise that model answers satisfy an arbitrary JSON schema. Future code/tests may use Python's standard library, but no test command is claimed to exist today. The implementation must document the exact runnable checks it actually adds.
+Current result: **83 tests pass**. The structured source-template test is static
+compatibility evidence, not proof of model editorial quality. Historical counts
+in the execution record and dated evidence reports describe their own checkpoints.
 
-Validation order: synthetic profile tests → template/link-check fixtures → named-role/command policy tests → ingest/query/recovery fixture → required P2A statistics and P2B chat-export CLI tests → private backup/restore proof → P3 entry approval → local integration/real-source proof → project/operations drill. Never run a real-vault secret scan that prints matching contents into a public transcript. During this task, validate only this consolidated planning document and its source coverage.
+Opt-in runtime and live-provider trials are separate; see the evidence map and
+`docs/native-acceptance-trials.md`. Do not rerun them merely to edit this plan or
+turn waived cases into passing ones. Runtime version, route, inputs, approvals
+and isolation must be checked for an actual deployment. `--format json` is an
+event-output mode, not a guarantee that a model answer satisfies a schema.
+
+Never use private content as a public fixture or print a real-vault secret scan.
+Owner content acceptance, private recovery and deployment records remain local;
+neither an offline pass nor a historical native trial proves those outcomes.
 
 ## Upstream Inventory and Disposition
 
-All upstream paths below are relative to the [pinned source tree](https://github.com/undefined-ui/second-brain-os/tree/347feee87b305b291f7264890e5024db422e3467). **Now** means selected for a future core implementation, not copied during planning. **Later** means a stated gate must be met. **Reference** means do not port the component. A later row's acceptance check applies only if that component is selected later.
+All upstream paths below are relative to the [pinned source tree](https://github.com/undefined-ui/second-brain-os/tree/347feee87b305b291f7264890e5024db422e3467). This is the original disposition inventory, not the delivery checklist. **Now** means selected for core implementation; the current summary identifies what shipped and the wrapper exception. **Later** means a stated gate must be met. **Reference** means do not port the component. A later row's acceptance check applies only if that component is selected later.
 
 ### Vault, templates, agents, and scripts
 
@@ -366,6 +486,10 @@ Paths are `skills/<name>/SKILL.md`.
 
 Sources are `commands/<name>.md`. These are prompt wrappers, mostly forwarding to skills. Every later wrapper needs a native namespaced command, explicit agent, compatible `$ARGUMENTS`, no shell/file interpolation, and its target skill first. Test dispatch, arguments, and role permissions—not just menu visibility. No need to implement synonyms separately until use warrants them.
 
+The "Now" column below records the original selection, not shipped commands.
+Both selected wrappers are currently withheld; direct role invocation is the
+delivered alternative. No remaining wrapper is required simply to fill this table.
+
 | Family | Now | Later (explicit inventory) | Reference / do not port |
 |---|---|---|---|
 | Ingestion (10) | `ingest` → `sb-ingest` | `ingest-url`, `ingest-youtube`, `ingest-pdf`, `ingest-paper`, `ingest-chats`, `ingest-voice`, `ingest-newsletter`, `ingest-highlights`, `backfill` | — |
@@ -413,7 +537,7 @@ The inspected guide is [published here](https://undefined-ui.github.io/second-br
 
 Counts reconciled from the tree: core guide **75 section Markdown files + 2 navigation files = 77**; tracks **44 content pages + 5 READMEs = 49**; machinery **18 skills, 72 commands, 6 agents, 6 Python scripts, 21 vault-template blobs**. Upstream's four-script headline counts vault utilities, not the two site-build scripts.
 
-At planning time, not verified: external product availability/pricing/benchmarks, current Jev SDK/API, Claude-specific CLI/plugin claims, upstream example execution, live OpenCode permission enforcement/config loading, actual restore performance, or compatibility with existing personal notes (not read). The P0 runtime subset is now tested as recorded in Implementation progress; other gaps remain unless explicitly resolved there. No provider was called on vault content, no upstream script was run, and no installed config/credential contents were inspected. These gaps become explicit pre-execution gates, not claimed working features.
+At initial planning, external product claims, SDKs, upstream examples, runtime enforcement and recovery were not verified. Current delivery status and Execution history distinguish the subsequently delivered runtime subset and synthetic restore evidence. External pricing/benchmarks and optional SDKs are still not verified dependencies. Private-note compatibility and actual deployment outcomes belong in local records, not in this public research inventory.
 
 ## Planning Scope Boundaries (historical)
 
@@ -425,7 +549,10 @@ Planning documents, source-backed inventory, approval-gated runbooks, privacy an
 
 Implementation; vault migration or Git initialization; Obsidian setting changes; bulk imports; plugins/MCP/schedulers; commits/pushes; copying personal content; reading the forbidden plugin credential file.
 
-## Planning Progress
+## Original planning progress (historical, not implementation status)
+
+The "None" entries below close the initial research/planning task only. They do
+not close the outstanding project demonstration or owner-local deployment gates.
 
 ### Completed
 
@@ -450,7 +577,7 @@ Implementation; vault migration or Git initialization; Obsidian setting changes;
 
 * None for planning. Real-vault execution is separately approval-gated.
 
-## Findings
+## Findings from initial planning (historical)
 
 * Upstream provides no runnable test suite or CI for the machinery. Its scripts are useful references, not validated acceptance tooling.
 * Upstream's declared schema omits fields used by its templates and control pages; the adaptation must establish one coherent contract.
@@ -458,7 +585,7 @@ Implementation; vault migration or Git initialization; Obsidian setting changes;
 * The draft identifies Funsaized as the intended downstream copyright credit; D1 must confirm the exact notice/license before release. Copyright ownership is not conferred by choosing MIT, and this repository has no license file yet. The upstream notice says exactly `Copyright (c) 2026` without naming a holder. Preserve that notice verbatim and attribute the repository; do not invent an upstream holder or assume third-party linked content is MIT.
 * Research-process exception: a delegated follow-up created a temporary upstream checkout outside this repository despite a read-only briefing. No upstream files were installed/copied into the public repository or vault and no upstream scripts were executed. The temporary checkout was not removed by this planning task.
 
-## Open Questions
+## Planning questions (historical)
 
 * Owner decisions before execution are collected in the Decision Register below; they do not prevent a ready-to-implement, approval-gated plan.
 
@@ -466,7 +593,7 @@ Implementation; vault migration or Git initialization; Obsidian setting changes;
 
 ## Implementation Runbooks
 
-> Procedures for future approved implementation; **not executed**. Resolve the relevant owner choices in the Decision Register at each checkpoint.
+> Repeatable procedures and original exit criteria, not a claim that every step is unexecuted. R0–R4 and R6–R8 have delivered public components/evidence as summarized above; R5's round-trip demonstration remains outstanding. Resolve only the relevant owner-local choices at each use. A delivered public rehearsal is not a private deployment receipt.
 
 Every checkpoint follows **inspect → propose/implement within the previously approved scope → verify → show evidence → obtain approval for the next step**. A passing test is not authorization to install into the personal vault, publish, commit, or push. Use synthetic/public material in this repository; keep real-source diffs, logs, transcripts, and backups local and private.
 
@@ -482,7 +609,7 @@ Upstream references are pinned to `347feee87b305b291f7264890e5024db422e3467`. No
 * Public working-tree status, downstream license, and changes since this plan. Do not assume the repo remains empty.
 * Installed OpenCode version and current [config schema](https://opencode.ai/config.json). Moving documentation alone is not a runtime compatibility guarantee.
 
-**Implement later**
+**Delivered distribution procedure; reapply its checks for each approved install/upgrade**
 
 1. Obtain approval for downstream license and core scope. Add the exact upstream MIT notice and source/change attribution for each selected adaptation. Preserve `Copyright (c) 2026` verbatim; do not invent a holder. Reference third-party writing rather than copy it under MIT.
 2. Use the inert `framework/` layout. Publish generic examples and synthetic fixtures only; no owner biography, real project inventory, usernames, absolute private paths, notes, or credentials.
@@ -495,13 +622,13 @@ Upstream references are pinned to `347feee87b305b291f7264890e5024db422e3467`. No
 * Show file-level attribution and install manifest. Every destination has a reason and approval requirement.
 * Rehearse install and rollback on a synthetic pre-existing vault with conflicting instruction/template filenames. Existing files remain unchanged unless a merge was approved.
 * Inspect public diff and fixtures for private data/credentials; do not scan real private sources into a public transcript.
-* **Exit:** license choice, attribution, inert layout, and one-way install/upgrade/rollback method approved. No real local integration yet.
+* **Exit:** license choice, attribution, inert layout, and one-way install/upgrade/rollback method approved. This public checkpoint alone does not authorize local integration or determine a private deployment's status.
 
 **Do not copy blindly:** upstream `cp -r vault-template ~/brain` assumes a new vault; its ignore file does not protect all plugin/vault data. `/install` targets `.claude/`, not OpenCode.
 
 ### R1. Prepare a safe runtime and integrate only approved files
 
-**Supports P0 and P3. Synthetic rehearsal first; real-vault integration requires the complete P3 entry gate, including P2A/P2B and private restore proof.**
+**Supports P0 and P3. Public synthetic checks are delivered; local use requires the applicable P3 approvals and recovery evidence, with explicitly scoped exceptions honored. Consult local records rather than assuming private gates remain unmet.**
 
 **Inspect**
 
@@ -537,7 +664,7 @@ Create a disposable synthetic vault outside public source with approved wiki/raw
 | Restart and role/command selection | same effective restrictions; no permissive-agent fallback |
 | Auto-share/auto-approve | disabled; no shared-session URL |
 | Actual command invocation with fake `@file` / shell-interpolation-like argument | no unintended expansion/access; test through command UI or version-confirmed command CLI, not just a direct-agent prompt |
-| Missing/broken named agent or skill | stop with error; no fallback to permissive build/default and no pretend skill load |
+| Missing/broken named agent or skill | waived as a release/acceptance blocker; refusal is not claimed as passing. Verify actual resources at launch and retain historical failure evidence; do not restart the waived campaign. |
 | Synthetic inherited instruction marker/remote instruction endpoint/formatter | absent/not fetched/not run in isolated profile; no extra provider route |
 | Share action and snapshot/undo behavior | sharing remains disabled and no snapshot created; use synthetic data only |
 
@@ -545,17 +672,17 @@ Test actual tool enforcement, not merely an agent promising refusal. If the mode
 
 Discovery diagnostics may print prompts/paths; review locally and publish sanitized outcomes only. Local help confirmed `opencode run --pure --agent <name> --format json "<prompt>"`, but behavior must be tested. `--pure` alone is not isolation and may affect authentication. Never use `--auto` or `--share`.
 
-**Exit B:** positive/negative probes pass. Unresolved path confinement or inherited-policy behavior blocks private integration. Show results and effective restrictions for approval.
+**Exit B:** required positive/negative probes pass, with waived missing-resource scenarios explicitly distinguished. Unresolved path confinement or inherited-policy behavior blocks private integration. Show results and effective restrictions for approval.
 
-**Checkpoint C — local integration after the complete P3 entry gate (P2/P2A/P2B and R6 backup/restore proof)**
+**Checkpoint C — owner-local integration after confirming applicable P3 approvals and recovery requirements, including recorded scoped exceptions**
 
-1. Pause edits to affected paths. Make/verify a private pre-install backup using R6; do not initialize vault Git without separate approval.
-2. Present the manifest. Add only approved namespaced agents/commands/skills/templates; merge or reference the contract from existing instructions. No replacing root `AGENTS.md`, bulk copy, or Obsidian changes.
+1. Pause edits to affected paths. Confirm the applicable R6 backup/restore requirements and local evidence; make/verify the required backup unless an explicit scoped exception covers this operation. Do not reopen the completed add-only bootstrap waiver or initialize vault Git without separate approval.
+2. Present the manifest. Add only approved namespaced agents/skills/templates and notices; merge or reference the contract from existing instructions. Withheld wrappers are not install targets. No replacing root `AGENTS.md`, bulk copy, or Obsidian changes.
 3. Record installed revision, hashes, and pre-existing-file backups locally, never in public source.
 4. Quit/restart OpenCode after config/agent/skill changes; repeat discovery/confinement checks. Running sessions may retain previous policy.
 5. With staging, expose approved content and generic contract only in the isolated profile; never load personal vault instructions there. The **owner**, outside the agent runtime, applies the reviewed path-by-path patch/copy after checking preimage hashes. On drift, preserve human work and ask which version to keep. Never wholesale-sync staging back.
 
-**Exit C:** P3 prerequisites (including both first-class CLI ports) passed; owner approves local diff; settings/instructions preserved; confinement verified; restoration demonstrated. Then authorize one real source, not a backlog.
+**Exit C:** delivered public prerequisites are available, applicable owner-local approvals/recovery requirements are satisfied or explicitly excepted, and the owner verifies the local diff, preservation and confinement. Record any exception rather than claiming a restore was demonstrated. Authorize source work separately; this public checklist does not determine which local operations have already occurred.
 
 ### R2. Establish wiki contract and templates
 
@@ -567,7 +694,7 @@ Discovery diagnostics may print prompts/paths; review locally and publish saniti
 * [Page types](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/docs/04-structuring/page-types.md), [frontmatter](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/docs/04-structuring/frontmatter-schema.md), [linking](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/docs/04-structuring/linking-rules.md), [contradictions](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/docs/04-structuring/contradictions-and-supersession.md), [index/log](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/docs/04-structuring/index-and-log.md).
 * [Actual templates](https://github.com/undefined-ui/second-brain-os/tree/347feee87b305b291f7264890e5024db422e3467/vault-template/templates), [root contract](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/vault-template/CLAUDE.md), [control pages](https://github.com/undefined-ui/second-brain-os/tree/347feee87b305b291f7264890e5024db422e3467/vault-template/wiki).
 
-**Implement later**
+**Delivered contract/template procedure; review changes before redistributing**
 
 1. Write one authoritative contract, then derive templates. Include source provenance, `entity.kind`, index/log exceptions, projects, and unknown-value handling.
 2. Preserve source identity/claims/relevance/links; concept definition/support/opposition/questions; entity identity/mentions; synthesis question/evidence/disagreement/current position/what would change it. Do not require synthesis on every ingest.
@@ -633,9 +760,9 @@ Discovery diagnostics may print prompts/paths; review locally and publish saniti
 * [Query skill](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/skills/second-brain-query/SKILL.md), [researcher](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/agents/researcher.md), [ask command](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/commands/ask.md).
 * [Questions](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/docs/07-retrieval/asking-questions.md), [search](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/docs/07-retrieval/search-tools.md), [context](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/docs/07-retrieval/context-budget.md), [wiki versus RAG](https://github.com/undefined-ui/second-brain-os/blob/347feee87b305b291f7264890e5024db422e3467/docs/01-concepts/wiki-vs-rag.md).
 
-**Implement later**
+**Delivered query procedure; apply only to approved local inputs**
 
-1. `/sb-ask` explicitly invokes researcher/query skill, without unrestricted-agent fallback or arbitrary file interpolation.
+1. Explicitly invoke `sb-researcher` and its query skill with a vetted request. `/sb-ask` remains withheld; no unrestricted-agent fallback or arbitrary file interpolation.
 2. Read index → relevant pages → outward links/evidence. Stop when evidence suffices or budget/coverage is exhausted, and disclose the limit.
 3. Answer with canonical page references and source locators; distinguish source claims from conclusions, and disclose disagreements/dates. Core default: omit outside knowledge.
 4. End with `Read` and `Not covered`; offer an ingest/synthesis next step without doing it.
@@ -699,7 +826,7 @@ Discovery diagnostics may print prompts/paths; review locally and publish saniti
 4. Private Git remains optional. If separately approved, review exclusions/tracked paths before first add; commits are human-authorized/path-specific. Never share a remote with public machinery or use blanket `git add .` as agent workflow.
 5. Git does not cover all untracked files/assets or lost credentials. Ignoring a file does not remove history. If a secret was published, stop, revoke/rotate and plan remediation; deleting current content is insufficient.
 
-**Exit A:** show approved backup scope, retention, restore target and versioning choice. No real writes without verified recovery.
+**Exit A:** record approved backup scope, retention, restore target and versioning choice locally. Before a write, confirm the applicable recovery requirement or an explicit scoped exception. The completed greenfield bootstrap waiver is not reopened here and is not evidence of a working private backup.
 
 **Checkpoint B — lint/maintenance**
 
@@ -735,7 +862,7 @@ or authority to use its internal helpers on a live vault.
 
 **Checkpoint A — definition/fixture approval:** show node scope, unique directed-edge rules, degree/orphan/component/stale denominators, 90-day boundary, unknown-date handling, and P2A's exact expected fixture. Approve before implementation; upstream numbers are not trustworthy ground truth.
 
-**Implement later:** keep operator CLI compatibility, add JSON/as-of, reuse pure scanner/link-resolution behavior, and implement missing weak components with stdlib traversal and stale concepts with stdlib dates. Report metric definitions/scope; no automatic writes, model calls, DB or NetworkX dependency. Missing/invalid dates and unsupported targets are visible. Source reading and graph traversal must stay confined even with symlinks.
+**Delivered implementation (P2A):** operator CLI compatibility, JSON/as-of, shared scanner/link-resolution behavior, weak components with stdlib traversal and stale concepts with stdlib dates. Reports expose metric definitions/scope, unusable dates and unsupported targets. No automatic writes, model calls, DB or NetworkX dependency. Source reading and graph traversal remain subject to path confinement. See `docs/vault-stats.md` and `tests/test_vault_stats.py`.
 
 **Verify:** exact P2A fixture; duplicate links/self-links; two same-named pages in different paths; control/project/output exclusions; frontmatter-only dates/types; invalid/missing/future dates; empty corpus; deterministic output for fixed as-of; hashes unchanged. Test CLI error exit for invalid root/as-of, distinct from a valid empty corpus.
 
@@ -751,7 +878,7 @@ or authority to use its internal helpers on a live vault.
 
 **Checkpoint A — format/destination approval:** show supported fixture shapes, branch-selection policy, chronology/role/date rules, non-text omission reporting, stable identity/rerun policy and exact private staging destination. No network/model call is needed for conversion. Owner approves whether to convert a selected set or a whole export privately for human triage; neither authorizes wholesale ingest or provider upload. Default to explicit conversation IDs.
 
-**Implement later:** stdlib-only converter with preserved positional CLI/min-word filter plus no-write dry-run and selected IDs. Implement P2B shapes/branch traversal, safe scalar encoding, text fidelity and ID/digest filenames. Original export is immutable. Count summary distinguishes converted, identical/skipped, too-short, unsupported, omitted non-text and failed records. Titles/messages are not printed by default; errors identify opaque record IDs and reasons. Reject invalid destination/escaping symlinks and never overwrite an existing artifact.
+**Delivered implementation (P2B):** stdlib-only converter with preserved positional CLI/min-word filter, no-write dry-run, explicit selection, branch traversal, safe scalar encoding, text fidelity and ID/digest filenames. Original exports are immutable. Count summaries distinguish converted, identical/skipped, too-short, unsupported, omitted non-text and failed records. Titles/messages are not printed by default; errors use opaque IDs and reasons. Invalid destinations/escaping symlinks are refused and existing artifacts are never silently overwritten. See `docs/chat-exports.md` and `tests/test_chat_export_to_md.py`.
 
 **Verify:** branching ChatGPT fixture chooses only current-node ancestry; Claude messages preserve text/roles/order; ISO/epoch normalization; null structural nodes; malformed/cyclic/missing parent failure; non-text annotations; safely quoted title; same-title different IDs; identical rerun and revised conversation; threshold boundary; dry-run zero writes; invalid input/destination and partial failure reported. No real personal export is needed to prove support for documented shapes; actual new vendor variants require explicit compatibility review rather than silent guessing.
 
@@ -872,20 +999,21 @@ For each future checkpoint retain locally: approved scope, tested versions, sour
 | Learned from inspected sources | Engineering recommendation |
 |---|---|
 | Wiki and time-bounded projects are the two content layers; raw is an archive. | Preserve both layers; no project dashboard/raw inbox substitute for wiki. |
-| Ingest/query are upstream's load-bearing skills; most commands are dispatch prompts. | Port two skills/two commands/two scoped roles first. |
+| Ingest/query are upstream's load-bearing skills; most commands are dispatch prompts. | Use the delivered two skills and two scoped roles directly; unsafe wrapper candidates remain withheld. |
 | Local integration instructions require approved small steps and preserve notes/settings; direct files need no REST API. | One-way reviewed manifest, no MCP/settings changes/new default agent. Do not publish personal context from those instructions. |
 | MIT notice reads `Copyright (c) 2026` without named holder. | Preserve full notice verbatim, attribute repo/revision/files, choose downstream license separately. Missing name is not proof there is no license. |
 | OpenCode has native formats and merged last-match rules; grep rules match search input, not returned file paths. | Test actual policy; initially deny shell/search/delegation/network. OS isolation for a hard boundary. |
-| Runtime observed `1.18.32`; docs/schema inspected, enforcement not exercised. | Pin/smoke-test runtime before private integration. Schema-valid does not mean safely enforced. |
+| OpenCode `1.18.32` has documented bounded native loading, permission and ingest/query trial evidence. | Reverify the actual profile/version for an approved deployment. Schema-valid does not mean safely enforced; do not generalize bounded results to untested cases. |
 | Five tracks are separate curricula with illustrative/vendor-specific/unsafe examples. | Keep each optional and separately approved. |
 
-### Owner choices before execution
+### Per-deployment owner choices
 
-Ask at the relevant checkpoint, not all at once.
+Ask at the relevant checkpoint, not all at once. Some choices may already have
+been resolved in an owner's local records; this table is not a claim that they
+remain unanswered for every installation. D1 is resolved and listed below.
 
-| ID / checkpoint | Unresolved choice | Recommended default | Consequence / alternative |
+| ID / checkpoint | Choice to confirm locally | Recommended default | Consequence / alternative |
 |---|---|---|---|
-| D1 / P0, before distributing adaptations | License for original downstream work/attribution | MIT, complete upstream notice and file/revision adaptation map | Simple permissive reuse. Other license needs compatibility review; third-party content remains separate. Seek upstream holder clarification without altering notice. |
 | D2 / R1A, before real source | Provider/model and allowed data classes | Short public source on owner-approved provider, no confidential data | Sharing disabled does not stop provider retention/processing. Private content needs approved policy/local provider; credentials/patient information remain excluded. |
 | D3 / R1A | Direct vault or isolated approved-data workspace? | Isolated synthetic rehearsal; hard-isolated approved corpus for sensitive use until runtime trusted | May need reviewed per-file patch handoff. Direct access is simpler but inherits process/global-context risks. Neither AGENTS nor tool policy is an OS sandbox. |
 | D4 / R1C/R2 | Managed paths/template namespace | Proposed paths only where non-conflicting, namespaced templates, merged contract | Existing layout may need mapping; no automatic migration/rename/backfill. Keep actual private topology local. |
@@ -898,17 +1026,18 @@ Ask at the relevant checkpoint, not all at once.
 
 ### Resolved planning choices
 
-* Owner authorized the three proposed Markdown deliverables after clarification of read-only instructions. Runtime tool policy still permits only `PLAN.md`; all deliverables are consolidated here. No implementation or vault writes authorized.
+* D1 resolved: downstream MIT with `Copyright (c) 2026 Funsaized`; the upstream blank-holder notice is preserved verbatim and adaptations are mapped in `THIRD_PARTY_NOTICES.md`.
+* The initial planning task was restricted to `PLAN.md`. Later implementation authorizations superseded that restriction; public code, framework files, tests and operating docs have been delivered. Each local data operation still needs its own applicable approvals.
 * Public/private separation: inert reusable files, one-way reviewed install, no vault symlink/reference/submodule/reverse sync/private fixture import. Preserve local customizations.
 * Minimal core now explicitly includes the owner's required first-class chat-export and vault-statistics ports, alongside ingest/query, contract/templates, read-only checker and synthetic cases. Their R7/R8 workflows are required; dedicated metrics/chat-triage slash wrappers remain optional automation, not a dependency for CLI delivery.
-* Preserve existing default agent; namespaced explicit roles/commands and native permissions replace Claude tool lists.
+* Preserve the existing default agent; explicitly selected roles, designated skills and native permissions replace Claude tool lists. Withheld wrappers are not part of the installed core.
 * Raw immutable to agents; unknown facts stay unknown; claim locators and contradictions retained; generated prose not independent evidence.
 * No automatic publication/git actions. Promotion/export reviewed separately; commit/push/rollback/setup/scheduling are human-runbook operations.
 * Initial index-first approved reads trade recall for safety. Disclose incomplete coverage; add search only over safely exposed corpus after separate tests.
 
 ### Technical verification gates, not owner product choices
 
-* Verify installed runtime schema loading and merged permissions, canonical paths/symlinks, skill loading, command role selection and all negative tests. Failure blocks private integration.
+* Verify the actual installed resources, runtime schema, merged permissions, canonical paths/symlinks and required safety checks. Preserve the missing-resource waiver and do not label historical failures as passing. Withheld commands remain outside the installed core; unresolved confinement or inherited-policy failures block affected use.
 * Docs/schema drift exists: permissions guide describes URL matching, but current schema makes `webfetch` action-only. Core uses `deny`; do not invent unsupported URL policy objects.
 * `--pure` exists in local help, but authentication and absence of inherited custom tools/MCP need tests. Required auth plugin is a reviewed exception, not silent global reconfiguration.
 * Upstream utilities require fixture-backed adaptation and managed-wiki scope; document unsupported forms.
@@ -917,7 +1046,11 @@ Ask at the relevant checkpoint, not all at once.
 
 ### Open planning blockers
 
-None for the consolidated plan. Separate `RUNBOOKS.md` and `DECISIONS.md` creation was denied by the active edit policy; their content is included above. Owner decisions and runtime gates intentionally precede affected implementation operations.
+The original research/planning task is complete; its temporary file-write
+restriction is no longer active. Outstanding public work is listed at the top
+of this document. Owner-local choices and runtime gates are checked against local
+records when relevant, not presumed unresolved because private evidence is absent
+from this repository.
 
 ## 2026-09-28 — Content-preservation policy follow-up
 
