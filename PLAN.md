@@ -21,7 +21,7 @@ edits, and owner content acceptance are different evidence classes.
 
 | Phase / runbook | Delivery status | Evidence and limits |
 |---|---|---|
-| **P0 / R0** — provenance and distribution | Delivered | `LICENSE`, `THIRD_PARTY_NOTICES.md`, inert config example, README allowlist, scope/distribution tests. Per-file installation remains an approved operator action, not a sync service. |
+| **P0 / R0** — provenance and distribution | Delivered | `LICENSE`, `THIRD_PARTY_NOTICES.md`, inert config example, [installation manifest](docs/installation.md#file-manifest), scope/distribution tests. Per-file installation remains an approved operator action, not a sync service. |
 | **P1 / R2** — page and project contracts | Delivered | Contract, seven templates, populated synthetic fixtures and `tests/test_contract.py`. `415d72b` adds flexible learning/reference content and proposal coverage review; no new metadata types or permissions. |
 | **P2 / R1A–B, R3–R4** — ingest/query core | Delivered, with evidence limits | Two roles, two skills, `scripts/link_check.py`, manual invocation runbook and opt-in native drivers. Native ingest/query/repeat/recovery/injection cases are documented; see the evidence table below rather than assuming every planned variant passed natively. |
 | **P2A / R7** — vault statistics | Delivered | `scripts/vault_stats.py`, deterministic synthetic tests and `docs/vault-stats.md`; read-only human/JSON output, fixed `--as-of`, defined denominators. Running a real-corpus report is an owner-local operation. |
@@ -65,7 +65,7 @@ edits, and owner content acceptance are different evidence classes.
 | Evidence class | What is established | Where to inspect |
 |---|---|---|
 | Offline distribution suite | 83 passing static/CLI/guard tests; includes the new structured source-template case | `tests/`, current verification baseline above |
-| Isolated native runtime probes | Documented version-specific loading/read/refusal behavior; fake-provider cases are not semantic ingest proof | `tests/runtime_read_probe.py`, `tests/runtime_roles_probe.py`, README runtime sections |
+| Isolated native runtime probes | Documented version-specific loading/read/refusal behavior; fake-provider cases are not semantic ingest proof | `tests/runtime_read_probe.py`, `tests/runtime_roles_probe.py`, historical execution record below |
 | Live, driver-applied semantic rehearsal | Two-source proposals, contradiction retention, repeat and sourced answering; driver applied the pages | `docs/manual-loop.md`, `docs/synthetic-acceptance.md` |
 | Live native named-role trials | Actual approved edits, applied-wiki and raw-source queries, no-op repeat, bounded injection assessment, interruption/operator-mediated recovery and log append | `docs/native-acceptance-trials.md`, `docs/synthetic-acceptance.md` |
 | Owner acceptance / private deployment | Not inferred from any test count; maintained outside this repository | Local owner records, never private fixtures or transcripts here |
@@ -170,7 +170,7 @@ The public/private boundary is a data-management boundary, not merely `.gitignor
 
 ```text
 AGENTS.md                          public machinery development guidance only
-README.md                          installation manifest and versioned upgrade procedure
+README.md                          user overview and documentation navigation
 LICENSE                            chosen license for original downstream work
 THIRD_PARTY_NOTICES.md              verbatim upstream MIT notice + adaptation map
 framework/
@@ -1065,3 +1065,21 @@ distribution suite passed 83 tests. The additional wholly invented template
 case preserves a tree, code example and comparison table without introducing
 metadata or concept-link requirements. `git diff --check` passed. These are
 static/offline results, not proof of model selection quality or runtime adoption.
+
+## 2026-09-28 — User documentation entry point
+
+Reframed the README around the shipped manual source-to-wiki-to-answer capability
+and the reader's next task. Diataxis navigation separates a model-free tutorial,
+installation/operation how-tos, contract/tool reference and workflow explanation.
+Installation details moved out of the overview; development evidence stays linked
+as evidence, not mislabeled as a tutorial or private deployment certification.
+
+The tutorial uses only the existing invented contract fixture. Its read-only
+checker example reports five knowledge pages, two controls and 18 links without
+diagnostics. Statistics on that same fixture at `2026-09-24` report one component,
+zero inbound orphans and zero stale concepts out of one eligible concept. No
+provider calls, private fixtures, runtime configuration or vault writes are needed.
+
+Verification: all 83 offline tests pass. The documented tutorial commands produce
+the expected results and preserve all fixture bytes and paths. Local documentation
+links and referenced headings were checked. No native/model trials were rerun.

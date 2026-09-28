@@ -1,20 +1,32 @@
 # Manual ingest/query operation
 
-Status: native four-file edits, sourced queries, write-enabled repeat, bounded
-source injection and operator-mediated interruption/recovery now have synthetic
-runtime evidence. See the [native trial report](native-acceptance-trials.md) for
-actual results versus limitations. Missing-resource cases were owner-waived, not
-passed. Owner content judgment remains separate from technical verification.
-Do not install into a personal vault until PLAN.md's P3 entry gate passes,
-including both required CLI ports and private backup/restore proof.
+Use this guide to turn one approved capture into reviewed wiki changes, then
+ask a read-only question grounded in the result. You need installed definitions,
+an approved provider/data scope and a prepared runtime. Start with
+[installation and upgrades](installation.md) if those are not ready, or use the
+[model-free tutorial](tutorial.md) to learn the page/evidence flow first.
+
+Confirm applicable local approvals and recovery evidence: the default before-write
+gate is an affected-file backup and verified alternate-location restore, subject
+only to explicitly recorded scoped exceptions. The public tests do not determine
+whether your private deployment is ready. [Native trial results](native-acceptance-trials.md)
+are evidence, not permission to skip these decisions or owner content review.
 
 ## 1. Prepare the isolated profile
 
 The operator, outside the agent runtime, selects a small approved corpus and
 records its paths and preimage hashes. Reject linked files/ancestors, hardlinks
 and traversal; freeze the prepared corpus against outside writers. Do not mount
-the personal vault, home, settings, credentials or personal AGENTS.md. Native
-tool permissions cannot protect the destination of an allowed symlink.
+the personal vault, home, settings, credential stores or personal AGENTS.md.
+Any separately approved native authentication mechanism stays outside the
+agent-readable corpus and must not grant the role read access to credential files.
+Stop if it introduces unreviewed tools, plugins or routes. Native tool permissions
+cannot protect the destination of an allowed symlink.
+
+Direct-vault working-directory use is a separate exposure decision: vault and
+global instructions may be sent to the provider despite read-tool denials.
+Do not use it as a fallback without explicit acceptance and permission checks.
+The scoped role files do not change or confine the existing default agent.
 
 Copy only the four reviewed files into the isolated profile's native agents and
 skills directories. The test uses a disposable clean home; real distribution
@@ -243,11 +255,15 @@ is delivered with its [local report approval procedure](vault-stats.md).
 Approve exact paths/provider/source and R6 backup policy/isolated restore.
 The [R6 public rehearsal](backup-restore.md) now passes on synthetic files;
 it does not supply the actual private backup policy or private restore proof.
-A later, explicitly approved 14-file add-only greenfield bootstrap has been copied,
+Historical bootstrap checkpoint: an explicitly approved 14-file add-only greenfield bootstrap was copied,
 under the owner's initial-backup waiver. Installed payload hashes and the existing
 root instruction hash were verified; the broad metadata audit reported an
 unattributed change and is not a full private-content integrity pass. No notes or
 settings were opened/edited and no runtime/model process was invoked for the copy.
-Restart to discover the roles/skills, then separately approve source/provider and
-exact grants. Earlier live authentication approval covered synthetic checks, not
-arbitrary private-source exposure.
+That checkpoint required a subsequent restart for discovery and separate approval
+of source/provider exposure and exact grants. Its earlier live authentication
+approval covered synthetic checks, not arbitrary private-source exposure. This
+historical record is not an instruction to repeat a completed local operation.
+
+For the current public delivery summary, see [PLAN.md](../PLAN.md#current-delivery-status).
+Private operation status belongs in local records, not this historical account.

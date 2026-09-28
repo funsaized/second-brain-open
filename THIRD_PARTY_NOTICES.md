@@ -11,7 +11,9 @@ licenses; neither project's MIT license grants rights to that content.
 | Downstream file | Pinned upstream source | Use / changes |
 |---|---|---|
 | `PLAN.md` | Paths enumerated in its Upstream Inventory and Research Coverage | Research synthesis and proposed adaptations; not an installed catalog |
-| `README.md` | `vault-template/README.md`, root `README.md` | Setup concepts replaced by an inert, approval-gated, one-way distribution procedure |
+| `README.md` | `vault-template/README.md`, root `README.md` | User-facing capability overview and documentation navigation; reviewed distribution instructions are linked separately |
+| `docs/installation.md` | `vault-template/README.md`, root `README.md`; the earlier downstream README | Separates the approved file manifest, setup, upgrade and recovery procedure from the overview; no automatic installer |
+| `docs/how-it-works.md` | `vault-template/CLAUDE.md`, `vault-template/projects/README.md`, knowledge templates via the ported contract | Explains evidence, knowledge types, projects and review boundaries without changing runtime permissions |
 | `THIRD_PARTY_NOTICES.md` | `LICENSE` | Complete notice reproduced below, without adding a holder |
 | `framework/instructions/wiki-contract.md` | `vault-template/CLAUDE.md`, `vault-template/projects/README.md`, and the four knowledge templates below | Reconciles schema, claim locators, unknown provenance, canonical paths, control types, isolated input scope and approved project promotion; adds purpose-sensitive content preservation and proposal coverage review |
 | `framework/templates/source.md` | `vault-template/templates/source.md` | Adds capture/archive fields and per-claim locators; unknown values explicit; flexible learning/reference body without a fixed claim count or forced concept link |

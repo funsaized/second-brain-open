@@ -79,7 +79,9 @@ TMPDIR=/tmp/opencode python3 -m unittest discover -s tests -v
 git diff --check
 ```
 
-All **six R6 tests** and all **82 offline tests** pass. The R6 tests verify:
+At the recorded R6 checkpoint, all **six R6 tests** and the then-current **82 offline
+tests** passed. The [README](../README.md#verification-and-development) gives the
+current distribution check. The R6 tests verify:
 
 - Full restore and exclusive recreation of a missing asset with the original
   source path unavailable; separately retained approval is reloaded from disk.
@@ -121,7 +123,10 @@ recovery for the real vault**. Hash verification also depends on retaining a
 trusted approval record; it is not a signature or protection if that record and
 the backup are both replaced.
 
-Next is **R6A policy approval**, before any private backup/restore or P3 install:
+At this checkpoint, the recorded next step was **R6A policy approval**. The list
+below is historical, not a claim that these decisions remain open for every
+deployment. Follow the current [installation procedure](installation.md) and
+consult the owner's local records and applicable scoped exceptions:
 
 - Existing backup mechanism and approved destination/access, separate from sync.
 - Exact private file scope and assets, with `.obsidian/` and credentials excluded
