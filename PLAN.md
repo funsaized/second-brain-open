@@ -918,3 +918,17 @@ Ask at the relevant checkpoint, not all at once.
 ### Open planning blockers
 
 None for the consolidated plan. Separate `RUNBOOKS.md` and `DECISIONS.md` creation was denied by the active edit policy; their content is included above. Owner decisions and runtime gates intentionally precede affected implementation operations.
+
+## 2026-09-28 — Content-preservation policy follow-up
+
+Implemented purpose-sensitive learning/reference content rules in the contract,
+ingest skill, source template and manual request example. Source bodies support
+complete Markdown, with retained/summarized/omitted coverage review in proposals;
+no new metadata fields, page types, permissions or automated publication paths.
+The adaptation map records these changes.
+
+Verification: the focused contract suite passed 5 tests, and the offline
+distribution suite passed 83 tests. The additional wholly invented template
+case preserves a tree, code example and comparison table without introducing
+metadata or concept-link requirements. `git diff --check` passed. These are
+static/offline results, not proof of model selection quality or runtime adoption.

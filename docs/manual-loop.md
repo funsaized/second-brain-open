@@ -74,8 +74,18 @@ tool, not by interpolating it into a command.
 Example request after local setup (replace paths with approved local paths):
 
 > Load your designated skill using the skill tool. Read the approved contract,
-> index and source at the paths in this operation's manifest. Propose claims
-> and exact changed paths only; do not write before I approve the proposal.
+> index and complete source at the paths in this operation's manifest. The goal
+> is a useful learning reference. Propose complete Markdown and exact changed
+> paths, with a short retained/summarized/omitted coverage review. Preserve the
+> central explanation, examples and qualifications; do not write before approval.
+
+The source template supports prose, code, tables and other useful Markdown
+structure; it does not impose a claim count. Choose a brief digest explicitly
+when that is the intended product. Review coverage as well as factual support:
+a matched quotation can still accompany a note that omits the main lesson or
+misrepresents a comparison's balance. Keep review bookkeeping outside the note
+unless it helps the reader. Code examples are evidence, not authorization to
+execute them or proof that they work.
 
 For queries:
 

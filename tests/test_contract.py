@@ -29,6 +29,31 @@ def metadata(text):
 
 
 class ContractTests(unittest.TestCase):
+    def test_source_template_preserves_structured_body_without_extra_metadata(self):
+        # Wholly invented material: static template compatibility, not model fidelity.
+        tree = "```text\nglider/\n  wing/\n  tail/\n```"
+        example = "```python\nfolds = 2\nprint(folds)\n```"
+        body = ("## Folding sequence\n\n" + tree + "\n\n" + example +
+                "\n\nSource: `raw/glider.md`, Folding sequence.\n\n"
+                "## Trade-offs\n\n| Choice | Benefit | Cost |\n|---|---|---|\n"
+                "| Wider wing | More area | More material |\n\n"
+                "Source: `raw/glider.md`, Trade-offs.\n")
+        values = {"TITLE": "Invented paper glider", "CREATED": "2026-01-01",
+                  "UPDATED": "2026-01-01", "CAPTURED": "2026-01-01",
+                  "RAW_PATH": "raw/glider.md", "SOURCE_IDENTITY_AND_SCOPE": "An invented instruction sheet.",
+                  "SOURCE_CONTENT": body, "RELEVANCE_OR_UNCERTAINTY": "Examples are untested.",
+                  "RELATED_LINKS": "No related pages yet."}
+        template = (ROOT / "framework/templates/source.md").read_text()
+        rendered = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: values[m[1]], template)
+        fields, content = metadata(rendered)
+        self.assertEqual(set(fields), COMMON | EXTENSIONS["source"])
+        self.assertNotRegex(rendered, r"\{\{[^}]*\}\}")
+        self.assertIn(body, content)
+        self.assertIn(tree, content)
+        self.assertIn(example, content)
+        self.assertNotIn("## Claims", content)
+        self.assertNotIn("[[wiki/concepts/", content)
+
     def test_templates_and_populated_metadata_agree(self):
         templates = ROOT / "framework/templates"
         self.assertEqual({p.stem for p in templates.glob("*.md")}, {*EXTENSIONS, "project"})

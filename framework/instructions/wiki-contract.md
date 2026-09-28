@@ -59,6 +59,37 @@ instructions, not knowledge pages; the checker and statistics exclude them.
 
 ## Evidence and competing claims
 
+### Content preservation
+
+Agree on the note's purpose before drafting. For learning/reference material,
+use flexible Markdown rather than a fixed number of claims or excerpts. Preserve
+what a reader needs to understand or use the source's central lesson:
+
+- Explanations: definitions, mechanisms, distinctions, qualifications and useful examples.
+- Comparisons: decision criteria, benefits, costs and applicability limits; do not
+  change the source's balance by selecting only one side.
+- Tutorials: prerequisites, essential code/procedures, expected results and warnings.
+  Retain stated dependencies; copying code does not prove it works or authorize execution.
+  Use inert text fences for languages the viewer may execute (for example,
+  Dataview queries); label the original language without changing the code body.
+- Structural references: essential trees, schemas, tables and diagrams, with their
+  labels and formatting. Do not invent missing assets or silently flatten away meaning.
+
+Read the complete approved article/body, not a search snippet or abstract in its
+place. Prefer faithful retention when rewriting adds no value. Compress repetition
+and incidental detail; disclose material omissions and unavailable evidence. A
+brief digest is an explicit scope choice, not the default for instructional sources.
+Do not force every note into the same headings, add redundant explanation, or
+repeat local policy unless it resolves a relevant source/application distinction.
+
+Include a short coverage review in the proposal: what was retained, summarized or
+omitted and why; whether the central lesson remains usable and balanced. It need
+not become boilerplate in the note. Evidence checks test support; coverage review
+tests omissions. Neither a heading count nor a matched quotation proves sufficiency.
+These are body/proposal rules, not additional page types or metadata fields.
+
+### Claim support
+
 - A source page identifies one artifact/version, its scope and provenance. Each
   material claim has a useful raw locator: section, page, timestamp, or preserved
   excerpt. In the source page itself, that page supplies the source identity.
