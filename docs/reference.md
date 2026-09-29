@@ -30,7 +30,7 @@ sb_operator.py status OPERATION
 |---|---|
 | `capture` | Fetches one http(s) URL with no model involved. A web page's main content goes to `raw/<date>-<slug>.md` (see [Web capture](#web-capture)). A PDF is kept as `raw/<date>-<slug>.pdf` beside its extracted text (see [PDF capture](#pdf-capture)). Never overwrites: repeats get `-2`, `-3`. |
 | `pending` | Lists `.md`, `.txt` and `.html` files under `raw/` that no source page's `raw` field references, plus PDFs no capture's `source_pdf` names, oldest first. Skips `raw/assets/`, hidden files, and subfolders where any file is already referenced (multi-file captures). |
-| `stage` | With `--url`, runs `capture` first and ingests the result. An ingest `--input` ending in `.pdf` is extracted first. Either way, the printed `capture` lists every part, and the operation ingests part 1. Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
+| `stage` | Writes `operation.md`, listing the exact contract, index, log, template, input and figure paths the worker may read. With `--url`, runs `capture` first and ingests the result. An ingest `--input` ending in `.pdf` is extracted first. Either way, the printed `capture` lists every part, and the operation ingests part 1. Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
 | `run` | Grants the worker exact reads on the staged files, denies every other tool, verifies the effective configuration with `opencode debug`, then runs the worker once. Saves `response.md`, `run.json` and, for ingest and compile, `proposal.json`. |
 | `revise` | Once per operation: reruns the worker with the dry-run problems as feedback and its previous reply readable as `previous-proposal.md`. The first attempt moves to `attempt-1/`. |
 | `apply` | Validates the proposal (below), backs up every file it replaces to `backup/`, writes the pages and appends the log record, then runs the checker on the vault. If that check fails, it undoes the write. `--dry-run` validates without writing. |
@@ -116,8 +116,13 @@ marker line inside a page or the log record is an error.
   `<time datetime>`.
 - **Line length.** Prose lines over 1,500 characters are wrapped so a worker
   can read every line; code is never rewrapped.
-- **Refusals.** Fewer than 150 words of main content, more than 1,900 lines,
-  more than 5 MB, or another content type. A refusal writes nothing.
+- **Parts.** A capture too long for one full read is split into
+  `-part-1.md`, `-part-2.md`, and so on. Splits fall before headings, then at
+  blank lines, never inside code, and the `part` field records `k/n`. A full
+  read means at most 1,850 lines and 45 KB, because OpenCode's read tool
+  truncates at about 50 KB.
+- **Refusals.** Fewer than 150 words of main content, a download over 50 MB,
+  or another content type. A refusal writes nothing.
 
 Capture frontmatter, one JSON value per line:
 
@@ -125,6 +130,7 @@ Capture frontmatter, one JSON value per line:
 |---|---|
 | `url` | The URL you gave |
 | `final_url` | Where redirects ended, or `null` if the same |
+| `part` | `k/n` when the page was split, otherwise `null` |
 | `title`, `author`, `published` | From the page; `null` when absent, never guessed |
 | `captured` | UTC capture time |
 | `fetched_with` | Records that no model produced the text |
@@ -143,8 +149,16 @@ Tesseract.
   - more than 35% of lines are one to three characters (interleaved columns)
   - under 60% of visible characters are letters
   - more than 1 in 200 characters are unreadable
+- **Figures.** Pages whose text has a line starting `Figure N` or `Fig. N`
+  followed by `.`, `:` or `|` are rendered with `pdftoppm` at 110 dpi to
+  `raw/assets/<capture>/page-NN.png`. That covers embedded images and vector
+  charts alike. Only the first 12 such pages are rendered. Each rendered page
+  gets a `![Figure N (page P)](...)` line under its text. `stage` copies the
+  input capture's figure images into the staged copy, so the worker can read
+  them; image reads are optional, not required full reads.
 - **Pages and parts.** Each page becomes `## Page N`. Parts break only
-  between pages, and each part stays within 1,850 lines. A single-part
+  between pages, and each part stays within one full read (1,850 lines and
+  45 KB). A single-part
   capture is named after the PDF; parts are named `-part-1`, `-part-2`, and
   so on.
 
@@ -159,13 +173,15 @@ PDF capture frontmatter:
 | `pdf_created` | The file's creation date, which is not the publication date |
 | `pages`, `page_range`, `part` | Total pages, this capture's pages, and `k/n` for parts (`null` if one part) |
 | `extracted_with`, `ocr`, `quality` | Extraction mode, whether OCR produced the text, and the quality metrics |
+| `figures` | Rendered figure pages in this capture: page, figure numbers and image path |
+| `figure_pages_not_rendered` | Caption pages past the 12-page limit |
 | `captured`, `body_sha256` | UTC capture time and the hash of the Markdown body |
 
 ## Worker roles
 
 | Role | Skill | Access when launched by the operator |
 |---|---|---|
-| `sb-ingestor` | `second-brain-ingest` | Exact reads on the staged files; no edits, shell, search, network or delegation. Returns a proposal. |
+| `sb-ingestor` | `second-brain-ingest` | Exact reads on the staged files, including rendered figure images; no edits, shell, search, network or delegation. Returns a proposal. |
 | `sb-researcher` | `second-brain-query` | Exact reads on the staged files; nothing else. Returns an answer ending with `Read:` and `Not covered:`. |
 | Your primary agent | `second-brain-operator` | Its own permissions; it needs shell access to run the CLI. |
 

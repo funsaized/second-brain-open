@@ -31,11 +31,13 @@ The operator does the rest:
 4. **Report.** You get the pages created or updated, the checker result, the
    operation directory and the undo command.
 
-A capture is refused when the page yields fewer than 150 words of main content
-(common for pages that need JavaScript, a login or a subscription), or more
-than 1,900 lines (too long for one full read). In both cases, save the page
-with the [Obsidian Web Clipper](https://obsidian.md/clipper) into `raw/`, in
-parts if it is long, and ingest the file instead.
+A long page is split between headings into parts the worker can read in full.
+The operator then ingests the parts in order, each as its own source page. A
+capture is refused when the page yields fewer than 150 words of main content,
+which is common for pages that need JavaScript, a login or a subscription. In
+that case, save the page with the
+[Obsidian Web Clipper](https://obsidian.md/clipper) into `raw/` and ingest the
+file instead.
 
 ## Ingest a PDF
 
@@ -59,13 +61,20 @@ The operator does the rest:
 4. **Split long documents.** A document too long for one read is split on page
    boundaries into parts. The operator ingests the parts in order, each as its
    own source page, linked to the previous part.
-5. **Read papers as papers.** A paper's source page is built around its
+5. **Capture figures.** Every page with a `Figure N` caption is rendered to
+   an image in `raw/assets/<capture>/` (up to 12 pages) and linked under that
+   page's text, so you see the figures in Obsidian.
+6. **Read the figures.** The worker looks at the figures the paper relies on.
+   It writes a labelled "Figure reading" (type, axes, trend, key values, with
+   plotted values marked approximate) and embeds the image on the source page
+   next to it.
+7. **Read papers as papers.** A paper's source page is built around its
    question, method, results with numbers and sample sizes, and stated
    limitations.
 
-Tables and figures don't survive text extraction. When one carries the
-argument, screenshot it into `raw/assets/` and mention it on the source page
-yourself. An extraction that fails the quality check is refused with the
+Tables come through as text but lose their layout. A rendered figure page shows
+the whole page, not a neat crop, and figure pages beyond the first 12 are
+listed as not rendered. An extraction that fails the quality check is refused with the
 reason. In that case, export the text another way (for example, Zotero's
 Markdown export) into `raw/` and ingest that file.
 

@@ -16,7 +16,7 @@ community plugins are not required.
 
 | Task | Included capability | Guide |
 |---|---|---|
-| Turn a source into knowledge | Hand the operator a web page or PDF URL, or a file in `raw/`. It captures the main content, or a PDF's page-marked text with OCR for scans, with provenance. A sandboxed worker then proposes source, concept and entity pages with claim-level locators. The operator checks and applies them, with undo. | [Ingest a web page](docs/operator.md#ingest-a-web-page) |
+| Turn a source into knowledge | Hand the operator a web page or PDF URL, or a file in `raw/`. It captures the main content, or a PDF's page-marked text, with OCR for scans and rendered figures the worker reads, with provenance. A sandboxed worker then proposes source, concept and entity pages with claim-level locators. The operator checks and applies them, with undo. | [Ingest a web page](docs/operator.md#ingest-a-web-page) |
 | Catch up on captures | Clip pages into `raw/` all week, then ask the operator to ingest everything new, oldest first. | [Catch up](docs/operator.md#catch-up-on-everything-new) |
 | Build concept pages | Compile concept, entity or synthesis pages from source notes you already have, with links in both directions. | [Compile concepts](docs/operator.md#build-concept-pages-from-existing-notes) |
 | Ask a question of the wiki | A read-only worker follows the index to the relevant pages, cites them and names what the wiki does not cover. | [Ask a question](docs/operator.md#ask-a-question) |
@@ -99,7 +99,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-The offline suite currently has **114 passing tests**. It uses synthetic fixtures
+The offline suite currently has **117 passing tests**. It uses synthetic fixtures
 and does not make model calls. Live native trials require separate opt-in setup
 and approvals; they are not part of this command.
 

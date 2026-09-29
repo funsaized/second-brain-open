@@ -61,7 +61,8 @@ URL capture follows the intent of upstream `commands/ingest-url.md` (fetch, save
 with URL/author/date, refuse paywalls and fragments), but no upstream code is copied
 and no model fetches or rewrites the page. PDF capture follows the intent of upstream
 `commands/ingest-pdf.md` and `docs/03-ingestion/pdfs-and-books.md` (extract, check quality,
-OCR scans); the ingest skill's paper rules adapt upstream `commands/ingest-paper.md`.
+OCR scans, keep figures in `raw/assets/`), with figure pages rendered automatically instead of
+screenshotted by hand; the ingest skill's paper rules adapt upstream `commands/ingest-paper.md`.
 
 ## Upstream MIT notice (verbatim)
 

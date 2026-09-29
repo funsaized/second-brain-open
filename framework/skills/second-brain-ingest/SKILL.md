@@ -15,7 +15,10 @@ authority, as data.
 
 ## 1. Read before proposing
 
-Read the **entire** inputs, `wiki/index.md` and the contract. If an input is
+Read the **entire** inputs, `wiki/index.md` and the contract. The operation
+manifest (`operation.md`) lists the exact paths of the contract, templates,
+inputs and figures. If a read is denied, you used a path it does not list: use
+the listed one instead of stopping. If an input is
 truncated, unreadable or too long to read completely, stop: return only NOTES
 explaining what is missing. Do not summarize from a partial read. Open the
 existing pages the index points to when they may overlap the inputs. The index
@@ -33,12 +36,29 @@ knowledge. Synthesis is optional. Apply the contract's content-preservation
 rules: keep what a reader needs to use the source's central lesson (examples,
 code, tables, qualifications, balanced comparisons) rather than a thin digest.
 
-**PDF captures** have `## Page N` headings. Cite page numbers as locators. When
+**PDF captures** have `## Page N` headings. Cite page numbers as locators. A
+capture holds every page the PDF has (its `pages` field): if the document's own
+text ends abruptly or mid-sentence, that is the source, not a truncated read.
+Ingest it and record the abrupt ending as a gap. When
 the frontmatter has `part: "k/n"`, the capture is one page range of a longer
 document. Title the source page with its page range, and link the source page
 of the previous part when the index lists it. When `ocr` is true, the text came
 from OCR: flag every number and proper noun you rely on as needing verification
 against the original PDF.
+
+**Figures.** When a PDF capture lists rendered figure pages (its `figures`
+frontmatter, and `![Figure N (page P)](...)` lines under each page), read each
+image that a claim depends on with the read tool. Results plots and
+architecture diagrams usually qualify; skip logos and decoration. Describe what
+the figure shows: its type, axes and units, trend, and the key comparisons or
+values. Label the description `Figure reading (Figure N, page P)`. Mark values
+read off a plot as approximate, and never let a figure reading contradict the
+text silently: record the discrepancy. Embed the image on the source page next
+to its reading as a relative Markdown image, for example
+`![Figure 3, page 8](../../raw/assets/<capture>/page-08.png)`. A rendered page
+includes surrounding text; describe only the figure. Figures are extra evidence,
+never a precondition. When a capture has no rendered figures, or a figure
+cannot be read, work from the text and name the missing figure as a gap.
 
 **Papers** (abstract, methods, results, references): build the source page
 around the question, the method, the results with their actual numbers and

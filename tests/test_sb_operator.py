@@ -104,6 +104,8 @@ class OperatorTests(unittest.TestCase):
         closed = text.replace("\n<<<NOTES>>>", "\n<<<LOG>>>\n<<<NOTES>>>") + "\n<<<END NOTES>>>"
         self.assertEqual(op.parse_proposal(closed)["log"], RECORD)
         self.assertEqual(op.parse_proposal(closed)["notes"], "coverage")
+        mismatched = text.replace("\n<<<NOTES>>>", "\n<<<END FILE>>>\n<<<NOTES>>>")
+        self.assertEqual(op.parse_proposal(mismatched)["log"], RECORD)
         for bad in ("stray text\n<<<NOTES>>>\nx", "<<<FILE wiki/a.md>>>\nx\n<<<END FILE>>>\n<<<NOTES>>>\nx",
                     "<<<LOG>>>\nrecord only", "no markers",
                     "<<<LOG>>>\n## r\n<<<FILE x>>>\n<<<NOTES>>>\nx",

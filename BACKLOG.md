@@ -26,6 +26,9 @@
   catch-up processes new clips. The ingest skill adopts upstream's calibration.
 - **PDF ingest (2026-09-29):** delivered. Covers URLs or dropped files, page
   locators, OCR for scans, automatic parts for long documents, and paper mode.
+- **Figures (2026-09-29):** delivered. Pages with figure captions are rendered
+  and read by the vision-capable worker. Captures of any kind split within
+  OpenCode's read limits.
 - **Suggested next step:** A1. Compile the first concept pages in the
   deployment with the operator, then rerun the A2 evaluation.
 

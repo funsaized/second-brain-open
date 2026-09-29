@@ -12,7 +12,7 @@ results and failures; its old test counts and "next step" statements are not the
 current backlog. The phase specifications and runbooks describe requirements and
 repeatable procedures, not a list of features that are all still unimplemented.
 
-**Verification baseline:** 114 offline tests pass with
+**Verification baseline:** 117 offline tests pass with
 `python3 -m unittest discover -s tests`. Live native probes are opt-in and are not
 part of that count. Static fixtures, driver-applied model proposals, native tool
 edits, and owner content acceptance are different evidence classes.
@@ -67,7 +67,7 @@ edits, and owner content acceptance are different evidence classes.
 
 | Evidence class | What is established | Where to inspect |
 |---|---|---|
-| Offline distribution suite | 114 passing static/CLI/guard tests; includes operator stage/apply/undo/revise, checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
+| Offline distribution suite | 117 passing static/CLI/guard tests; includes operator stage/apply/undo/revise, checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
 | Live researcher evaluation | Scored native `sb-researcher` answers on a staged wiki copy (OpenCode 1.18.33); the synthetic fixture passed 3/3 | `docs/researcher-evaluation.md`; private-wiki results stay local |
 | Isolated native runtime probes | Documented version-specific loading/read/refusal behavior; fake-provider cases are not semantic ingest proof | `tests/runtime_read_probe.py`, `tests/runtime_roles_probe.py`, historical execution record below |
 | Live, driver-applied semantic rehearsal | Two-source proposals, contradiction retention, repeat and sourced answering; driver applied the pages | `docs/native-acceptance-trials.md` (earlier rehearsals), `docs/synthetic-acceptance.md` |
@@ -420,7 +420,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-Current result: **114 tests pass**. The structured source-template test is static
+Current result: **117 tests pass**. The structured source-template test is static
 compatibility evidence, not proof of model editorial quality. Historical counts
 in the execution record and dated evidence reports describe their own checkpoints.
 
@@ -1175,3 +1175,21 @@ Verification: 109 offline tests pass; `git diff --check` passes.
 
 Verification: 114 offline tests pass, including an OCR run on a generated
 scan; `git diff --check` passes.
+
+## 2026-09-29 — Figures and reliable parts
+
+- **Figures.** PDF capture renders every page with a figure caption (up to 12)
+  to `raw/assets/<capture>/`, links it under the page text and stages the
+  images for the worker. A vision check confirmed the worker model reads
+  images through OpenCode's read tool.
+- **Figure readings.** The ingest skill writes labelled figure readings with
+  approximate values and embeds the image. Figures never block an ingest.
+- **Parts.** Every capture, web or PDF, now splits within 1,850 lines and
+  45 KB, because OpenCode's read tool truncates at about 50 KB. Web pages split
+  before headings.
+- **Manifest.** The operation manifest lists exact readable paths.
+- **Live run.** A 12-page arXiv paper was ingested end-to-end in two parts,
+  with six figure readings; see the trials doc for the failures found and
+  fixed.
+
+Verification: 117 offline tests pass; `git diff --check` passes.

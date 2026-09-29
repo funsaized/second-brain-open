@@ -1,10 +1,13 @@
 """Turn a PDF into page-marked Markdown with a quality check; no model involved.
 
-Uses Poppler's `pdftotext`/`pdfinfo` and, for scans without a text layer,
+Uses Poppler's `pdftotext`/`pdfinfo`/`pdftoppm` and, for scans without a text layer,
 `ocrmypdf` (Tesseract) when installed. Text is extracted in reading order
 first, with `-layout` as a fallback when the quality check fails. Every page
 becomes a `## Page N` section so claims can cite page numbers. Long documents
 are split on page boundaries into parts a worker can read in one pass.
+Pages whose text carries a figure caption are rendered to PNG, so figures
+(embedded images and vector charts alike) survive as images a person can see
+and a vision-capable worker can read.
 """
 
 import re
@@ -16,6 +19,9 @@ from pathlib import Path
 
 MIN_WORDS = 150
 MAX_PART_LINES = 1850
+MAX_FIGURE_PAGES = 12
+FIGURE_DPI = 110
+CAPTION = re.compile(r"(?m)^\s*(?:Figure|Fig\.)\s*(\d+[A-Za-z]?)\s*[.:|]")
 
 
 def info(path):
@@ -106,19 +112,59 @@ def extract(path):
                      + ". Try exporting the document from its source, or a tool such as Zotero, into raw/")
 
 
-def split(texts):
-    """Page-marked Markdown parts, each within one full read; returns [(first, last, body)]."""
-    parts, current, first, size = [], [], 1, 0
-    for number, text in enumerate(texts, 1):
-        section = f"## Page {number}\n\n{text.strip() or '(no text on this page)'}\n"
-        lines = section.count("\n") + 1
-        if lines > MAX_PART_LINES:
-            raise ValueError(f"page {number} alone is longer than one full read")
-        if current and size + lines > MAX_PART_LINES:
-            parts.append((first, number - 1, "\n".join(current)))
-            current, first, size = [], number, 0
-        current.append(section)
-        size += lines
+MAX_PART_BYTES = 45_000  # OpenCode's read tool truncates output above about 50 KB
+
+
+def fits(text):
+    return text.count("\n") + 1 <= MAX_PART_LINES and len(text.encode()) <= MAX_PART_BYTES
+
+
+def pack(blocks):
+    """Group consecutive blocks into parts that each fit one full read; returns [(first, last, text)] (0-based)."""
+    parts, current, first = [], [], 0
+    for index, block in enumerate(blocks):
+        if not fits(block):
+            raise ValueError(f"block {index + 1} alone is longer than one full read")
+        if current and not fits("\n".join(current + [block])):
+            parts.append((first, index - 1, "\n".join(current)))
+            current, first = [], index
+        current.append(block)
     if current:
-        parts.append((first, len(texts), "\n".join(current)))
+        parts.append((first, len(blocks) - 1, "\n".join(current)))
     return parts
+
+
+def split(texts):
+    """Page-marked Markdown parts, each within one full read; returns [(first page, last page, body)]."""
+    sections = [f"## Page {n}\n\n{text.strip() or '(no text on this page)'}\n" for n, text in enumerate(texts, 1)]
+    try:
+        return [(first + 1, last + 1, body) for first, last, body in pack(sections)]
+    except ValueError as error:
+        raise ValueError(str(error).replace("block", "page")) from None
+
+
+def figure_pages(texts):
+    """{page: [figure numbers]} for pages with a figure caption, in page order."""
+    found = {}
+    for number, text in enumerate(texts, 1):
+        labels = list(dict.fromkeys(CAPTION.findall(text)))
+        if labels:
+            found[number] = labels
+    return found
+
+
+def render_figures(path, texts, directory):
+    """Render caption pages to directory/page-NN.png; returns (rendered {page: (labels, file)}, skipped pages)."""
+    pages_found = figure_pages(texts)
+    chosen = list(pages_found)[:MAX_FIGURE_PAGES]
+    rendered = {}
+    if chosen:
+        directory.mkdir(parents=True, exist_ok=True)
+    width = max(2, len(str(len(texts))))
+    for page in chosen:
+        target = directory / f"page-{page:0{width}d}"
+        result = subprocess.run(["pdftoppm", "-r", str(FIGURE_DPI), "-png", "-singlefile", "-f", str(page),
+                                 "-l", str(page), str(path), str(target)], capture_output=True, timeout=120)
+        if result.returncode == 0 and target.with_suffix(".png").is_file():
+            rendered[page] = (pages_found[page], target.with_suffix(".png"))
+    return rendered, [page for page in pages_found if page not in chosen]

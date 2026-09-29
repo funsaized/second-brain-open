@@ -89,7 +89,9 @@ class PdfCaptureTests(unittest.TestCase):
         self.assertEqual(ranges[0].split("-")[0], "1")
         self.assertEqual(ranges[-1].split("-")[1], "60")
         for part in result["parts"]:
-            self.assertLessEqual((self.vault / part).read_text().count("\n"), op.MAX_LINES)
+            body = (self.vault / part).read_text().split("---\n\n", 1)[1]
+            self.assertLessEqual(body.count("\n"), pdf_capture.MAX_PART_LINES)
+            self.assertLessEqual(len(body.encode()), pdf_capture.MAX_PART_BYTES)
         self.assertEqual(self.fields(result["parts"][1])["part"], f"2/{len(result['parts'])}")
 
     def test_quality_check_and_refusals(self):
@@ -118,6 +120,38 @@ class PdfCaptureTests(unittest.TestCase):
         self.assertEqual(op.pending(self.vault), ["raw/dropped.md"])  # extracted text awaits ingest
         with self.assertRaisesRegex(ValueError, "one PDF"):
             op.stage(self.vault, "ingest", ["raw/dropped.pdf", "raw/dropped.md"], "t", self.config)
+
+    def test_figure_pages_rendered_linked_and_staged(self):
+        pages = [PAGE, PAGE[:30] + ["Figure 1: Invented chart of crust time against preheat minutes."],
+                 PAGE[:30] + ["Fig. 2. Invented diagram of the oven.", "As Figure 1 shows, times fall."], PAGE[:30]]
+        (self.vault / "raw/study.pdf").write_bytes(make_pdf(pages))
+        result = op.capture_pdf(self.vault, "raw/study.pdf")
+        self.assertEqual((result["figure_pages"], result["figure_pages_not_rendered"]), ([2, 3], []))
+        for page in ("02", "03"):
+            self.assertTrue((self.vault / f"raw/assets/study/page-{page}.png").read_bytes().startswith(b"\x89PNG"))
+        body = (self.vault / result["raw"]).read_text()
+        self.assertIn("![Figure 1 (page 2)](assets/study/page-02.png)", body)
+        self.assertIn("![Figure 2 (page 3)](assets/study/page-03.png)", body)
+        self.assertEqual(self.fields(result["raw"])["figures"],
+                         [{"page": 2, "figures": ["1"], "image": "raw/assets/study/page-02.png"},
+                          {"page": 3, "figures": ["2"], "image": "raw/assets/study/page-03.png"}])
+        operation = op.stage(self.vault, "ingest", [result["raw"]], "Ingest the study", self.config, "2026-09-29")
+        manifest = json.loads((operation / "manifest.json").read_text())
+        self.assertEqual(manifest["figures"], ["raw/assets/study/page-02.png", "raw/assets/study/page-03.png"])
+        self.assertIn("raw/assets/study/page-02.png", manifest["reads"])
+        self.assertTrue((operation / "corpus/raw/assets/study/page-02.png").is_file())
+        self.assertIn("raw/assets/study/page-03.png", op.worker_prompt(manifest, operation / "corpus"))
+        with self.assertRaisesRegex(ValueError, "figure directory already exists"):
+            op.capture_pdf(self.vault, "raw/study.pdf")
+
+    def test_figure_page_cap_and_caption_rule(self):
+        self.assertEqual(pdf_capture.figure_pages(["see Figure 3 below", "Figure 3: x", "  Fig. 4b: y\nFigure 5. z"]),
+                         {2: ["3"], 3: ["4b", "5"]})
+        pages = [PAGE[:20] + [f"Figure {i}: invented plot {i}."] for i in range(1, 16)]
+        (self.vault / "raw/many.pdf").write_bytes(make_pdf(pages))
+        result = op.capture_pdf(self.vault, "raw/many.pdf")
+        self.assertEqual(len(result["figure_pages"]), pdf_capture.MAX_FIGURE_PAGES)
+        self.assertEqual(result["figure_pages_not_rendered"], [13, 14, 15])
 
     @unittest.skipUnless(shutil.which("ocrmypdf") and shutil.which("tesseract"), "OCR tools not installed")
     def test_scanned_pdf_is_ocrd(self):

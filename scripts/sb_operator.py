@@ -101,6 +101,39 @@ CAPTURE_SUFFIXES = (".md", ".txt", ".html", ".htm")
 MIN_WORDS, MAX_LINES, WRAP_AT = 150, 1900, 1500
 
 
+def text_blocks(body):
+    """Split Markdown before headings, then (for oversized sections) at blank lines, never inside code."""
+    sections, current, fence = [], [], None
+    for line in body.splitlines():
+        marker = re.match(r"^(`{3,}|~{3,})", line)
+        if marker and (fence is None or marker.group(1)[0] == fence[0]):
+            fence = None if fence else marker.group(1)
+        if fence is None and re.match(r"#{1,3} ", line) and current:
+            sections.append("\n".join(current))
+            current = []
+        current.append(line)
+    if current:
+        sections.append("\n".join(current))
+    blocks = []
+    for section in sections:
+        if pdf_capture.fits(section):
+            blocks.append(section)
+            continue
+        paragraph, fence = [], None
+        for line in section.splitlines():
+            marker = re.match(r"^(`{3,}|~{3,})", line)
+            if marker and (fence is None or marker.group(1)[0] == fence[0]):
+                fence = None if fence else marker.group(1)
+            if fence is None and not line.strip() and paragraph:
+                blocks.append("\n".join(paragraph))
+                paragraph = []
+                continue
+            paragraph.append(line)
+        if paragraph:
+            blocks.append("\n".join(paragraph))
+    return blocks
+
+
 def slugify(text, limit=60):
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return slug[:limit].rstrip("-") or "capture"
@@ -120,9 +153,10 @@ def readable_lines(body):
     return "\n".join(out).rstrip("\n") + "\n"
 
 
-def capture_text(url, final_url, body, meta, captured):
+def capture_text(url, final_url, body, meta, captured, part=None):
     return frontmatter({"url": url, "final_url": final_url if final_url != url else None, "title": meta["title"],
-                        "author": meta["author"], "published": meta["published"], "captured": captured,
+                        "author": meta["author"], "published": meta["published"], "part": part,
+                        "captured": captured,
                         "fetched_with": "sb_operator capture (main-content extraction, no model)",
                         "body_sha256": digest(body.encode())}) + body
 
@@ -150,22 +184,51 @@ def capture_pdf(vault, pdf, url=None, today=None):
     vault = Path(vault).resolve()
     validate_scope(vault, [Path(pdf)])
     texts, meta = pdf_capture.extract(vault / pdf)
-    parts = pdf_capture.split(texts)
-    captured = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     stem = pdf[:-len(Path(pdf).suffix)]
+    assets = vault / "raw/assets" / Path(stem).name
+    if assets.exists():
+        raise ValueError(f"figure directory already exists: {assets.relative_to(vault)}")
+    rendered, skipped = pdf_capture.render_figures(vault / pdf, texts, assets)
+    marked = list(texts)
+    for page, (labels, image) in rendered.items():
+        link = os.path.relpath(image, (vault / stem).parent)
+        marked[page - 1] = (marked[page - 1].rstrip() + "\n\n" +
+                            f"![Figure {', '.join(labels)} (page {page})]({link})")
+    parts = pdf_capture.split(marked)
+    captured = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     written = []
     for index, (first, last, body) in enumerate(parts, 1):
         body = readable_lines(body)
+        figures = [{"page": page, "figures": labels, "image": image.relative_to(vault).as_posix()}
+                   for page, (labels, image) in rendered.items() if first <= page <= last]
         fields = {"url": url, "source_pdf": pdf, "pdf_sha256": file_hash(vault / pdf), "title": meta["title"],
                   "author": meta["author"], "published": meta["published"], "pdf_created": meta["pdf_created"],
                   "pages": len(texts),
                   "page_range": f"{first}-{last}", "part": f"{index}/{len(parts)}" if len(parts) > 1 else None,
                   "captured": captured, "extracted_with": f"pdftotext ({meta['mode']})", "ocr": meta["ocr"],
-                  "quality": meta["quality"], "body_sha256": digest(body.encode())}
+                  "quality": meta["quality"], "figures": figures,
+                  "figure_pages_not_rendered": skipped, "body_sha256": digest(body.encode())}
         name = stem + (f"-part-{index}" if len(parts) > 1 else "")
         written.append(exclusive(vault, name, ".md", (frontmatter(fields) + body).encode()))
     return {"raw": written[0], "parts": written, "pdf": pdf, "title": meta["title"], "pages": len(texts),
-            "ocr": meta["ocr"], "mode": meta["mode"]}
+            "ocr": meta["ocr"], "mode": meta["mode"], "figure_pages": sorted(rendered),
+            "figure_pages_not_rendered": skipped}
+
+
+def capture_fields(path):
+    """Leading JSON-valued frontmatter of a capture file, or {} when absent."""
+    with open(path, encoding="utf-8", errors="replace") as stream:
+        head = stream.read(65536)
+    if not head.startswith("---\n") or "\n---\n" not in head[4:]:
+        return {}
+    fields = {}
+    for line in head[4:].split("\n---\n", 1)[0].splitlines():
+        key, _, value = line.partition(": ")
+        try:
+            fields[key] = json.loads(value)
+        except ValueError:
+            continue
+    return fields
 
 
 def capture(vault, url, config_path=None, today=None, fetch=None):
@@ -202,13 +265,16 @@ def capture(vault, url, config_path=None, today=None, fetch=None):
     if words < MIN_WORDS:
         raise ValueError(f"only {words} words of main content: the page may need JavaScript, a login or a "
                          "subscription. Save it with the Obsidian Web Clipper into raw/ instead")
-    if lines > MAX_LINES:
-        raise ValueError(f"{lines} lines is more than a worker can read in one pass ({MAX_LINES}); "
-                         "save the page in parts into raw/ instead")
+    parts = pdf_capture.pack(text_blocks(body))
     captured = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     stem = f"raw/{today}-{slugify(meta['title'] or re.sub(r'^https?://', '', url))}"
-    relative = exclusive(vault, stem, ".md", capture_text(url, final_url, body, meta, captured).encode())
-    return {"raw": relative, "parts": [relative], "title": meta["title"], "words": words, "lines": lines}
+    written = []
+    for index, (_, _, text) in enumerate(parts, 1):
+        part = f"{index}/{len(parts)}" if len(parts) > 1 else None
+        text = text.rstrip("\n") + "\n"
+        written.append(exclusive(vault, stem + (f"-part-{index}" if part else ""), ".md",
+                                 capture_text(url, final_url, text, meta, captured, part).encode()))
+    return {"raw": written[0], "parts": written, "title": meta["title"], "words": words, "lines": lines}
 
 
 def pending(vault):
@@ -288,6 +354,14 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
     profile.mkdir()
     copies = {key: vault / key for key in state}
     copies.update({item: vault / item for item in inputs})
+    figures = []
+    for item in inputs if kind == "ingest" else ():
+        for figure in capture_fields(vault / item).get("figures") or []:
+            image = figure.get("image") if isinstance(figure, dict) else None
+            if (isinstance(image, str) and image.startswith("raw/assets/") and link_check.canonical_parts(image)
+                    and (vault / image).is_file()):
+                copies[image] = vault / image
+                figures.append(image)
     installed, public = INSTALLED["contract"]
     copies[CONTRACT] = vault / installed if (vault / installed).is_file() else ROOT / public
     if kind != "query":
@@ -313,14 +387,17 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
     manifest = {"id": op.name, "kind": kind, "role": role, "skill": skill, "vault": str(vault), "date": today,
                 "task": task, "inputs": inputs, "input_sha256": {i: file_hash(vault / i) for i in inputs},
                 "wiki_preimages": state, "reads": sorted(copies) + ["operation.md"], "origin": origin,
+                "figures": figures,
                 "config": {k: config[k] for k in sorted(config)},
                 "capture": captured}
     (corpus / "operation.md").write_text(
         "# Operator-verified operation manifest\n\n```json\n" + json.dumps({
             "status": "operator preflight verifies these read grants before the worker starts",
             "operation": kind, "role": role, "task": task, "inputs": inputs, "date": today,
-            "readable": f"{len(manifest['reads'])} staged files: every wiki page, the contract"
-                        + (", page templates" if kind != "query" else "") + (", the inputs" if inputs else ""),
+            "readable": f"{len(manifest['reads'])} staged files: every wiki page the index links, plus the paths below",
+            "paths": {"contract": CONTRACT, "index": "wiki/index.md", "log": "wiki/log.md",
+                      "templates": [f"templates/{name}.md" for name in TEMPLATES] if kind != "query" else [],
+                      "inputs": inputs, "figures": figures},
             "writes": "none; the worker returns a proposal and the operator validates and applies it"},
             indent=2) + "\n```\n")
     write_json(op / "manifest.json", manifest)
@@ -356,6 +433,9 @@ def worker_prompt(manifest, corpus):
               f"{manifest['date']}). When author or published is null there but the document itself states it, "
               "such as a paper's author list or dated byline, use that; otherwise leave it null. "
               "For a PDF capture, cite its '## Page N' headings as locators and follow the skill's PDF rules. "
+              + (f"Rendered figure pages you can open with the read tool: {', '.join(manifest['figures'])}. "
+                 "Look at each figure the text relies on and follow the skill's figure rules. "
+                 if manifest.get("figures") else "")
               if kind == "ingest" else
               "This is a compile: the inputs are existing source notes; build concept, entity or synthesis pages "
               "from them and add the reciprocal links on those source notes. ")
@@ -378,7 +458,8 @@ def worker_prompt(manifest, corpus):
 def section(text, name):
     """Section body without an optional closing marker (<<<NAME>>> or <<<END NAME>>>)."""
     lines = text.strip().splitlines()
-    if lines and lines[-1].strip() in (f"<<<{name}>>>", f"<<<END {name}>>>"):
+    # Models close sections inconsistently; any final marker line is only a closer.
+    if lines and re.fullmatch(r"<<<(?:END )?[A-Z ]+>>>", lines[-1].strip()):
         lines = lines[:-1]
     return "\n".join(lines).strip()
 

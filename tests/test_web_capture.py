@@ -81,13 +81,27 @@ class CaptureTests(unittest.TestCase):
     def test_capture_refusals(self):
         cases = [("ftp://example.com/x", self.fake(), "http"), ("https://a@example.com/", self.fake(), "http"),
                  ("https://example.com/", self.fake("<html><body><p>Please log in.</p></body></html>"), "words"),
-                 ("https://example.com/", self.fake(kind="application/zip"), "unsupported"),
-                 ("https://example.com/", self.fake("<p>" + "\n".join(["<p>line %d %s</p>" % (i, WORDS[:40])
-                                                                       for i in range(2000)]) + "</p>"), "lines")]
+                 ("https://example.com/", self.fake(kind="application/zip"), "unsupported")]
         for url, fetch, expected in cases:
             with self.subTest(expected=expected), self.assertRaisesRegex(ValueError, expected):
                 op.capture(self.vault, url, self.config, "2026-09-29", fetch)
         self.assertFalse((self.vault / "raw").exists() and any((self.vault / "raw").iterdir()))
+
+    def test_long_page_splits_between_headings_within_one_read(self):
+        sections = "".join(f"<h2>Section {i}</h2>" + "".join(f"<p>{WORDS} paragraph {j}.</p>" for j in range(12))
+                           for i in range(12))
+        html = f"<html><head><title>Long invented guide</title></head><body><article>{sections}</article></body></html>"
+        result = op.capture(self.vault, "https://example.com/long", self.config, "2026-09-29",
+                            self.fake(html, final="https://example.com/long"))
+        self.assertGreater(len(result["parts"]), 1)
+        from scripts import pdf_capture
+        for number, part in enumerate(result["parts"], 1):
+            text = (self.vault / part).read_text()
+            body = text.split("---\n\n", 1)[1]
+            self.assertLessEqual(len(body.encode()), pdf_capture.MAX_PART_BYTES)
+            self.assertIn(f'part: "{number}/{len(result["parts"])}"', text)
+            self.assertTrue(body.startswith("## Section"), body[:40])
+        self.assertTrue(result["parts"][0].endswith("-part-1.md"))
 
     def test_plain_text_and_long_lines(self):
         text = "# Plain notes\n\n" + " ".join([WORDS] * 10) + "\n\n```\n" + "x" * 3000 + "\n```\n"
