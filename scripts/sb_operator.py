@@ -955,21 +955,26 @@ def normalize(manifest, proposal):
             fixes.append(f"dropped link {path} -> {target} (missing page)")
         else:
             links.append([path, entry])
-    # The contract requires source -> concept/entity links to be reciprocal; add a missing back-link.
+    # The contract requires source <-> concept/entity links to be reciprocal; add a missing back-link
+    # on an existing page the proposal does not rewrite.
     for path, body in sorted(files.items()):
-        if not path.startswith("wiki/sources/"):
+        if path.startswith("wiki/sources/"):
+            counterpart, relation = r"wiki/(concepts|entities)/", "source that cites this page"
+        elif re.match(r"wiki/(concepts|entities)/", path):
+            counterpart, relation = r"wiki/sources/", "page that cites this source"
+        else:
             continue
-        source, title = path[:-3], re.search(r'(?m)^title: "(.*)"$', body)
-        label = re.sub(r"[|\[\]]", " ", title.group(1) if title else source.rsplit("/", 1)[-1]).strip()
+        origin, title = path[:-3], re.search(r'(?m)^title: "(.*)"$', body)
+        label = re.sub(r"[|\[\]]", " ", title.group(1) if title else origin.rsplit("/", 1)[-1]).strip()
         for target in sorted({t.strip() for t in LINK.findall(body)}):
             page = Path(manifest["vault"], target + ".md")
-            if (not re.match(r"wiki/(concepts|entities)/", target) or target + ".md" in files
+            if (not re.match(counterpart, target) or target + ".md" in files
                     or not link_check.canonical_parts(target + ".md") or not page.is_file()
-                    or source in {t.strip() for t in LINK.findall(page.read_text(encoding="utf-8", errors="replace"))}
-                    or any(p == target + ".md" and first_link(e) == source for p, e in links)):
+                    or origin in {t.strip() for t in LINK.findall(page.read_text(encoding="utf-8", errors="replace"))}
+                    or any(p == target + ".md" and first_link(e) == origin for p, e in links)):
                 continue
-            links.append([target + ".md", f"- [[{source}|{label}]] — source that cites this page"])
-            fixes.append(f"added the back-link {target} -> {source}")
+            links.append([target + ".md", f"- [[{origin}|{label}]] — {relation}"])
+            fixes.append(f"added the back-link {target} -> {origin}")
     proposal["links"] = links
     index = []
     series = manifest.get("series") or {}

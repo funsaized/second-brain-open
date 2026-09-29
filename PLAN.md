@@ -1362,3 +1362,12 @@ that rule to the index, the contract and the inputs, which are what the
 operator checks; other files, such as the log, may be read in part.
 
 Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Two-way back-link repair
+
+Chapter 8's compile cited individual part notes from a new concept page; the
+part notes lacked the back-links, so the checker refused it after a revision.
+The back-link repair now also covers concept and entity pages that link an
+existing source page the proposal does not rewrite.
+
+Verification: 134 offline tests pass; `git diff --check` passes.

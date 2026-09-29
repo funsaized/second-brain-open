@@ -252,7 +252,8 @@ class OperatorTests(unittest.TestCase):
         self.assertIn("[[wiki/sources/part-36|kept in code]]", text)
         self.assertEqual(fixed["index"], [["Concepts", "- [[wiki/concepts/new|New]] — n."]])
         self.assertTrue(fixed["log"].startswith("## 2026-09-28 — compile wiki/sources/trial-a.md — partial"))
-        self.assertEqual(len(fixes), 3)
+        self.assertEqual(len(fixes), 4)
+        self.assertIn("added the back-link wiki/sources/trial-a -> wiki/concepts/new", fixes)
         completed = dict(proposal, log="## 2026-09-28 — x — completed\n- y")
         self.assertTrue(op.normalize(manifest, completed)[0]["log"].startswith("## 2026-09-28 — x — partial"))
 
@@ -268,6 +269,10 @@ class OperatorTests(unittest.TestCase):
         self.assertIn("added the back-link wiki/concepts/vent-choice -> wiki/sources/new", fixes)
         again, _ = op.normalize(manifest, fixed)
         self.assertEqual(len(again["links"]), 1)  # not added twice
+        concept = CONCEPT.replace("[[wiki/sources/trial-a|Trial A]]", "[[wiki/sources/trial-b|Trial B]]")
+        cited, fixes = op.normalize(manifest, dict(proposal, files={"wiki/concepts/oven-airflow.md": concept}))
+        self.assertEqual(cited["links"], [["wiki/sources/trial-b.md",
+                                           "- [[wiki/concepts/oven-airflow|Oven airflow]] — page that cites this source"]])
 
     def test_compile_by_topic_needs_no_inputs(self):
         operation = op.stage(self.vault, "compile", [], "Explain vent choice across the trials", self.config,
@@ -349,7 +354,8 @@ class OperatorTests(unittest.TestCase):
             "traversal": ({"wiki/concepts/../../AGENTS.md": "x"}, RECORD, "not writable"),
             "cap": ({f"wiki/concepts/c{i}.md": CONCEPT for i in range(4)}, RECORD, "limit is 3"),
             "two records": ({"wiki/sources/trial-a.md": source}, RECORD + "\n## 2026-09-28 — x — partial", "single"),
-            "checker": ({"wiki/concepts/oven-airflow.md": CONCEPT}, RECORD, "not_reciprocal"),
+            "checker": ({"wiki/concepts/oven-airflow.md": CONCEPT, "wiki/sources/trial-a.md": source}, RECORD,
+                        "not_reciprocal"),  # a rewritten source is not repaired
             "index file": ({"wiki/index.md": "# Index\n"}, RECORD, "must not be rewritten"),
             "dropped links": ({"wiki/sources/trial-a.md": "---\ntitle: \"x\"\n---\nshort\n"}, RECORD, "drops"),
             "empty": ({}, RECORD, "no pages"),
