@@ -25,7 +25,7 @@ licenses; neither project's MIT license grants rights to that content.
 | `framework/templates/project.md` | `vault-template/projects/example-project/CLAUDE.md`, `vault-template/projects/README.md` | Lightweight owner-maintained brief; optional artifact folders and explicit reviewed promotion; no wiki type |
 | `framework/agents/sb-ingestor.md` | `agents/ingestor.md` | Native primary worker role and designated skill; deny-default, launched by the operator with exact read grants; proposal-only, never edits |
 | `framework/agents/sb-researcher.md` | `agents/researcher.md` | Native primary read-only worker, launched by the operator with exact read grants; no delegated/network fallback |
-| `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read ingest and compile-from-notes into a framed proposal the operator applies; source locators, reciprocal links, no-op repeats, page limit, full-Markdown pages and coverage review |
+| `framework/skills/second-brain-ingest/SKILL.md` | `skills/second-brain-ingest/SKILL.md` | Complete-read ingest and compile-from-notes into a framed proposal the operator applies; source locators, reciprocal links, no-op repeats, page limit, full-Markdown pages and coverage review; the link-before-done rule and one-to-three-concepts calibration are adapted from upstream |
 | `framework/skills/second-brain-query/SKILL.md` | `skills/second-brain-query/SKILL.md` | Index-first evidence retrieval, claim citations, abstention, Read/Not covered, no writes |
 | `scripts/link_check.py` | `scripts/link_check.py` | Replaces basename guessing with exact managed paths; validates narrow metadata, reports ambiguity/unsupported forms/unchecked anchors, leftover template placeholders, index coverage and source/concept/entity reciprocity; read-only stdlib CLI |
 | `scripts/vault_stats.py` | `scripts/vault_stats.py`, `docs/05-graphs/metrics.md`, `skills/second-brain-metrics/SKILL.md`, `skills/second-brain-graph/SKILL.md` | Required stdlib port: content-only scope, canonical unique edges, explicit degrees/denominators, weak components, stale/unknown concepts, JSON/as-of and read-only reporting |
@@ -53,10 +53,13 @@ evidence for runtime-specific behavior; no OpenCode source is copied into the dr
 The R6 filesystem rehearsal and invented binary asset are original downstream
 verification; no upstream backup implementation is copied. The researcher
 evaluation harness, its guide and invented question file are original
-downstream verification. The operator (`scripts/sb_operator.py`, `scripts/sb_runtime.py`,
+downstream verification. The operator (`scripts/sb_operator.py`, `scripts/sb_runtime.py`, `scripts/web_capture.py`,
 `framework/skills/second-brain-operator/SKILL.md`, `framework/operator.example.json`)
 and its guides (`docs/operator.md`, `docs/reference.md`) are original downstream work;
 the runtime helpers were extracted from the earlier downstream live drivers.
+URL capture follows the intent of upstream `commands/ingest-url.md` (fetch, save to `raw/`
+with URL/author/date, refuse paywalls and fragments), but no upstream code is copied
+and no model fetches or rewrites the page.
 
 ## Upstream MIT notice (verbatim)
 

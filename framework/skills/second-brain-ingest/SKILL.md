@@ -55,6 +55,17 @@ For every page:
 - Add or update the page's entry in `wiki/index.md` under the right section.
   Put missing coverage in Gaps as plain text.
 
+Nothing is ingested until it is linked: every new page connects to existing
+pages in both directions, or the gap is listed in the index.
+
+Calibrate extraction. A source usually yields one to three concepts worth their
+own page. If a candidate concept cannot be explained without referring back to
+this one source, it belongs inside the source page. Ten thin pages restating
+paragraphs is the common failure. The opposite failure is a source page holding
+several unrelated ideas that link to nothing. Prefer updating an existing
+concept page, recording what this source adds or disputes, over creating a
+near-duplicate.
+
 Stay within the operator's page limit. If the work needs more pages, propose
 the most important ones and list the rest in NOTES as follow-up operations.
 

@@ -10,6 +10,9 @@ content rules pages must follow, see the
 library; `run` and `revise` need Linux and OpenCode.
 
 ```text
+sb_operator.py capture VAULT URL
+sb_operator.py pending VAULT
+sb_operator.py stage VAULT ingest  --url URL --task TEXT
 sb_operator.py stage VAULT ingest  --input raw/<capture> [--input ...] --task TEXT
 sb_operator.py stage VAULT compile --input wiki/sources/<note>.md [--input ...] --task TEXT
 sb_operator.py stage VAULT query   --question TEXT
@@ -25,7 +28,9 @@ sb_operator.py status OPERATION
 
 | Command | What it does |
 |---|---|
-| `stage` | Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
+| `capture` | Fetches one http(s) URL with no model involved and saves its main content to `raw/<date>-<slug>.md` (see [Web capture](#web-capture)). Never overwrites: repeats get `-2`, `-3`. |
+| `pending` | Lists `.md`, `.txt` and `.html` files under `raw/` that no source page's `raw` field references, oldest first. Skips `raw/assets/`, hidden files, and subfolders where any file is already referenced (multi-file captures). |
+| `stage` | With `--url`, runs `capture` first and ingests the result. Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
 | `run` | Grants the worker exact reads on the staged files, denies every other tool, verifies the effective configuration with `opencode debug`, then runs the worker once. Saves `response.md`, `run.json` and, for ingest and compile, `proposal.json`. |
 | `revise` | Once per operation: reruns the worker with the dry-run problems as feedback and its previous reply readable as `previous-proposal.md`. The first attempt moves to `attempt-1/`. |
 | `apply` | Validates the proposal (below), backs up every file it replaces to `backup/`, writes the pages and appends the log record, then runs the checker on the vault. If that check fails, it undoes the write. `--dry-run` validates without writing. |
@@ -94,6 +99,36 @@ marker line inside a page or the log record is an error.
 - **Drift:** every file it touches, and the log, still has its staged hash.
 - **Checker:** the managed checker reports no errors or unsupported forms on a
   copy of the wiki with the proposal applied.
+
+### Web capture
+
+`capture` uses the standard library only:
+
+- **Content.** It keeps the richest `<article>`, else `<main>` or
+  `[role=main]`, else `<body>`. Scripts, navigation, headers, footers, asides
+  and forms are dropped.
+- **Markdown.** Headings, paragraphs, lists, links (made absolute), emphasis,
+  inline code, quotes, tables, images and code blocks (verbatim, with the
+  language when marked) are converted. `text/plain` and `text/markdown` are
+  saved unchanged.
+- **Metadata.** `og:title` or `<title>`; the `author` meta tag, ignoring
+  profile URLs and numeric IDs; `article:published_time`, similar tags or
+  `<time datetime>`.
+- **Line length.** Prose lines over 1,500 characters are wrapped so a worker
+  can read every line; code is never rewrapped.
+- **Refusals.** Fewer than 150 words of main content, more than 1,900 lines,
+  more than 5 MB, or another content type. A refusal writes nothing.
+
+Capture frontmatter, one JSON value per line:
+
+| Field | Meaning |
+|---|---|
+| `url` | The URL you gave |
+| `final_url` | Where redirects ended, or `null` if the same |
+| `title`, `author`, `published` | From the page; `null` when absent, never guessed |
+| `captured` | UTC capture time |
+| `fetched_with` | Records that no model produced the text |
+| `body_sha256` | Hash of the Markdown body |
 
 ## Worker roles
 

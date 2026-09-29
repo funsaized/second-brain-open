@@ -4,6 +4,9 @@
 An operator (the owner, or a primary agent using the second-brain-operator
 skill) runs one operation at a time:
 
+  capture fetch one URL without any model, keep the page's main content as
+         Markdown and save it to raw/ with provenance frontmatter.
+  pending list raw/ captures no source page references yet, oldest first.
   stage  copy the adopted wiki, the contract/templates and the operation's
          inputs into a new directory outside the vault, with a manifest of
          every vault file's hash.
@@ -22,7 +25,7 @@ framework/operator.example.json). Standard library only; Linux for `run`.
 """
 
 import argparse
-from datetime import date
+from datetime import date, datetime, timezone
 import hashlib
 import json
 import os
@@ -33,15 +36,18 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 
 if __package__:
     from . import link_check
-    from .sb_runtime import (answer_text, configure_worker, full_read, relative_read, run_role,
-                             tool_calls, validate_scope)
+    from . import web_capture
+    from .sb_runtime import (answer_text, configure_worker, full_read, relative_read, run_role, tool_calls,
+                             validate_scope)
 else:
     import link_check
-    from sb_runtime import (answer_text, configure_worker, full_read, relative_read, run_role,
-                            tool_calls, validate_scope)
+    import web_capture
+    from sb_runtime import (answer_text, configure_worker, full_read, relative_read, run_role, tool_calls,
+                            validate_scope)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -87,8 +93,103 @@ def wiki_state(vault):
     return {key: file_hash(vault / key) for key in pages}
 
 
-def stage(vault, kind, inputs=(), task=None, config_path=None, today=None):
+CAPTURE_SUFFIXES = (".md", ".txt", ".html", ".htm")
+MIN_WORDS, MAX_LINES, WRAP_AT = 150, 1900, 1500
+
+
+def slugify(text, limit=60):
+    slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return slug[:limit].rstrip("-") or "capture"
+
+
+def readable_lines(body):
+    """Wrap only overlong prose lines so a worker can read every line in full; code is untouched."""
+    out, fence = [], None
+    for line in body.splitlines():
+        marker = re.match(r"^(`{3,}|~{3,})", line)
+        if marker and (fence is None or marker.group(1)[0] == fence[0]):
+            fence = None if fence else marker.group(1)
+        if fence is None and not marker and len(line) > WRAP_AT and not line.lstrip().startswith("|"):
+            out.extend(textwrap.wrap(line, 500, break_long_words=False, break_on_hyphens=False))
+        else:
+            out.append(line)
+    return "\n".join(out).rstrip("\n") + "\n"
+
+
+def capture_text(url, final_url, body, meta, captured):
+    header = {"url": url, "final_url": final_url if final_url != url else None, "title": meta["title"],
+              "author": meta["author"], "published": meta["published"], "captured": captured,
+              "fetched_with": "sb_operator capture (main-content extraction, no model)",
+              "body_sha256": digest(body.encode())}
+    return "---\n" + "".join(f"{k}: {json.dumps(v, ensure_ascii=False)}\n" for k, v in header.items()) + "---\n\n" + body
+
+
+def capture(vault, url, config_path=None, today=None, fetch=None):
+    """Save one page's main content to raw/; refuses fragments and pages too long for one full read."""
     vault = Path(vault).resolve()
+    load_config(vault, config_path)
+    if not re.fullmatch(r"https?://[^\s@]{3,2000}", url):
+        raise ValueError("capture takes one http(s) URL without spaces or @")
+    text, kind, final_url = (fetch or web_capture.fetch)(url)
+    if kind in ("text/plain", "text/markdown"):
+        heading = re.search(r"(?m)^# (.+)$", text)
+        body, meta = text, {"title": heading.group(1).strip() if heading else None, "author": None, "published": None}
+    elif kind in ("text/html", "application/xhtml+xml"):
+        body, meta = web_capture.extract(text, final_url)
+    else:
+        raise ValueError(f"unsupported content type {kind}; save the file into raw/ yourself")
+    body = readable_lines(body)
+    words, lines = len(body.split()), body.count("\n")
+    if words < MIN_WORDS:
+        raise ValueError(f"only {words} words of main content: the page may need JavaScript, a login or a "
+                         "subscription. Save it with the Obsidian Web Clipper into raw/ instead")
+    if lines > MAX_LINES:
+        raise ValueError(f"{lines} lines is more than a worker can read in one pass ({MAX_LINES}); "
+                         "save the page in parts into raw/ instead")
+    captured = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    today = today or date.today().isoformat()
+    (vault / "raw").mkdir(exist_ok=True)
+    stem = f"raw/{today}-{slugify(meta['title'] or re.sub(r'^https?://', '', url))}"
+    for n in range(1, 100):
+        relative = stem + (f"-{n}" if n > 1 else "") + ".md"
+        try:
+            with open(vault / relative, "x", encoding="utf-8") as stream:
+                stream.write(capture_text(url, final_url, body, meta, captured))
+            break
+        except FileExistsError:
+            continue
+    else:
+        raise ValueError("too many captures with the same name")
+    return {"raw": relative, "title": meta["title"], "words": words, "lines": lines}
+
+
+def pending(vault):
+    """Captures no source page references, oldest first; folders of multi-file captures count as referenced."""
+    vault = Path(vault).resolve()
+    pages, _ = link_check.collect(vault)
+    referenced = {page["metadata"].get("raw") for key, page in pages.items() if key.startswith("wiki/sources/")}
+    used_dirs = {str(Path(r).parent) for r in referenced if isinstance(r, str)} - {"raw"}
+    found = []
+    raw = vault / "raw"
+    for path in (raw.rglob("*") if raw.is_dir() else ()):
+        relative = path.relative_to(vault).as_posix()
+        if (not path.is_file() or path.is_symlink() or path.suffix.lower() not in CAPTURE_SUFFIXES
+                or any(part.startswith(".") for part in path.relative_to(raw).parts)
+                or relative.startswith("raw/assets/") or relative in referenced
+                or str(Path(relative).parent) in used_dirs):
+            continue
+        found.append((path.stat().st_mtime, relative))
+    return [relative for _, relative in sorted(found)]
+
+
+def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=None):
+    vault = Path(vault).resolve()
+    if url is not None:
+        if kind != "ingest" or inputs:
+            raise ValueError("--url is for ingest and replaces --input")
+        if not task or "@" in task or re.search(r"!\s*`", task):
+            raise ValueError("ingest needs a plain-text --task without @ or !` tokens")
+        inputs = [capture(vault, url, config_path, today)["raw"]]
     config = load_config(vault, config_path)
     role, skill = ROLES[kind]
     inputs = sorted(set(inputs))
@@ -177,7 +278,8 @@ def worker_prompt(manifest, corpus):
             "not answer, say so. End with a line starting 'Read:' and a line starting 'Not covered:'.")
     inputs = ", ".join(manifest["inputs"])
     source = ("This is an ingest: the input is an approved raw capture; use its path as the source page's raw "
-              f"field and {manifest['date']} as captured unless the capture records another date. "
+              "field. When the capture has frontmatter, take the source page's url, author and published from it "
+              f"and the date part of its captured timestamp as captured; otherwise use {manifest['date']}. "
               if kind == "ingest" else
               "This is a compile: the inputs are existing source notes; build concept, entity or synthesis pages "
               "from them and add the reciprocal links on those source notes. ")
@@ -454,7 +556,13 @@ def main():
     staging.add_argument("--input", action="append", default=[], help="raw/ capture (ingest) or source note (compile)")
     staging.add_argument("--task", help="what to ingest or compile")
     staging.add_argument("--question", help="query question")
+    staging.add_argument("--url", help="ingest: capture this URL into raw/ first")
     staging.add_argument("--config", type=Path, help="operator config (default: VAULT/.opencode/second-brain/operator.json)")
+    capturing = commands.add_parser("capture", help="fetch one URL into raw/ with a webfetch-only worker")
+    capturing.add_argument("vault", type=Path)
+    capturing.add_argument("url")
+    capturing.add_argument("--config", type=Path)
+    commands.add_parser("pending", help="list raw/ captures without a source page").add_argument("vault", type=Path)
     for name, text in (("run", "run the worker on a staged operation"), ("status", "show an operation's stage"),
                        ("revise", "rerun the worker once with the dry-run problems as feedback"),
                        ("undo", "restore files an applied operation changed")):
@@ -468,7 +576,12 @@ def main():
             if args.kind == "query" and args.task:
                 parser.error("query uses --question, not --task")
             result = {"operation": str(stage(args.vault, args.kind, args.input,
-                                             args.question if args.kind == "query" else args.task, args.config))}
+                                             args.question if args.kind == "query" else args.task, args.config,
+                                             url=args.url))}
+        elif args.command == "capture":
+            result = capture(args.vault, args.url, args.config)
+        elif args.command == "pending":
+            result = {"pending": pending(args.vault)}
         elif args.command == "run":
             result = run(args.operation)
             if json.loads((args.operation / "manifest.json").read_text())["kind"] == "query":

@@ -5,7 +5,9 @@ work. OpenCode supplies the model and tools. This repository supplies the worker
 roles, the operator, the contract, templates and checks that run them.
 
 ```text
-capture in raw/  (or existing source notes, for a compile)
+URL ---> operator capture (no model: main content + provenance) ---> raw/
+                                                                       |
+capture in raw/  (or existing source notes, for a compile)  <----------+
         |
         v
 operator stages a copy  --->  sb-ingestor reads it and proposes pages
@@ -82,6 +84,14 @@ Two tiers of agent do the work.
   skill, or you at a terminal. It stages each operation, launches a worker,
   checks the result mechanically and applies it. It never edits pages itself;
   the operator CLI is the only writer, and only under `wiki/`.
+
+Web pages enter the same way. When you give the operator a URL, the CLI
+fetches the page itself, with no model reading it, and keeps the main content
+with its provenance. Untrusted page text therefore reaches only the sandboxed
+worker, never your primary agent, which holds shell access. Upstream
+second-brain-os instead lets one agent fetch, read and write everything. That
+is simpler, but a page's injected instructions would then run with full vault
+access.
 
 The split puts the trust where it can be checked. A hostile source can
 influence what a worker proposes, but a proposal only reaches the vault after

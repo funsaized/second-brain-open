@@ -9,21 +9,54 @@ Most of the time you ask your primary agent in plain language, and it runs the
 operator for you through the `second-brain-operator` skill. You can run the same
 steps yourself with the CLI.
 
-## Ingest a capture
+## Ingest a web page
 
-1. Save the source under `raw/` in the vault. Capturing is your job; the
-   agents never fetch sources.
-2. Ask your primary agent, for example:
+Give your primary agent the URL:
 
-   > Use the second-brain-operator skill to ingest raw/2026-10-01-article.md as a
-   > learning reference and connect it to related pages.
+> Use the second-brain-operator skill to ingest https://example.com/post as a
+> learning reference and connect it to related pages.
 
-3. The agent stages the operation, runs `sb-ingestor`, checks the proposal and,
-   with `auto_apply` on, applies it. It reports the pages it created or updated,
-   the checker result, the operation directory and the undo command.
+The operator does the rest:
+
+1. **Capture.** It fetches the page itself, with no model involved. It keeps
+   the main content (headings, text, lists, tables and code, verbatim), drops
+   navigation, headers and footers, and saves the result to
+   `raw/<date>-<title>.md` with the URL, title, author, publication date,
+   capture time and a hash.
+2. **Ingest.** The sandboxed `sb-ingestor` reads the capture and the index and
+   proposes a source page, plus concept and entity pages where the source adds
+   something reusable. Every new page is linked in both directions.
+3. **Apply.** The operator checks the proposal, gives the worker one revision
+   if needed, and applies it with backups.
+4. **Report.** You get the pages created or updated, the checker result, the
+   operation directory and the undo command.
+
+A capture is refused when the page yields fewer than 150 words of main content
+(common for pages that need JavaScript, a login or a subscription), or more
+than 1,900 lines (too long for one full read). In both cases, save the page
+with the [Obsidian Web Clipper](https://obsidian.md/clipper) into `raw/`, in
+parts if it is long, and ingest the file instead.
+
+## Ingest a file you saved
+
+Save the source into `raw/` (clipped article, extracted PDF text, a converted
+chat) and name it:
+
+> Use the second-brain-operator skill to ingest raw/2026-10-01-article.md as a
+> learning reference.
 
 A large source may need more pages than `max_pages` allows. The worker then
 proposes the most important pages and lists the rest as follow-up operations.
+
+## Catch up on everything new
+
+Clip pages into `raw/` as you find them, then:
+
+> Use the second-brain-operator skill to catch up on new captures.
+
+The operator lists every capture no source page references yet, oldest first,
+and ingests them one by one, up to 20 per request. It stops at the first failure
+it cannot fix, and reports what it did and what is left.
 
 ## Build concept pages from existing notes
 
@@ -49,11 +82,15 @@ From the vault root, with `CLI` set to the `sb_operator.py` path in your
 operator config:
 
 ```sh
-python3 "$CLI" stage . ingest --input raw/2026-10-01-article.md --task "Ingest as a learning reference"
+python3 "$CLI" stage . ingest --url https://example.com/post --task "Ingest as a learning reference"
 python3 "$CLI" run   OPERATION        # OPERATION is the directory stage printed
 python3 "$CLI" apply OPERATION --dry-run
 python3 "$CLI" apply OPERATION
 ```
+
+Use `--input raw/<file>` instead of `--url` for a file you saved.
+`python3 "$CLI" capture . URL` only captures a page, and
+`python3 "$CLI" pending .` lists captures waiting to be ingested.
 
 For a question, use `stage . query --question "..."` and `run`; the answer is in
 the operation's `response.md`.

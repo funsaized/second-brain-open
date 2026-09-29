@@ -155,7 +155,10 @@ def debug(env, cwd, *args):
         return decoded(output.read().decode(), "native inspection")
 
 
-def verify_role(agent, role, prompt, allowed, model, steps):
+DENIED_TOOLS = ("edit", "bash", "task", "glob", "grep", "webfetch", "websearch", "question")
+
+
+def verify_role(agent, role, prompt, allowed, model, steps, denied=DENIED_TOOLS):
     """Every non-deny effective rule must be one of the expected grants."""
     provider, _, model_id = model.partition("/")
     if (agent.get("name") != role or agent.get("mode") != "primary"
@@ -180,7 +183,7 @@ def verify_role(agent, role, prompt, allowed, model, steps):
                     and fnmatch.fnmatchcase(pattern, r["pattern"])]
         if not matching or matching[-1].get("action") != "allow":
             raise RuntimeError("Approved native grant is not effective")
-    for tool in ("edit", "bash", "task", "glob", "grep", "webfetch", "websearch", "question"):
+    for tool in denied:
         matched = [r for r in rules if fnmatch.fnmatchcase(tool, r["permission"])]
         if not matched or matched[-1].get("pattern") != "*" or matched[-1].get("action") != "deny":
             raise RuntimeError(f"Tool denial missing: {tool}")

@@ -1,6 +1,6 @@
 ---
 name: second-brain-operator
-description: Use when the owner asks to ingest a raw capture, compile concept pages from existing source notes, or answer a question from the managed wiki; runs the sandboxed sb-ingestor/sb-researcher workers through the operator CLI.
+description: Use when the owner gives a URL or a raw/ file to add to the second brain, asks to catch up on new captures, to compile concept pages from existing source notes, or to answer a question from the managed wiki; runs the sandboxed sb-ingestor/sb-researcher workers through the operator CLI.
 ---
 
 # Operate the second-brain workers
@@ -29,13 +29,19 @@ vault's `opencode.json`. Do not improvise the steps by hand.
 
 ## Ingest a capture or compile concepts
 
-1. **Stage.** Ingest takes an approved capture already under `raw/`; you never
-   fetch or capture sources yourself. Compile takes existing source notes.
+1. **Stage.** For a URL, `--url` captures the page first. The CLI fetches it
+   without a model and saves its main content to `raw/` with provenance. Never
+   fetch pages yourself with web tools. For a file already in `raw/`, use
+   `--input`. Compile takes existing source notes.
    ```sh
+   python3 <cli> stage . ingest --url https://example.com/post --task "<what the owner wants from it>"
    python3 <cli> stage . ingest --input raw/<capture> --task "<what the owner wants from it>"
    python3 <cli> stage . compile --input wiki/sources/<a>.md --input wiki/sources/<b>.md --task "<concept to build>"
    ```
-   The command prints the operation directory. Use it in the next steps.
+   The command prints the operation directory. Use it in the next steps. If a
+   capture is refused (JavaScript-only page, paywall, login, too long), report
+   the reason. The owner can save the page with the Obsidian Web Clipper into
+   `raw/`, or in parts, and ask again.
 2. **Run the worker.** `python3 <cli> run <operation>`. If `passed` is false,
    report `checks`, `unread_required` or `proposal_error` and stop. Do not retry
    more than once, and only when the failure looks transient.
@@ -55,6 +61,19 @@ vault's `opencode.json`. Do not improvise the steps by hand.
 
 A worker reply with only NOTES (a no-op repeat, or an input it could not read
 completely) is a valid result: report its reason and stop.
+
+## Catch up on new captures
+
+When the owner asks to process what is new in `raw/`:
+
+```sh
+python3 <cli> pending .
+```
+
+This lists captures that no source page references yet, oldest first. Ingest
+them one at a time with the steps above, as separate operations, up to 20 per
+request. Stop at the first failure you cannot resolve with one `revise`, and
+report what was done and what remains.
 
 ## Answer a question
 

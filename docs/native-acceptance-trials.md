@@ -124,6 +124,9 @@ captures. The route was the previously approved one.
 | CLI query | Researcher cited seven pages it read, kept the disagreement and named what was not covered | Raw captures were not staged |
 | Primary agent (`dingus`) with the operator skill, one plain-language request, Trial D | Staged, ran the worker, dry-ran, applied and reported, with no human step: five pages plus the log, checker clean, receipt `post_check_clean` | Needed an `external_directory` allow for the CLI and workdir in the vault's `opencode.json`. Earlier attempts stopped on an unapproved prompt: once for the CLI path, once while searching for an uninstalled contract. The skill now forbids that search. |
 
+| URL capture only, three public pages (2026-09-29) | Main content kept: a GitHub gist article, a blog post with code blocks, a catalog page. 74–190 lines each, navigation and comments dropped, under a second each | A blog without `<article>` kept its site header and sponsor line |
+| Primary agent, one request with a URL (2026-09-29) | `stage --url` captured the gist with no model, then the worker ran, dry run, apply. The result: a source page with the URL, capture date and raw path, plus a new concept page citing the source by section and noting its lack of evaluation evidence. Checker clean, logged `partial` | An earlier design (a webfetch-only worker) was dropped: OpenCode's webfetch converts the whole page and truncated it at 32 KB of 143 KB |
+
 Worker evidence: designated skill loaded, only complete in-scope reads, and
 staged bytes unchanged. Operation directories, responses and receipts stay
 local.

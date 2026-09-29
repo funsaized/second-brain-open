@@ -21,6 +21,9 @@
   `second-brain-operator` skill and the `sb_operator.py` CLI. E1 and D4 are
   partly done: shared helpers moved to `scripts/`, and the worker prompts were
   rewritten for the operator flow.
+- **URL ingest (2026-09-29):** delivered. The operator captures a URL's main
+  content without a model, and a sandboxed worker ingests it. `pending` plus
+  catch-up processes new clips. The ingest skill adopts upstream's calibration.
 - **Suggested next step:** A1. Compile the first concept pages in the
   deployment with the operator, then rerun the A2 evaluation.
 

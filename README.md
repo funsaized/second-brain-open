@@ -16,7 +16,8 @@ community plugins are not required.
 
 | Task | Included capability | Guide |
 |---|---|---|
-| Turn a source into knowledge | A worker reads the whole capture and proposes source, concept and entity pages with claim-level locators; the operator checks and applies them, with undo. | [Ingest with the operator](docs/operator.md#ingest-a-capture) |
+| Turn a source into knowledge | Hand the operator a URL or a file in `raw/`. It captures the page's main content with provenance, and a sandboxed worker proposes source, concept and entity pages with claim-level locators. The operator checks and applies them, with undo. | [Ingest a web page](docs/operator.md#ingest-a-web-page) |
+| Catch up on captures | Clip pages into `raw/` all week, then ask the operator to ingest everything new, oldest first. | [Catch up](docs/operator.md#catch-up-on-everything-new) |
 | Build concept pages | Compile concept, entity or synthesis pages from source notes you already have, with links in both directions. | [Compile concepts](docs/operator.md#build-concept-pages-from-existing-notes) |
 | Ask a question of the wiki | A read-only worker follows the index to the relevant pages, cites them and names what the wiki does not cover. | [Ask a question](docs/operator.md#ask-a-question) |
 | Bring in selected chat history | Local conversion of supported Claude, simple-message and ChatGPT branch exports, with versioned files and omission reporting. No model calls during conversion. | [Convert and review exports](docs/chat-exports.md) |
@@ -98,7 +99,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-The offline suite currently has **102 passing tests**. It uses synthetic fixtures
+The offline suite currently has **109 passing tests**. It uses synthetic fixtures
 and does not make model calls. Live native trials require separate opt-in setup
 and approvals; they are not part of this command.
 
