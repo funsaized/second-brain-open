@@ -403,8 +403,24 @@ class OperatorTests(unittest.TestCase):
     def test_drift_blocks_apply_and_undo_preserves_later_edits(self):
         operation = self.staged()
         self.proposal(operation)
+        # Another operation's log record and index entry land in between: appends and merges still apply.
         (self.vault / "wiki/log.md").write_text((self.vault / "wiki/log.md").read_text() + "\nHuman note.\n")
-        self.assertIn("vault file changed since staging: wiki/log.md", op.apply(operation)["problems"])
+        index = self.vault / "wiki/index.md"
+        index.write_text(op.merge_index(index.read_text(), [["Gaps", "- A concurrent gap."]], "2026-09-28"))
+        self.assertTrue(op.apply(operation).get("applied"))
+        self.assertIn("Human note.", (self.vault / "wiki/log.md").read_text())
+        self.assertIn("A concurrent gap.", index.read_text())
+        self.assertIn("[[wiki/concepts/oven-airflow|", index.read_text())
+        op.undo(operation)
+        # A page the proposal rewrites that changed since staging is refused, and revise won't retry it.
+        operation = self.staged()
+        self.proposal(operation)
+        source = self.vault / "wiki/sources/trial-a.md"
+        source.write_text(source.read_text() + "Human edit.\n")
+        self.assertIn("vault file changed since staging: wiki/sources/trial-a.md", op.apply(operation)["problems"])
+        with self.assertRaisesRegex(ValueError, "stage the operation again"):
+            op.revise(operation)
+        source.write_text(source.read_text().replace("Human edit.\n", ""))
         operation = self.staged()
         self.proposal(operation)
         self.assertTrue(op.apply(operation).get("applied"))

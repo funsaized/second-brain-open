@@ -162,8 +162,10 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
   length. These catch a model summarizing a page it was asked to extend.
 - **Log record:** a single record whose heading is
   `## YYYY-MM-DD — operation — partial`.
-- **Drift:** every file it touches, the log, and the index when it has INDEX
-  entries, still has its staged hash.
+- **Drift:** every page it rewrites with a FILE still has its staged hash. The
+  log record is appended, INDEX entries merged and LINKS lines patched against
+  the vault's current files, so another operation applied in between doesn't
+  block it. `revise` refuses when drift is the only problem: stage again.
 - **Checker:** the managed checker reports no errors or unsupported forms on a
   copy of the wiki with the proposal applied.
 

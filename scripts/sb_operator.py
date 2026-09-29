@@ -394,7 +394,7 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(source.read_bytes())
     # Workers with named inputs need titles and paths; compile by topic and query choose pages by description.
-    compact = (kind == "ingest" or (kind == "compile" and inputs)) and (corpus / "wiki/index.md").is_file()
+    compact = (kind == "ingest" or (kind == "compile" and bool(inputs))) and (corpus / "wiki/index.md").is_file()
     if compact:
         index = corpus / "wiki/index.md"
         index.write_text(compact_index(index.read_text(encoding="utf-8")))
@@ -769,6 +769,9 @@ def revise(op):
         problems, format_only = apply(op, dry_run=True)["problems"], False
         if not problems:
             raise ValueError("the proposal already passes; apply it")
+        if all(p.startswith("vault file changed since staging") for p in problems):
+            raise ValueError("only pages changed in the vault since staging; a revision cannot fix that, "
+                             "stage the operation again")
     elif previous.get("proposal_error"):
         problems, format_only = [previous["proposal_error"]], True
     else:
@@ -822,7 +825,9 @@ def check_proposal(manifest, proposal):
         problems.append("log record must start with '## YYYY-MM-DD — operation — partial'")
     elif re.search(r"(?m)^(#{1,2} |<<<)", "\n".join(record.splitlines()[1:])):
         problems.append("log record must be a single record without markers")
-    for path in sorted({*touched, "wiki/log.md", *(["wiki/index.md"] if proposal.get("index") else [])}):
+    # Only whole-page rewrites need their preimage: the log is appended to, the index merged and LINKS
+    # patched against the vault's current content at apply time, so concurrent operations don't collide.
+    for path in sorted(files):
         if file_hash(vault / path) != manifest["wiki_preimages"].get(path):
             problems.append(f"vault file changed since staging: {path}")
     return problems

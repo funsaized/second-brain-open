@@ -1451,3 +1451,14 @@ that has started keeps the normal timeout. Three offline tests use a fake
 `opencode` script.
 
 Verification: 139 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Drift guards only rewritten pages
+
+The deployment's first synthesis was refused because another compile applied
+while it ran: `apply` required the log and index to match their staged hashes,
+though it appends the log record and merges index entries against the current
+files anyway. A revision could not fix that and returned no pages. The drift
+check now covers only pages a proposal rewrites whole, and `revise` refuses
+when drift is the only problem, asking for a new stage.
+
+Verification: 139 offline tests pass; `git diff --check` passes.
