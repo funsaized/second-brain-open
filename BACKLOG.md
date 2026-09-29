@@ -93,8 +93,9 @@
   back-link lines counted toward the page limit (only whole pages count now).
 - **Next.**
   1. ✅ Step budget: the default `steps` is now 40 (the deployment too).
-  2. The synthesis links 3 of the 6 concepts it drew on and no chapter pages;
-     a follow-up compile can add them.
+  2. ✅ Synthesis links: two follow-up compiles added the missing concepts and
+     chapters 12 and 15–18; it now links all six concepts, and those concept
+     and chapter pages link back. Content and existing links were kept.
   3. Owner acceptance of the synthesis and the networking-stack concept.
 
 ## How the review was done
