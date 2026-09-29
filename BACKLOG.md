@@ -81,9 +81,10 @@
 - **Acceptance:** delivered. `accept` appends one owner record for every
   unaccepted partial operation; the owner recorded `sampled` acceptance for all
   130 pending deployment operations.
-- **Next.**
-  1. A series startup timeout (H1).
-  2. The first synthesis page (still 0).
+- **H1: delivered.** `run_role` treats a worker with no output after 120 s as a
+  startup stall, kills it and relaunches once; a second stall raises "OpenCode
+  did not start" instead of waiting out the full timeout.
+- **Next.** The first synthesis page (still 0).
 
 ## How the review was done
 

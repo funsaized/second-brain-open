@@ -232,24 +232,40 @@ def configure_worker(corpus, profile, role, skill, reads, agent, model, version,
     return env
 
 
-def run_role(env, corpus, role, prompt, timeout):
-    """One native turn; returns decoded events, exit code and seconds."""
+STARTUP_TIMEOUT = 120
+
+
+def run_role(env, corpus, role, prompt, timeout, startup=STARTUP_TIMEOUT, command=("opencode",)):
+    """One native turn; returns decoded events, exit code and seconds.
+
+    OpenCode occasionally stalls before starting a session and emits nothing. A run
+    with no output after `startup` seconds is killed and relaunched once; a second
+    stall raises instead of waiting out the full timeout.
+    """
     if "@" in prompt or re.search(r"!\s*`", prompt):
         raise RuntimeError("Refusing native preprocessing tokens in model input")
     started = time.monotonic()
-    with os.fdopen(os.memfd_create("sb-worker-events", os.MFD_CLOEXEC), "w+b") as output:
-        with subprocess.Popen(["opencode", "run", "--pure", "--dir", str(corpus), "--agent", role,
-                               "--format", "json", prompt], cwd=corpus, env=env, stdin=subprocess.DEVNULL,
-                              stdout=output, stderr=subprocess.DEVNULL, start_new_session=True) as process:
-            try:
-                process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-        output.seek(0)
-        events = [decoded(line, "native event") for line in output.read().decode().splitlines()
-                  if line.startswith("{")]
-    return events, process.returncode, round(time.monotonic() - started, 1)
+    for attempt in (1, 2):
+        with os.fdopen(os.memfd_create("sb-worker-events", os.MFD_CLOEXEC), "w+b") as output:
+            with subprocess.Popen([*command, "run", "--pure", "--dir", str(corpus), "--agent", role,
+                                   "--format", "json", prompt], cwd=corpus, env=env, stdin=subprocess.DEVNULL,
+                                  stdout=output, stderr=subprocess.DEVNULL, start_new_session=True) as process:
+                launched, stalled = time.monotonic(), False
+                while process.poll() is None:
+                    elapsed = time.monotonic() - launched
+                    if elapsed > timeout or (elapsed > startup and not os.fstat(output.fileno()).st_size):
+                        stalled = elapsed <= timeout
+                        os.killpg(process.pid, signal.SIGKILL)
+                        process.wait()
+                        break
+                    time.sleep(0.5)
+            if stalled:
+                continue
+            output.seek(0)
+            events = [decoded(line, "native event") for line in output.read().decode().splitlines()
+                      if line.startswith("{")]
+            return events, process.returncode, round(time.monotonic() - started, 1)
+    raise RuntimeError(f"OpenCode did not start: no output within {startup} s, twice")
 
 
 def tool_calls(events):
