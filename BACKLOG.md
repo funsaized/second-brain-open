@@ -70,12 +70,17 @@
 - **Primary-agent permissions.** Installation step 2 and
   `framework/vault-opencode.example.json` define the operator agent's vault
   permissions. The deployment still has only the `external_directory` allow.
+- **Done since:** installed on the deployment; the textbook finished and was
+  reorganized into 21 chapter pages plus back matter with 30 concepts (A1 for
+  the textbook, A4 per-chapter notes); A2 rerun: 9/10 index-only (effectively
+  10/10 after a scorer fix), 8/10 with search.
 - **Next.**
-  1. After the series: install the changed framework files and the permission
-     profile (owner approval), then rerun A2 on the deployment.
-  2. A4 follow-up: notes per chapter rather than per capture part, and
-     re-theming the existing textbook entries.
-  3. Series-level acceptance record and a series startup timeout (H1).
+  1. Search-mode researcher misses: cited grep hits it never read, and one
+     answer skipped the index. Consider checking "cited pages were read" in
+     `run` for queries, not only in the evaluation.
+  2. Extend the A2 question set to the textbook's chapter and concept layer.
+  3. Series-level acceptance record, and a series startup timeout (H1).
+  4. The first synthesis page (still 0).
 
 ## How the review was done
 

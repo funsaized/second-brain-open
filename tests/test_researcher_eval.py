@@ -115,6 +115,8 @@ class ResearcherEvalTests(unittest.TestCase):
         self.assertEqual([k for k, ok in result["checks"].items() if not ok], ["abstained"])
         summary = ev.summarize([result])
         self.assertEqual((summary["questions"], summary["passed"], summary["checks"]["abstained"]), (1, 0, "0/1"))
+        for phrase in ("I can’t determine it from the staged pages.", "I can't answer that."):
+            self.assertTrue(ev.ABSTAIN.search(phrase), phrase)
 
     def test_stage_copies_pages_contract_and_role_only(self):
         with tempfile.TemporaryDirectory() as tmp:

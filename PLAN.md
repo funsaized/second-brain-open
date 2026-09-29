@@ -1390,3 +1390,16 @@ adds, from pages or LINKS lines, and writes the back-link into the proposed
 page when the proposal writes it.
 
 Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Deployment follow-through and evaluation
+
+Installed the changed framework files and the primary-agent permission profile
+in the deployment (clean per-file upgrades, backups and a receipt kept
+locally), finished the textbook's last 12 parts, and ran a private 22-item
+chapter plan: 21 chapter pages and a back-matter page, 30 concepts, checker
+clean. The researcher evaluation on the same 10 questions scored 9/10
+index-only (the miss a scorer false negative, now fixed) and 8/10 with search
+(two real misses: citing grep hits without reading them, and answering from
+the contract without the index). Details are in the trials document.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
