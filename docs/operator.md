@@ -37,6 +37,38 @@ than 1,900 lines (too long for one full read). In both cases, save the page
 with the [Obsidian Web Clipper](https://obsidian.md/clipper) into `raw/`, in
 parts if it is long, and ingest the file instead.
 
+## Ingest a PDF
+
+Give the URL of a PDF (a paper, report or manual), or save the file into `raw/`
+and name it:
+
+> Use the second-brain-operator skill to ingest the paper at
+> https://arxiv.org/pdf/1706.03762 and connect it to related pages.
+
+The operator does the rest:
+
+1. **Keep the original.** It saves the PDF unchanged next to the extracted
+   text.
+2. **Extract.** It extracts the text in reading order, with a `## Page N`
+   heading per page, so claims cite page numbers. If the text looks garbled
+   (interleaved columns, broken characters), it retries with layout
+   extraction.
+3. **OCR scans.** A scan without a text layer goes through `ocrmypdf`. The
+   pages are then marked as OCR text, and the worker flags any numbers it
+   relies on for checking against the original.
+4. **Split long documents.** A document too long for one read is split on page
+   boundaries into parts. The operator ingests the parts in order, each as its
+   own source page, linked to the previous part.
+5. **Read papers as papers.** A paper's source page is built around its
+   question, method, results with numbers and sample sizes, and stated
+   limitations.
+
+Tables and figures don't survive text extraction. When one carries the
+argument, screenshot it into `raw/assets/` and mention it on the source page
+yourself. An extraction that fails the quality check is refused with the
+reason. In that case, export the text another way (for example, Zotero's
+Markdown export) into `raw/` and ingest that file.
+
 ## Ingest a file you saved
 
 Save the source into `raw/` (clipped article, extracted PDF text, a converted
@@ -54,7 +86,8 @@ Clip pages into `raw/` as you find them, then:
 
 > Use the second-brain-operator skill to catch up on new captures.
 
-The operator lists every capture no source page references yet, oldest first,
+The operator lists every capture no source page references yet, including
+PDFs you dropped into `raw/`, oldest first,
 and ingests them one by one, up to 20 per request. It stops at the first failure
 it cannot fix, and reports what it did and what is left.
 

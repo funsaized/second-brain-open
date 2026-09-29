@@ -33,6 +33,18 @@ knowledge. Synthesis is optional. Apply the contract's content-preservation
 rules: keep what a reader needs to use the source's central lesson (examples,
 code, tables, qualifications, balanced comparisons) rather than a thin digest.
 
+**PDF captures** have `## Page N` headings. Cite page numbers as locators. When
+the frontmatter has `part: "k/n"`, the capture is one page range of a longer
+document. Title the source page with its page range, and link the source page
+of the previous part when the index lists it. When `ocr` is true, the text came
+from OCR: flag every number and proper noun you rely on as needing verification
+against the original PDF.
+
+**Papers** (abstract, methods, results, references): build the source page
+around the question, the method, the results with their actual numbers and
+sample sizes, and the limitations the authors state. Never report a finding
+without the conditions it holds under.
+
 **Compile** (inputs are existing source notes): build concept, entity or
 synthesis pages that connect those notes. Link each material claim to the
 source note that supports it, with its locator, and add the reciprocal link on

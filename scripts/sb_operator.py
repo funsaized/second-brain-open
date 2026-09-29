@@ -4,8 +4,10 @@
 An operator (the owner, or a primary agent using the second-brain-operator
 skill) runs one operation at a time:
 
-  capture fetch one URL without any model, keep the page's main content as
-         Markdown and save it to raw/ with provenance frontmatter.
+  capture fetch one URL without any model. Web pages keep their main content as
+         Markdown; PDFs keep the original and gain page-marked Markdown
+         (OCR for scans, split into parts when long). Saved to raw/ with
+         provenance frontmatter.
   pending list raw/ captures no source page references yet, oldest first.
   stage  copy the adopted wiki, the contract/templates and the operation's
          inputs into a new directory outside the vault, with a manifest of
@@ -37,14 +39,16 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import urllib.parse
 
 if __package__:
     from . import link_check
-    from . import web_capture
+    from . import pdf_capture, web_capture
     from .sb_runtime import (answer_text, configure_worker, full_read, relative_read, run_role, tool_calls,
                              validate_scope)
 else:
     import link_check
+    import pdf_capture
     import web_capture
     from sb_runtime import (answer_text, configure_worker, full_read, relative_read, run_role, tool_calls,
                             validate_scope)
@@ -117,20 +121,75 @@ def readable_lines(body):
 
 
 def capture_text(url, final_url, body, meta, captured):
-    header = {"url": url, "final_url": final_url if final_url != url else None, "title": meta["title"],
-              "author": meta["author"], "published": meta["published"], "captured": captured,
-              "fetched_with": "sb_operator capture (main-content extraction, no model)",
-              "body_sha256": digest(body.encode())}
-    return "---\n" + "".join(f"{k}: {json.dumps(v, ensure_ascii=False)}\n" for k, v in header.items()) + "---\n\n" + body
+    return frontmatter({"url": url, "final_url": final_url if final_url != url else None, "title": meta["title"],
+                        "author": meta["author"], "published": meta["published"], "captured": captured,
+                        "fetched_with": "sb_operator capture (main-content extraction, no model)",
+                        "body_sha256": digest(body.encode())}) + body
+
+
+def frontmatter(fields):
+    return "---\n" + "".join(f"{k}: {json.dumps(v, ensure_ascii=False)}\n" for k, v in fields.items()) + "---\n\n"
+
+
+def exclusive(vault, stem, suffix, data):
+    """Write bytes to the first free raw/ name; never overwrites."""
+    (vault / "raw").mkdir(exist_ok=True)
+    for n in range(1, 100):
+        relative = stem + (f"-{n}" if n > 1 else "") + suffix
+        try:
+            with open(vault / relative, "xb") as stream:
+                stream.write(data)
+            return relative
+        except FileExistsError:
+            continue
+    raise ValueError("too many captures with the same name")
+
+
+def capture_pdf(vault, pdf, url=None, today=None):
+    """Page-marked Markdown beside a PDF already in raw/; long documents become parts."""
+    vault = Path(vault).resolve()
+    validate_scope(vault, [Path(pdf)])
+    texts, meta = pdf_capture.extract(vault / pdf)
+    parts = pdf_capture.split(texts)
+    captured = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    stem = pdf[:-len(Path(pdf).suffix)]
+    written = []
+    for index, (first, last, body) in enumerate(parts, 1):
+        body = readable_lines(body)
+        fields = {"url": url, "source_pdf": pdf, "pdf_sha256": file_hash(vault / pdf), "title": meta["title"],
+                  "author": meta["author"], "published": meta["published"], "pdf_created": meta["pdf_created"],
+                  "pages": len(texts),
+                  "page_range": f"{first}-{last}", "part": f"{index}/{len(parts)}" if len(parts) > 1 else None,
+                  "captured": captured, "extracted_with": f"pdftotext ({meta['mode']})", "ocr": meta["ocr"],
+                  "quality": meta["quality"], "body_sha256": digest(body.encode())}
+        name = stem + (f"-part-{index}" if len(parts) > 1 else "")
+        written.append(exclusive(vault, name, ".md", (frontmatter(fields) + body).encode()))
+    return {"raw": written[0], "parts": written, "pdf": pdf, "title": meta["title"], "pages": len(texts),
+            "ocr": meta["ocr"], "mode": meta["mode"]}
 
 
 def capture(vault, url, config_path=None, today=None, fetch=None):
-    """Save one page's main content to raw/; refuses fragments and pages too long for one full read."""
+    """Save one URL to raw/; refuses fragments, unreadable PDFs and unsupported types."""
     vault = Path(vault).resolve()
     load_config(vault, config_path)
     if not re.fullmatch(r"https?://[^\s@]{3,2000}", url):
         raise ValueError("capture takes one http(s) URL without spaces or @")
-    text, kind, final_url = (fetch or web_capture.fetch)(url)
+    data, kind, final_url, charset = (fetch or web_capture.fetch)(url)
+    today = today or date.today().isoformat()
+    if kind == "application/pdf" or data[:5] == b"%PDF-":
+        with tempfile.TemporaryDirectory(prefix="sb-pdf-") as tmp:
+            probe = Path(tmp) / "download.pdf"
+            probe.write_bytes(data)
+            title = pdf_capture.info(probe)["title"]
+        segment = Path(urllib.parse.urlparse(final_url).path).name
+        name = title or re.sub(r"\.pdf$", "", segment, flags=re.I) or "document"
+        pdf = exclusive(vault, f"raw/{today}-{slugify(name)}", ".pdf", data)
+        try:
+            return capture_pdf(vault, pdf, url, today)
+        except ValueError:
+            (vault / pdf).unlink()
+            raise
+    text = data.decode(charset or "utf-8", errors="replace")
     if kind in ("text/plain", "text/markdown"):
         heading = re.search(r"(?m)^# (.+)$", text)
         body, meta = text, {"title": heading.group(1).strip() if heading else None, "author": None, "published": None}
@@ -147,20 +206,9 @@ def capture(vault, url, config_path=None, today=None, fetch=None):
         raise ValueError(f"{lines} lines is more than a worker can read in one pass ({MAX_LINES}); "
                          "save the page in parts into raw/ instead")
     captured = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-    today = today or date.today().isoformat()
-    (vault / "raw").mkdir(exist_ok=True)
     stem = f"raw/{today}-{slugify(meta['title'] or re.sub(r'^https?://', '', url))}"
-    for n in range(1, 100):
-        relative = stem + (f"-{n}" if n > 1 else "") + ".md"
-        try:
-            with open(vault / relative, "x", encoding="utf-8") as stream:
-                stream.write(capture_text(url, final_url, body, meta, captured))
-            break
-        except FileExistsError:
-            continue
-    else:
-        raise ValueError("too many captures with the same name")
-    return {"raw": relative, "title": meta["title"], "words": words, "lines": lines}
+    relative = exclusive(vault, stem, ".md", capture_text(url, final_url, body, meta, captured).encode())
+    return {"raw": relative, "parts": [relative], "title": meta["title"], "words": words, "lines": lines}
 
 
 def pending(vault):
@@ -179,19 +227,43 @@ def pending(vault):
                 or str(Path(relative).parent) in used_dirs):
             continue
         found.append((path.stat().st_mtime, relative))
+    extracted = set()
+    for path in (raw.rglob("*.md") if raw.is_dir() else ()):
+        with open(path, encoding="utf-8", errors="replace") as stream:
+            head = stream.read(4096)
+        match = re.search(r'(?m)^source_pdf: "([^"\n]+)"$', head)
+        if match:
+            extracted.add(match.group(1))
+    for path in (raw.rglob("*") if raw.is_dir() else ()):
+        relative = path.relative_to(vault).as_posix()
+        if (path.suffix.lower() == ".pdf" and path.is_file() and not path.is_symlink() and relative not in extracted
+                and not relative.startswith("raw/assets/")
+                and not any(part.startswith(".") for part in path.relative_to(raw).parts)):
+            found.append((path.stat().st_mtime, relative))
     return [relative for _, relative in sorted(found)]
 
 
 def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=None):
     vault = Path(vault).resolve()
+    captured = None
     if url is not None:
         if kind != "ingest" or inputs:
             raise ValueError("--url is for ingest and replaces --input")
         if not task or "@" in task or re.search(r"!\s*`", task):
             raise ValueError("ingest needs a plain-text --task without @ or !` tokens")
-        inputs = [capture(vault, url, config_path, today)["raw"]]
+        captured = capture(vault, url, config_path, today)
+        inputs = [captured["raw"]]
     config = load_config(vault, config_path)
     role, skill = ROLES[kind]
+    if kind == "ingest" and len(inputs) == 1 and inputs[0].lower().endswith(".pdf"):
+        if not inputs[0].startswith("raw/") or not link_check.canonical_parts(inputs[0]):
+            raise ValueError(f"ingest input not allowed: {inputs[0]}")
+        if not task or "@" in task or re.search(r"!\s*`", task):
+            raise ValueError("ingest needs a plain-text --task without @ or !` tokens")
+        captured = capture_pdf(vault, inputs[0], None, today)
+        inputs = [captured["raw"]]
+    elif any(item.lower().endswith(".pdf") for item in inputs):
+        raise ValueError("ingest one PDF per operation")
     inputs = sorted(set(inputs))
     if kind == "query":
         if inputs or not task:
@@ -241,7 +313,8 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
     manifest = {"id": op.name, "kind": kind, "role": role, "skill": skill, "vault": str(vault), "date": today,
                 "task": task, "inputs": inputs, "input_sha256": {i: file_hash(vault / i) for i in inputs},
                 "wiki_preimages": state, "reads": sorted(copies) + ["operation.md"], "origin": origin,
-                "config": {k: config[k] for k in sorted(config)}}
+                "config": {k: config[k] for k in sorted(config)},
+                "capture": captured}
     (corpus / "operation.md").write_text(
         "# Operator-verified operation manifest\n\n```json\n" + json.dumps({
             "status": "operator preflight verifies these read grants before the worker starts",
@@ -278,8 +351,11 @@ def worker_prompt(manifest, corpus):
             "not answer, say so. End with a line starting 'Read:' and a line starting 'Not covered:'.")
     inputs = ", ".join(manifest["inputs"])
     source = ("This is an ingest: the input is an approved raw capture; use its path as the source page's raw "
-              "field. When the capture has frontmatter, take the source page's url, author and published from it "
-              f"and the date part of its captured timestamp as captured; otherwise use {manifest['date']}. "
+              "field. When the capture has frontmatter, take the source page's url and any non-null author and "
+              "published from it, and the date part of its captured timestamp as captured (otherwise "
+              f"{manifest['date']}). When author or published is null there but the document itself states it, "
+              "such as a paper's author list or dated byline, use that; otherwise leave it null. "
+              "For a PDF capture, cite its '## Page N' headings as locators and follow the skill's PDF rules. "
               if kind == "ingest" else
               "This is a compile: the inputs are existing source notes; build concept, entity or synthesis pages "
               "from them and add the reciprocal links on those source notes. ")
@@ -575,9 +651,12 @@ def main():
         if args.command == "stage":
             if args.kind == "query" and args.task:
                 parser.error("query uses --question, not --task")
-            result = {"operation": str(stage(args.vault, args.kind, args.input,
-                                             args.question if args.kind == "query" else args.task, args.config,
-                                             url=args.url))}
+            operation = stage(args.vault, args.kind, args.input,
+                              args.question if args.kind == "query" else args.task, args.config, url=args.url)
+            result = {"operation": str(operation)}
+            captured = json.loads((operation / "manifest.json").read_text()).get("capture")
+            if captured:
+                result["capture"] = captured
         elif args.command == "capture":
             result = capture(args.vault, args.url, args.config)
         elif args.command == "pending":

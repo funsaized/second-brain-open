@@ -126,6 +126,7 @@ captures. The route was the previously approved one.
 
 | URL capture only, three public pages (2026-09-29) | Main content kept: a GitHub gist article, a blog post with code blocks, a catalog page. 74–190 lines each, navigation and comments dropped, under a second each | A blog without `<article>` kept its site header and sponsor line |
 | Primary agent, one request with a URL (2026-09-29) | `stage --url` captured the gist with no model, then the worker ran, dry run, apply. The result: a source page with the URL, capture date and raw path, plus a new concept page citing the source by section and noting its lack of evaluation evidence. Checker clean, logged `partial` | An earlier design (a webfetch-only worker) was dropped: OpenCode's webfetch converts the whole page and truncated it at 32 KB of 143 KB |
+| Primary agent, one request with a PDF URL (arXiv 1706.03762, 2026-09-29) | Capture kept the 15-page PDF and extracted 1,359 page-marked lines in reading order, no OCR, quality check passed. The worker wrote a paper-structured source page citing pages and flagged a real inconsistency (abstract 41.8 vs Results text 41.0 BLEU), plus a new concept page. Checker clean | Tables flatten into columns. `author` stayed null because the PDF metadata had none; the prompt now takes authors stated in the document |
 
 Worker evidence: designated skill loaded, only complete in-scope reads, and
 staged bytes unchanged. Operation directories, responses and receipts stay

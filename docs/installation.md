@@ -11,7 +11,9 @@ This is a per-file copy, not a directory sync. Nothing here changes your root
 ## Before you start
 
 - **Tools:** OpenCode, Python 3.10+ and a checkout of this repository kept
-  outside the vault. The operator runs on Linux. Public evidence covers
+  outside the vault. The operator runs on Linux. PDF ingest needs Poppler
+  (`pdftotext`, `pdfinfo`); scanned PDFs also need `ocrmypdf` with Tesseract.
+  On Arch, `ocrmypdf` is in the AUR (`yay -S ocrmypdf`). Public evidence covers
   OpenCode 1.18.32 and 1.18.33.
 - **Primary agent:** an existing primary agent with shell access. It becomes
   the operator.

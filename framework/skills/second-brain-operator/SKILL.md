@@ -38,10 +38,20 @@ vault's `opencode.json`. Do not improvise the steps by hand.
    python3 <cli> stage . ingest --input raw/<capture> --task "<what the owner wants from it>"
    python3 <cli> stage . compile --input wiki/sources/<a>.md --input wiki/sources/<b>.md --task "<concept to build>"
    ```
-   The command prints the operation directory. Use it in the next steps. If a
-   capture is refused (JavaScript-only page, paywall, login, too long), report
-   the reason. The owner can save the page with the Obsidian Web Clipper into
-   `raw/`, or in parts, and ask again.
+   PDFs work the same way, by URL or as a `.pdf` in `raw/` passed with
+   `--input`. The CLI keeps the original, extracts page-marked text (using OCR
+   for scans) and splits long documents into parts.
+
+   The command prints the operation directory, and `capture` when it captured
+   something. Use the operation in the next steps. When `capture.parts` lists
+   more than one file, this operation ingests part 1. After it is applied,
+   ingest each remaining part in order as its own operation
+   (`stage . ingest --input <part> --task ...`).
+
+   If a capture is refused (JavaScript-only page, paywall, login, poor PDF
+   extraction), report the reason. The owner can save the page with the
+   Obsidian Web Clipper into `raw/`, or export the document another way, and
+   ask again.
 2. **Run the worker.** `python3 <cli> run <operation>`. If `passed` is false,
    report `checks`, `unread_required` or `proposal_error` and stop. Do not retry
    more than once, and only when the failure looks transient.
@@ -70,9 +80,10 @@ When the owner asks to process what is new in `raw/`:
 python3 <cli> pending .
 ```
 
-This lists captures that no source page references yet, oldest first. Ingest
-them one at a time with the steps above, as separate operations, up to 20 per
-request. Stop at the first failure you cannot resolve with one `revise`, and
+This lists captures that no source page references yet, oldest first,
+including PDFs whose text has not been extracted. Ingest them one at a time with
+the steps above, as separate operations, up to 20 per request. Run `pending`
+again after each PDF, because its extracted parts then appear. Stop at the first failure you cannot resolve with one `revise`, and
 report what was done and what remains.
 
 ## Answer a question

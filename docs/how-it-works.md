@@ -85,9 +85,10 @@ Two tiers of agent do the work.
   checks the result mechanically and applies it. It never edits pages itself;
   the operator CLI is the only writer, and only under `wiki/`.
 
-Web pages enter the same way. When you give the operator a URL, the CLI
-fetches the page itself, with no model reading it, and keeps the main content
-with its provenance. Untrusted page text therefore reaches only the sandboxed
+Web pages and PDFs enter the same way. When you give the operator a URL, the
+CLI fetches the document itself, with no model reading it. It keeps a web
+page's main content, or a PDF's original plus page-marked text (OCR for scans,
+split when long), with provenance. Untrusted page text therefore reaches only the sandboxed
 worker, never your primary agent, which holds shell access. Upstream
 second-brain-os instead lets one agent fetch, read and write everything. That
 is simpler, but a page's injected instructions would then run with full vault

@@ -63,7 +63,7 @@ class CaptureTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def fake(self, html=PAGE, kind="text/html", final="https://example.com/posts/1"):
-        return lambda url: (html, kind, final)
+        return lambda url: (html.encode(), kind, final, "utf-8")
 
     def test_capture_writes_provenance_and_never_overwrites(self):
         first = op.capture(self.vault, "https://example.com/posts/1", self.config, "2026-09-29", self.fake())
@@ -81,7 +81,7 @@ class CaptureTests(unittest.TestCase):
     def test_capture_refusals(self):
         cases = [("ftp://example.com/x", self.fake(), "http"), ("https://a@example.com/", self.fake(), "http"),
                  ("https://example.com/", self.fake("<html><body><p>Please log in.</p></body></html>"), "words"),
-                 ("https://example.com/", self.fake(kind="application/pdf"), "unsupported"),
+                 ("https://example.com/", self.fake(kind="application/zip"), "unsupported"),
                  ("https://example.com/", self.fake("<p>" + "\n".join(["<p>line %d %s</p>" % (i, WORDS[:40])
                                                                        for i in range(2000)]) + "</p>"), "lines")]
         for url, fetch, expected in cases:

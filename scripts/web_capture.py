@@ -229,7 +229,8 @@ def extract(html, base_url):
                       "published": published}
 
 
-def fetch(url, timeout=30, limit=5_000_000):
+def fetch(url, timeout=60, limit=50_000_000):
+    """Return (bytes, content type, final URL, charset); callers decode text types."""
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,*/*;q=0.5"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         kind = response.headers.get_content_type()
@@ -237,5 +238,5 @@ def fetch(url, timeout=30, limit=5_000_000):
         data = response.read(limit + 1)
         final = response.geturl()
     if len(data) > limit:
-        raise ValueError("page is larger than 5 MB")
-    return data.decode(charset, errors="replace"), kind, final
+        raise ValueError(f"download is larger than {limit // 1_000_000} MB")
+    return data, kind, final, charset

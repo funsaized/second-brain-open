@@ -28,9 +28,9 @@ sb_operator.py status OPERATION
 
 | Command | What it does |
 |---|---|
-| `capture` | Fetches one http(s) URL with no model involved and saves its main content to `raw/<date>-<slug>.md` (see [Web capture](#web-capture)). Never overwrites: repeats get `-2`, `-3`. |
-| `pending` | Lists `.md`, `.txt` and `.html` files under `raw/` that no source page's `raw` field references, oldest first. Skips `raw/assets/`, hidden files, and subfolders where any file is already referenced (multi-file captures). |
-| `stage` | With `--url`, runs `capture` first and ingests the result. Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
+| `capture` | Fetches one http(s) URL with no model involved. A web page's main content goes to `raw/<date>-<slug>.md` (see [Web capture](#web-capture)). A PDF is kept as `raw/<date>-<slug>.pdf` beside its extracted text (see [PDF capture](#pdf-capture)). Never overwrites: repeats get `-2`, `-3`. |
+| `pending` | Lists `.md`, `.txt` and `.html` files under `raw/` that no source page's `raw` field references, plus PDFs no capture's `source_pdf` names, oldest first. Skips `raw/assets/`, hidden files, and subfolders where any file is already referenced (multi-file captures). |
+| `stage` | With `--url`, runs `capture` first and ingests the result. An ingest `--input` ending in `.pdf` is extracted first. Either way, the printed `capture` lists every part, and the operation ingests part 1. Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
 | `run` | Grants the worker exact reads on the staged files, denies every other tool, verifies the effective configuration with `opencode debug`, then runs the worker once. Saves `response.md`, `run.json` and, for ingest and compile, `proposal.json`. |
 | `revise` | Once per operation: reruns the worker with the dry-run problems as feedback and its previous reply readable as `previous-proposal.md`. The first attempt moves to `attempt-1/`. |
 | `apply` | Validates the proposal (below), backs up every file it replaces to `backup/`, writes the pages and appends the log record, then runs the checker on the vault. If that check fails, it undoes the write. `--dry-run` validates without writing. |
@@ -129,6 +129,37 @@ Capture frontmatter, one JSON value per line:
 | `captured` | UTC capture time |
 | `fetched_with` | Records that no model produced the text |
 | `body_sha256` | Hash of the Markdown body |
+
+### PDF capture
+
+Requires Poppler's `pdftotext` and `pdfinfo`. OCR requires `ocrmypdf` with
+Tesseract.
+
+- **Extraction order.** Reading order first. If the quality check fails,
+  `pdftotext -layout`. If there is no text layer (fewer than 150 words),
+  `ocrmypdf --skip-text` and then reading order. Encrypted PDFs are refused.
+- **Quality check.** Fails when any of these hold:
+  - under 150 words
+  - more than 35% of lines are one to three characters (interleaved columns)
+  - under 60% of visible characters are letters
+  - more than 1 in 200 characters are unreadable
+- **Pages and parts.** Each page becomes `## Page N`. Parts break only
+  between pages, and each part stays within 1,850 lines. A single-part
+  capture is named after the PDF; parts are named `-part-1`, `-part-2`, and
+  so on.
+
+PDF capture frontmatter:
+
+| Field | Meaning |
+|---|---|
+| `url` | Source URL, or `null` for a file you saved |
+| `source_pdf`, `pdf_sha256` | The original PDF in `raw/` and its hash |
+| `title`, `author` | From the PDF's metadata when set; `null` otherwise |
+| `published` | Always `null`; the worker takes it from the text if the document states it |
+| `pdf_created` | The file's creation date, which is not the publication date |
+| `pages`, `page_range`, `part` | Total pages, this capture's pages, and `k/n` for parts (`null` if one part) |
+| `extracted_with`, `ocr`, `quality` | Extraction mode, whether OCR produced the text, and the quality metrics |
+| `captured`, `body_sha256` | UTC capture time and the hash of the Markdown body |
 
 ## Worker roles
 

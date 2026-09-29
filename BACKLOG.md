@@ -24,6 +24,8 @@
 - **URL ingest (2026-09-29):** delivered. The operator captures a URL's main
   content without a model, and a sandboxed worker ingests it. `pending` plus
   catch-up processes new clips. The ingest skill adopts upstream's calibration.
+- **PDF ingest (2026-09-29):** delivered. Covers URLs or dropped files, page
+  locators, OCR for scans, automatic parts for long documents, and paper mode.
 - **Suggested next step:** A1. Compile the first concept pages in the
   deployment with the operator, then rerun the A2 evaluation.
 

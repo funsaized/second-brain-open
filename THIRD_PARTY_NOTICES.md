@@ -53,13 +53,15 @@ evidence for runtime-specific behavior; no OpenCode source is copied into the dr
 The R6 filesystem rehearsal and invented binary asset are original downstream
 verification; no upstream backup implementation is copied. The researcher
 evaluation harness, its guide and invented question file are original
-downstream verification. The operator (`scripts/sb_operator.py`, `scripts/sb_runtime.py`, `scripts/web_capture.py`,
+downstream verification. The operator (`scripts/sb_operator.py`, `scripts/sb_runtime.py`, `scripts/web_capture.py`, `scripts/pdf_capture.py`,
 `framework/skills/second-brain-operator/SKILL.md`, `framework/operator.example.json`)
 and its guides (`docs/operator.md`, `docs/reference.md`) are original downstream work;
 the runtime helpers were extracted from the earlier downstream live drivers.
 URL capture follows the intent of upstream `commands/ingest-url.md` (fetch, save to `raw/`
 with URL/author/date, refuse paywalls and fragments), but no upstream code is copied
-and no model fetches or rewrites the page.
+and no model fetches or rewrites the page. PDF capture follows the intent of upstream
+`commands/ingest-pdf.md` and `docs/03-ingestion/pdfs-and-books.md` (extract, check quality,
+OCR scans); the ingest skill's paper rules adapt upstream `commands/ingest-paper.md`.
 
 ## Upstream MIT notice (verbatim)
 
