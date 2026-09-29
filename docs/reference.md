@@ -137,6 +137,8 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 - A wikilink to a page that doesn't exist becomes its plain label. Code blocks
   are left alone.
 - INDEX and LINKS entries that point at missing pages are dropped.
+- A source page in the proposal that links an existing concept or entity page
+  lacking the back-link gets a LINKS entry adding it.
 - A missing log record is written from the changed paths. A record without a
   proper heading gets one, and a record claiming a status other than
   `partial` is set to `partial`.

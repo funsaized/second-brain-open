@@ -254,6 +254,19 @@ class OperatorTests(unittest.TestCase):
         completed = dict(proposal, log="## 2026-09-28 — x — completed\n- y")
         self.assertTrue(op.normalize(manifest, completed)[0]["log"].startswith("## 2026-09-28 — x — partial"))
 
+    def test_normalize_adds_missing_concept_back_links(self):
+        operation = self.staged("ingest", ["raw/trial-b.md"], "Ingest trial B")
+        manifest = json.loads((operation / "manifest.json").read_text())
+        page = ('---\ntitle: "New | trial"\ntype: "source"\n---\n\n# New\n\nSee '
+                '[[wiki/concepts/vent-choice|Vent choice]] and [[wiki/sources/trial-a|Trial A]].\n')
+        proposal = {"files": {"wiki/sources/new.md": page}, "links": [], "index": [], "log": RECORD, "notes": ""}
+        fixed, fixes = op.normalize(manifest, proposal)
+        self.assertEqual(fixed["links"], [["wiki/concepts/vent-choice.md",
+                                           "- [[wiki/sources/new|New   trial]] — source that cites this page"]])
+        self.assertIn("added the back-link wiki/concepts/vent-choice -> wiki/sources/new", fixes)
+        again, _ = op.normalize(manifest, fixed)
+        self.assertEqual(len(again["links"]), 1)  # not added twice
+
     def test_compile_by_topic_needs_no_inputs(self):
         operation = op.stage(self.vault, "compile", [], "Explain vent choice across the trials", self.config,
                              today="2026-09-28")
