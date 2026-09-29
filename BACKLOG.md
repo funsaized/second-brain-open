@@ -29,6 +29,14 @@
 - **Figures (2026-09-29):** delivered. Pages with figure captions are rendered
   and read by the vision-capable worker. Captures of any kind split within
   OpenCode's read limits.
+- **Concept compile hardening (2026-09-29):** delivered. Index changes are
+  merged entries, back-links are LINKS patches, drop/shrink guards are in
+  place, compile works by topic, and workers read by relative path.
+- **New item H1:** `opencode run` occasionally stalls before starting a
+  session (no events, no database writes, no operation staged). Seen twice, in
+  runs without `--print-logs`, once while another session of yours was active.
+  Next: reproduce it and add a startup timeout to the operator skill's
+  guidance.
 - **Suggested next step:** A1. Compile the first concept pages in the
   deployment with the operator, then rerun the A2 evaluation.
 

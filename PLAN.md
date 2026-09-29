@@ -12,7 +12,7 @@ results and failures; its old test counts and "next step" statements are not the
 current backlog. The phase specifications and runbooks describe requirements and
 repeatable procedures, not a list of features that are all still unimplemented.
 
-**Verification baseline:** 117 offline tests pass with
+**Verification baseline:** 120 offline tests pass with
 `python3 -m unittest discover -s tests`. Live native probes are opt-in and are not
 part of that count. Static fixtures, driver-applied model proposals, native tool
 edits, and owner content acceptance are different evidence classes.
@@ -67,7 +67,7 @@ edits, and owner content acceptance are different evidence classes.
 
 | Evidence class | What is established | Where to inspect |
 |---|---|---|
-| Offline distribution suite | 117 passing static/CLI/guard tests; includes operator stage/apply/undo/revise, checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
+| Offline distribution suite | 120 passing static/CLI/guard tests; includes operator stage/apply/undo/revise, checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
 | Live researcher evaluation | Scored native `sb-researcher` answers on a staged wiki copy (OpenCode 1.18.33); the synthetic fixture passed 3/3 | `docs/researcher-evaluation.md`; private-wiki results stay local |
 | Isolated native runtime probes | Documented version-specific loading/read/refusal behavior; fake-provider cases are not semantic ingest proof | `tests/runtime_read_probe.py`, `tests/runtime_roles_probe.py`, historical execution record below |
 | Live, driver-applied semantic rehearsal | Two-source proposals, contradiction retention, repeat and sourced answering; driver applied the pages | `docs/native-acceptance-trials.md` (earlier rehearsals), `docs/synthetic-acceptance.md` |
@@ -420,7 +420,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-Current result: **117 tests pass**. The structured source-template test is static
+Current result: **120 tests pass**. The structured source-template test is static
 compatibility evidence, not proof of model editorial quality. Historical counts
 in the execution record and dated evidence reports describe their own checkpoints.
 
@@ -1193,3 +1193,24 @@ scan; `git diff --check` passes.
   fixed.
 
 Verification: 117 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Index merge, back-link patches and compile by topic
+
+A deployment compile request exposed three failures: the worker rewrote the
+142-line index down to 2 entries (the checker blocked it), fetched an
+unrequested URL, and could not return long notes whole.
+
+- **Index merge.** Index changes are INDEX entries that `apply` merges;
+  `wiki/index.md` can no longer be a FILE.
+- **Back-link patches.** LINKS lines append to a page's Links section, so no
+  long note is retyped.
+- **Guards.** `apply` refuses updates that drop existing links or shrink a
+  page by half.
+- **Compile by topic.** `compile` with no inputs lets the worker choose notes
+  from the index. The operator skill routes concept requests there and never
+  captures a URL it wasn't given.
+- **Paths.** Workers read by relative path and retry denied optional reads.
+
+A rerun of the same request on a copy of the deployment wiki succeeded on the
+first attempt. Verification: 120 offline tests pass; `git diff --check`
+passes.

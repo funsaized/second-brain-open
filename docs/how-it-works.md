@@ -101,7 +101,9 @@ influence what a worker proposes, but a proposal only reaches the vault after
 - the paths are allowed pages
 - the page count is within the limit
 - no target changed since staging
-- the log gains exactly one `partial` record
+- the log gains exactly one `partial` record, index entries are merged and
+  back-links are appended, never rewritten by the model
+- no updated page loses its existing links
 - the managed checker passes on the result
 
 Every applied operation keeps backups for `undo`. The staged copy also keeps

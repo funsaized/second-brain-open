@@ -1,6 +1,6 @@
 ---
 name: second-brain-operator
-description: Use when the owner gives a URL or a raw/ file to add to the second brain, asks to catch up on new captures, to compile concept pages from existing source notes, or to answer a question from the managed wiki; runs the sandboxed sb-ingestor/sb-researcher workers through the operator CLI.
+description: Use when the owner gives a URL or a raw/ file to add to the second brain, asks to catch up on new captures, to create a concept from what the wiki already knows, or to answer a question from the managed wiki; runs the sandboxed sb-ingestor/sb-researcher workers through the operator CLI.
 ---
 
 # Operate the second-brain workers
@@ -29,13 +29,21 @@ vault's `opencode.json`. Do not improvise the steps by hand.
 
 ## Ingest a capture or compile concepts
 
-1. **Stage.** For a URL, `--url` captures the page first. The CLI fetches it
-   without a model and saves its main content to `raw/` with provenance. Never
-   fetch pages yourself with web tools. For a file already in `raw/`, use
-   `--input`. Compile takes existing source notes.
+1. **Stage.** Choose the operation from what the owner gave you:
+   - **A URL** → ingest with `--url`. The CLI fetches the page without a model
+     and saves its main content to `raw/` with provenance. Never fetch pages
+     yourself with web tools.
+   - **A file in `raw/`** → ingest with `--input`.
+   - **A topic or concept to build from what the wiki already knows** →
+     compile with just `--task`. The worker finds the relevant notes from the
+     index. Name source notes with `--input` only when the owner named them.
+
+   Never capture a URL the owner did not give you. If existing knowledge seems
+   too thin, say so and suggest a source instead.
    ```sh
    python3 <cli> stage . ingest --url https://example.com/post --task "<what the owner wants from it>"
    python3 <cli> stage . ingest --input raw/<capture> --task "<what the owner wants from it>"
+   python3 <cli> stage . compile --task "<concept to build and what it should cover>"
    python3 <cli> stage . compile --input wiki/sources/<a>.md --input wiki/sources/<b>.md --task "<concept to build>"
    ```
    PDFs work the same way, by URL or as a `.pdf` in `raw/` passed with

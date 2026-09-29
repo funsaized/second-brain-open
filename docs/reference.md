@@ -14,6 +14,7 @@ sb_operator.py capture VAULT URL
 sb_operator.py pending VAULT
 sb_operator.py stage VAULT ingest  --url URL --task TEXT
 sb_operator.py stage VAULT ingest  --input raw/<capture> [--input ...] --task TEXT
+sb_operator.py stage VAULT compile --task TEXT                      # worker picks notes from the index
 sb_operator.py stage VAULT compile --input wiki/sources/<note>.md [--input ...] --task TEXT
 sb_operator.py stage VAULT query   --question TEXT
 sb_operator.py run    OPERATION
@@ -75,6 +76,11 @@ Example: [`framework/operator.example.json`](../framework/operator.example.json)
 <<<FILE wiki/<folder>/<page>.md>>>
 complete Markdown
 <<<END FILE>>>
+<<<INDEX>>>
+Concepts | - [[wiki/concepts/<page>|Title]] — short description
+Gaps | - plain-text gap
+<<<LINKS>>>
+wiki/sources/<note>.md | - [[wiki/concepts/<page>|Title]] — how they relate
 <<<LOG>>>
 ## YYYY-MM-DD — operation — partial
 - bullets
@@ -82,21 +88,39 @@ complete Markdown
 coverage review
 ```
 
-A reply with only `<<<NOTES>>>` is a valid no-op. An optional closing marker
-(`<<<LOG>>>` or `<<<END LOG>>>`, and the same for NOTES) is ignored; any other
-marker line inside a page or the log record is an error.
+A reply with only `<<<NOTES>>>` is a valid no-op.
+
+- **INDEX.** Optional. Each line names a section (`Concepts`, `Entities`,
+  `Synthesis`, `Sources` or `Gaps`) and an entry. `apply` merges the entries
+  into `wiki/index.md`: an entry replaces any existing entry for the same page,
+  goes after the section's last entry, and replaces a "No pages yet" line.
+  Other entries are never removed, and the index's `updated` date is set. The
+  worker never returns the whole index.
+- **LINKS.** Optional. Each line names an existing page and a link entry.
+  `apply` appends the entry to that page's `## Links` (or `## Related`)
+  section, creating `## Links` at the end if needed. Links the page already
+  has are skipped, and the page's `updated` date is set. This is how
+  back-links reach long notes without the worker retyping them. A page may be
+  rewritten with FILE or patched with LINKS, not both.
+- **Markers.** A final closing marker line on a section (any `<<<…>>>`) is
+  ignored. Any other marker line inside a page or the log record is an error.
 
 ### Apply checks
 
 `apply` refuses the whole proposal, writing nothing, when any of these fail:
 
-- **Pages:** at least one page and no more than `max_pages`.
-- **Paths:** only `wiki/{sources,concepts,entities,synthesis}/**.md` and
-  `wiki/index.md`; never `wiki/log.md` as a page, `raw/`, instruction
-  filenames or traversal.
+- **Pages:** at least one page changed (FILE or LINKS) and no more than
+  `max_pages` distinct pages.
+- **Paths:** only `wiki/{sources,concepts,entities,synthesis}/**.md`; never
+  `wiki/index.md` or `wiki/log.md` as a page, `raw/`, instruction filenames or
+  traversal.
+- **Updates keep content:** an update may not drop any wikilink the page
+  already has, and may not shrink a page of 20 or more lines to under half its
+  length. These catch a model summarizing a page it was asked to extend.
 - **Log record:** a single record whose heading is
   `## YYYY-MM-DD — operation — partial`.
-- **Drift:** every file it touches, and the log, still has its staged hash.
+- **Drift:** every file it touches, the log, and the index when it has INDEX
+  entries, still has its staged hash.
 - **Checker:** the managed checker reports no errors or unsupported forms on a
   copy of the wiki with the proposal applied.
 

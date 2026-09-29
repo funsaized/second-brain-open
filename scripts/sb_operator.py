@@ -64,7 +64,9 @@ INSTALLED = {
 }
 TEMPLATES = ("source", "concept", "entity", "synthesis")
 CONFIG_KEYS = {"cli", "agent", "model", "opencode_version", "workdir", "max_pages", "steps", "timeout", "auto_apply"}
-WRITABLE = re.compile(r"wiki/(?:sources|concepts|entities|synthesis)/.+\.md|wiki/index\.md")
+WRITABLE = re.compile(r"wiki/(?:sources|concepts|entities|synthesis)/.+\.md")
+INDEX_SECTIONS = ("Concepts", "Entities", "Synthesis", "Sources", "Gaps")
+LINK = re.compile(r"\[\[([^\]|#]+)")
 RECORD = re.compile(r"## (\d{4}-\d{2}-\d{2}) — .+ — partial")
 FILE_BLOCK = re.compile(r"^<<<FILE ([^\n]+)>>>\n(.*?)^<<<END FILE>>>[ \t]*$", re.M | re.S)
 
@@ -334,10 +336,10 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
     if kind == "query":
         if inputs or not task:
             raise ValueError("query takes --question and no inputs")
-    elif not inputs or not task:
-        raise ValueError(f"{kind} needs --input and --task")
+    elif not task or (kind == "ingest" and not inputs):
+        raise ValueError(f"{kind} needs --task" + (" and --input or --url" if kind == "ingest" else ""))
     for item in inputs:
-        valid = item.startswith("raw/") if kind == "ingest" else WRITABLE.fullmatch(item) and item != "wiki/index.md"
+        valid = item.startswith("raw/") if kind == "ingest" else WRITABLE.fullmatch(item)
         if not valid or not link_check.canonical_parts(item):
             raise ValueError(f"{kind} input not allowed: {item}")
         validate_scope(vault, [Path(item)])
@@ -419,8 +421,11 @@ def worker_prompt(manifest, corpus):
     kind, config = manifest["kind"], manifest["config"]
     head = ("You are running under an operator. Your read grants were verified before this call; edits and all "
             "other tools are denied. Load your designated skill with the skill tool. "
-            f"Working directory: {corpus}. The operation manifest is operation.md and the contract is {CONTRACT}. "
-            "Read wiki/index.md first. ")
+            f"Working directory: {corpus}. Read files by their paths relative to it, exactly as operation.md "
+            f"lists them (for example wiki/index.md, {CONTRACT}, templates/concept.md); do not retype the absolute "
+            "directory. If a read is denied, you used a path that is not staged: retry with the listed relative "
+            "path, or continue without an optional page. Stop only when the index, the contract or an input cannot "
+            "be read at its listed path. Read wiki/index.md first. ")
     if kind == "query":
         return head + (
             f"Question: {manifest['task']} Answer only from pages you actually read. Put exact vault-relative "
@@ -437,17 +442,30 @@ def worker_prompt(manifest, corpus):
                  "Look at each figure the text relies on and follow the skill's figure rules. "
                  if manifest.get("figures") else "")
               if kind == "ingest" else
-              "This is a compile: the inputs are existing source notes; build concept, entity or synthesis pages "
-              "from them and add the reciprocal links on those source notes. ")
+              ("This is a compile: the inputs are existing source notes; build concept, entity or synthesis pages "
+               "from them and add the reciprocal links on those source notes. " if manifest["inputs"] else
+               "This is a compile by topic: choose the existing pages most relevant to the task from the index, "
+               "usually three to eight source notes plus any concept pages on the topic, read those completely, "
+               "and build concept, entity or synthesis pages from them with reciprocal links on the notes you "
+               "draw from. You do not need to read every related page; name the ones you left out in NOTES. "))
+    reading = (f"Read these inputs completely before proposing: {inputs}. " if manifest["inputs"] else "")
     return head + source + (
-        f"Task: {manifest['task']} Read these inputs completely before proposing: {inputs}. Readable files, by "
+        f"Task: {manifest['task']} {reading}Readable files, by "
         f"exact path only (directory listings are not available): every page the index links, wiki/log.md, "
         f"{', '.join(f'templates/{name}.md' for name in TEMPLATES)}, the inputs and the manifest. "
         "Open candidate pages from the index as needed. "
         f"Today is {manifest['date']}. Propose at most {config['max_pages']} new or changed pages under "
-        "wiki/sources, wiki/concepts, wiki/entities or wiki/synthesis, plus wiki/index.md when the catalog "
-        "changes. Never propose wiki/log.md, raw/ or any other path. Reply with no outer code fence, in this "
-        "format:\n<<<FILE path>>>\ncomplete Markdown with final newline\n<<<END FILE>>>\n(one block per page)\n"
+        "wiki/sources, wiki/concepts, wiki/entities or wiki/synthesis. When you update an existing page with a FILE, "
+        "return all of its existing content and links plus your additions; to only add links to an existing page, "
+        "use LINKS instead. Never propose wiki/index.md, wiki/log.md, "
+        "raw/ or any other path as a FILE: give index changes as INDEX entries, which the operator merges. "
+        "Reply with no outer code fence, in this format:\n<<<FILE path>>>\ncomplete Markdown with final newline\n"
+        "<<<END FILE>>>\n(one block per page)\n<<<INDEX>>>\none line per new or changed catalog entry, as "
+        "'<Concepts|Entities|Synthesis|Sources|Gaps> | - [[wiki/<folder>/<page>|Title]] — short description' "
+        "(Gaps entries are plain text); an entry replaces the existing entry for the same page\n"
+        "<<<LINKS>>>\none line per link to add to an existing page without rewriting it, as "
+        "'wiki/<folder>/<page>.md | - [[wiki/<folder>/<page>|Title]] — how they relate'; use this for "
+        "reciprocal back-links on long source notes\n"
         f"<<<LOG>>>\none log record whose heading is '## {manifest['date']} — <operation> — partial', followed "
         "by bullets for source identity, changed paths, contradictions, gaps and pending verification\n"
         "<<<NOTES>>>\ncoverage review, claim/locator notes and open questions.\n"
@@ -473,6 +491,35 @@ def parse_proposal(text):
         files[name] = body
         end = match.end()
     rest = text[end:].strip()
+    index = []
+    if rest.startswith("<<<INDEX>>>"):
+        after = "<<<LINKS>>>" if "<<<LINKS>>>" in rest else "<<<LOG>>>"
+        block, found, rest = rest.removeprefix("<<<INDEX>>>").partition(after)
+        if not found:
+            raise ValueError("proposal INDEX section must be followed by LINKS or LOG")
+        rest = after + rest
+        for line in section(block, "INDEX").splitlines():
+            if not line.strip():
+                continue
+            match = re.fullmatch(r"\s*(\w+)\s*\|\s*(.+?)\s*", line)
+            if not match or match.group(1) not in INDEX_SECTIONS:
+                raise ValueError(f"INDEX lines must be '<section> | <entry>': {line[:60]}")
+            entry = match.group(2) if match.group(2).startswith("- ") else "- " + match.group(2)
+            index.append([match.group(1), entry])
+    links = []
+    if rest.startswith("<<<LINKS>>>"):
+        block, found, rest = rest.removeprefix("<<<LINKS>>>").partition("<<<LOG>>>")
+        if not found:
+            raise ValueError("proposal LINKS section must be followed by LOG")
+        rest = "<<<LOG>>>" + rest
+        for line in section(block, "LINKS").splitlines():
+            if not line.strip():
+                continue
+            match = re.fullmatch(r"\s*(wiki/\S+\.md)\s*\|\s*(.+?)\s*", line)
+            if not match or not first_link(match.group(2)):
+                raise ValueError(f"LINKS lines must be '<page path> | <entry with a [[link]]>': {line[:60]}")
+            entry = match.group(2) if match.group(2).startswith("- ") else "- " + match.group(2)
+            links.append([match.group(1), entry])
     log, notes = None, rest
     if rest.startswith("<<<LOG>>>"):
         log, found, notes = rest.removeprefix("<<<LOG>>>").partition("<<<NOTES>>>")
@@ -485,9 +532,9 @@ def parse_proposal(text):
         notes = rest.removeprefix("<<<NOTES>>>")
     else:
         raise ValueError("proposal must end with LOG and NOTES (or NOTES only)")
-    if files and not log:
-        raise ValueError("a proposal with pages needs a LOG record")
-    return {"files": files, "log": log, "notes": section(notes, "NOTES")}
+    if (files or links) and not log:
+        raise ValueError("a proposal with changes needs a LOG record")
+    return {"files": files, "index": index, "links": links, "log": log, "notes": section(notes, "NOTES")}
 
 
 def verify_events(manifest, corpus, events, returncode, before, after):
@@ -577,19 +624,38 @@ def check_proposal(manifest, proposal):
     vault, config = Path(manifest["vault"]), manifest["config"]
     files, record = proposal["files"], proposal["log"]
     problems = []
-    if not files:
+    links = proposal.get("links", [])
+    touched = set(files) | {path for path, _ in links}
+    if not touched:
         problems.append("proposal has no pages")
-    if len(files) > config["max_pages"]:
-        problems.append(f"proposal changes {len(files)} pages; the limit is {config['max_pages']}")
+    if len(touched) > config["max_pages"]:
+        problems.append(f"proposal changes {len(touched)} pages; the limit is {config['max_pages']}")
+    for path, _ in links:
+        if path in files:
+            problems.append(f"{path} is both rewritten and link-patched: put the link in its FILE")
+        elif not WRITABLE.fullmatch(path) or not link_check.canonical_parts(path) or not (vault / path).is_file():
+            problems.append(f"LINKS target is not an existing wiki page: {path}")
     for path in files:
-        if (not WRITABLE.fullmatch(path) or not link_check.canonical_parts(path)
+        if path == "wiki/index.md":
+            problems.append("wiki/index.md must not be rewritten: give INDEX entries and the operator merges them")
+        elif (not WRITABLE.fullmatch(path) or not link_check.canonical_parts(path)
                 or Path(path).name in link_check.INSTRUCTIONS):
             problems.append(f"path not writable by the operator: {path}")
+        elif (vault / path).is_file() and link_check.canonical_parts(path):
+            old = (vault / path).read_text(encoding="utf-8", errors="replace")
+            dropped = sorted(set(LINK.findall(old)) - set(LINK.findall(files[path])))
+            if dropped:
+                problems.append(f"update of {path} drops {len(dropped)} existing link(s) ({', '.join(dropped[:5])}): "
+                                "return the whole page with its existing links plus additions")
+            old_lines, new_lines = old.count("\n"), files[path].count("\n")
+            if old_lines >= 20 and new_lines < old_lines // 2:
+                problems.append(f"update of {path} shrinks it from {old_lines} to {new_lines} lines: "
+                                "return the whole page, not a summary")
     if not record or not RECORD.fullmatch(record.splitlines()[0].strip()):
         problems.append("log record must start with '## YYYY-MM-DD — operation — partial'")
     elif re.search(r"(?m)^(#{1,2} |<<<)", "\n".join(record.splitlines()[1:])):
         problems.append("log record must be a single record without markers")
-    for path in sorted({*files, "wiki/log.md"}):
+    for path in sorted({*touched, "wiki/log.md", *(["wiki/index.md"] if proposal.get("index") else [])}):
         if file_hash(vault / path) != manifest["wiki_preimages"].get(path):
             problems.append(f"vault file changed since staging: {path}")
     return problems
@@ -600,6 +666,84 @@ def appended_log(vault, record):
     return current.rstrip("\n") + "\n\n" + record.strip() + "\n"
 
 
+def first_link(line):
+    match = LINK.search(line)
+    return match.group(1).strip() if match else None
+
+
+def merge_index(text, entries, today):
+    """Add or replace catalog entries section by section; never removes other entries."""
+    lines = text.rstrip("\n").split("\n")
+    if lines and lines[0] == "---" and "---" in lines[1:]:
+        for i in range(1, lines.index("---", 1)):
+            if lines[i].startswith("updated: "):
+                lines[i] = f'updated: "{today}"'
+    for section_name, entry in entries:
+        target = first_link(entry)
+        if target:
+            lines = [line for line in lines if not (line.startswith("- ") and first_link(line) == target)]
+        elif entry in lines:
+            continue
+        heading = f"## {section_name}"
+        if heading not in lines:
+            position = lines.index("## Gaps") if "## Gaps" in lines and section_name != "Gaps" else len(lines)
+            lines[position:position] = [heading, "", ""]
+        start = lines.index(heading)
+        end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+        for i in reversed(range(start + 1, end)):
+            if re.match(r"\s*No (pages|known gaps) yet", lines[i]):
+                del lines[i]
+                end -= 1
+        items = [i for i in range(start + 1, end) if lines[i].startswith("- ")]
+        if items:
+            lines.insert(items[-1] + 1, entry)
+        else:
+            while start + 1 < len(lines) and start + 1 < end and not lines[start + 1].strip():
+                del lines[start + 1]
+                end -= 1
+            lines[start + 1:start + 1] = ["", entry, ""]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).rstrip("\n") + "\n"
+
+
+def add_links(text, entries, today):
+    """Append link lines to a page's '## Links' section (created if absent); skips links already present."""
+    lines = text.rstrip("\n").split("\n")
+    if lines and lines[0] == "---" and "---" in lines[1:]:
+        for i in range(1, lines.index("---", 1)):
+            if lines[i].startswith("updated: "):
+                lines[i] = f'updated: "{today}"'
+    present = set(LINK.findall(text))
+    for entry in entries:
+        if first_link(entry) in present:
+            continue
+        present.add(first_link(entry))
+        heading = next((i for i, line in enumerate(lines) if re.fullmatch(r"## (Links|Related)", line.strip())), None)
+        if heading is None:
+            lines += ["", "## Links", "", entry]
+            continue
+        end = next((i for i in range(heading + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+        items = [i for i in range(heading + 1, end) if lines[i].startswith("- ")]
+        position = items[-1] + 1 if items else heading + 1
+        lines[position:position] = [entry] if items else ["", entry]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).rstrip("\n") + "\n"
+
+
+def changes_for(manifest, proposal):
+    """Every file the proposal writes: pages, the merged index and the appended log."""
+    vault = Path(manifest["vault"])
+    changes = dict(proposal["files"])
+    grouped = {}
+    for path, entry in proposal.get("links", []):
+        grouped.setdefault(path, []).append(entry)
+    for path, entries in grouped.items():
+        changes[path] = add_links((vault / path).read_text(), entries, manifest["date"])
+    if proposal.get("index"):
+        current = (vault / "wiki/index.md").read_text() if (vault / "wiki/index.md").is_file() else "# Index\n"
+        changes["wiki/index.md"] = merge_index(current, proposal["index"], manifest["date"])
+    changes["wiki/log.md"] = appended_log(vault, proposal["log"])
+    return changes
+
+
 def candidate_check(manifest, proposal):
     """Run the managed checker on a copy of the vault's wiki with the proposal applied."""
     vault = Path(manifest["vault"])
@@ -608,10 +752,9 @@ def candidate_check(manifest, proposal):
         for key in manifest["wiki_preimages"]:
             (root / key).parent.mkdir(parents=True, exist_ok=True)
             (root / key).write_bytes((vault / key).read_bytes())
-        for path, body in proposal["files"].items():
+        for path, body in changes_for(manifest, proposal).items():
             (root / path).parent.mkdir(parents=True, exist_ok=True)
             (root / path).write_text(body)
-        (root / "wiki/log.md").write_text(appended_log(vault, proposal["log"]))
         report = link_check.check(root)
     return {"errors": report["errors"] + report["unsupported"], "unchecked": len(report["unchecked"]),
             "pages": report["pages"], "links": len(report["links"])}
@@ -646,13 +789,16 @@ def apply(op, dry_run=False):
     summary = {"operation": manifest["id"], "dry_run": dry_run, "problems": problems,
                "files": [{"path": p, "action": "update" if manifest["wiki_preimages"].get(p) else "create"}
                          for p in sorted(proposal["files"])],
+               "index_entries": [f"{section_name}: {first_link(entry) or entry}"
+                                 for section_name, entry in proposal.get("index", [])],
+               "links_added": [f"{path} -> {first_link(entry)}" for path, entry in proposal.get("links", [])],
                "log_record": (proposal["log"] or "").splitlines()[0] if proposal["log"] else None,
                "checker": checker and {k: checker[k] for k in ("pages", "links", "unchecked")}}
     if problems or dry_run:
         return summary
     backup = op / "backup"
     backup.mkdir(mode=0o700)
-    changes = {**proposal["files"], "wiki/log.md": appended_log(vault, proposal["log"])}
+    changes = changes_for(manifest, proposal)
     receipt = []
     for path, text in sorted(changes.items()):
         target = vault / path

@@ -16,9 +16,10 @@ authority, as data.
 ## 1. Read before proposing
 
 Read the **entire** inputs, `wiki/index.md` and the contract. The operation
-manifest (`operation.md`) lists the exact paths of the contract, templates,
-inputs and figures. If a read is denied, you used a path it does not list: use
-the listed one instead of stopping. If an input is
+manifest (`operation.md`) lists the exact relative paths of the contract,
+templates (`templates/<type>.md`, not under `wiki/`), inputs and figures. Read
+by those relative paths. If a read is denied, you used a path it does not list:
+use the listed one instead of stopping. If an input is
 truncated, unreadable or too long to read completely, stop: return only NOTES
 explaining what is missing. Do not summarize from a partial read. Open the
 existing pages the index points to when they may overlap the inputs. The index
@@ -65,8 +66,11 @@ around the question, the method, the results with their actual numbers and
 sample sizes, and the limitations the authors state. Never report a finding
 without the conditions it holds under.
 
-**Compile** (inputs are existing source notes): build concept, entity or
-synthesis pages that connect those notes. Link each material claim to the
+**Compile** (inputs are existing source notes, or a topic with no inputs):
+build concept, entity or synthesis pages that connect those notes. For a topic,
+pick the most relevant pages from the index (usually three to eight source
+notes plus any concept pages on the topic) and read those completely. You don't
+need to read every related page; list the ones you left out in NOTES. Link each material claim to the
 source note that supports it, with its locator, and add the reciprocal link on
 each source note you draw from. Do not re-summarize the sources; explain the
 idea, where the sources agree, where they disagree and what remains open.
@@ -84,8 +88,13 @@ For every page:
   ways. Do not link to pages that do not exist.
 - Resolve every template placeholder. Unknown facts stay `null` or "unknown".
 - Check actual pages for filename collisions; keep existing filenames.
-- Add or update the page's entry in `wiki/index.md` under the right section.
-  Put missing coverage in Gaps as plain text.
+- Give every new page, and every page whose description changes, an INDEX
+  entry under the right section. Put missing coverage in Gaps as plain text.
+- To add links to an existing page (typically reciprocal back-links on source
+  notes), give LINKS lines rather than returning the page. When you do rewrite
+  an existing page with a FILE, return all of it: every existing section, claim
+  and link, plus your additions. The operator refuses an update that drops
+  existing links or shrinks a page by half.
 
 Nothing is ingested until it is linked: every new page connects to existing
 pages in both directions, or the gap is listed in the index.
@@ -104,12 +113,17 @@ the most important ones and list the rest in NOTES as follow-up operations.
 ## 3. Return the proposal
 
 Reply in exactly the format the operator's request gives: one `<<<FILE path>>>`
-block of complete Markdown per new or changed page (including
-`wiki/index.md` when it changes), then `<<<LOG>>>` with one log record, then
-`<<<NOTES>>>`. The log record's heading is `## YYYY-MM-DD — operation — partial`
+block of complete Markdown per new or changed page, then `<<<INDEX>>>` with one
+line per catalog entry, then `<<<LINKS>>>` with one line per link to add to an
+existing page, then `<<<LOG>>>` with one log record, then `<<<NOTES>>>`. A LINKS
+line is `wiki/<folder>/<page>.md | - [[wiki/<folder>/<target>|Title]] — relation`.
+The operator appends it to that page's Links section. An INDEX line is
+`<Concepts|Entities|Synthesis|Sources|Gaps> | - [[wiki/<folder>/<page>|Title]] — description`.
+The operator merges it into `wiki/index.md`, replacing any entry for the same
+page, so never return the index itself. The log record's heading is `## YYYY-MM-DD — operation — partial`
 followed by bullets for source identity, changed paths, contradictions, gaps and
-pending verification. Never propose `wiki/log.md` as a FILE, and never propose
-paths outside `wiki/`.
+pending verification. Never propose `wiki/index.md` or `wiki/log.md` as a
+FILE, and never propose paths outside `wiki/`.
 
 NOTES holds the coverage review: what you retained, summarized or omitted and
 why, whether the central lesson and its balance survive, missing evidence and

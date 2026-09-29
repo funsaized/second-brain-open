@@ -102,13 +102,16 @@ it cannot fix, and reports what it did and what is left.
 
 ## Build concept pages from existing notes
 
-Name the source notes and the idea:
+Describe the concept; the worker finds the relevant notes itself:
 
-> Use the second-brain-operator skill to compile a concept page on
-> "contradictions and supersession" from wiki/sources/a.md and wiki/sources/b.md.
+> Use the second-brain-operator skill to create a concept around the structure
+> of the wiki filesystem and how it plays into usage.
 
-The worker writes the concept page with claim-level links into those notes and
-adds the back-links to each note.
+The worker reads the index, picks the most relevant notes (usually three to
+eight), reads them in full, and writes the concept page. Every claim links to
+the note that supports it, and each note gets a link back to the concept. The
+operator merges the new index entry; nothing is fetched from the web. To choose
+the notes yourself, name them: "…from wiki/sources/a.md and wiki/sources/b.md".
 
 ## Ask a question
 
