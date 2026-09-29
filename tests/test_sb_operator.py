@@ -129,7 +129,9 @@ class OperatorTests(unittest.TestCase):
         self.assertTrue(json.loads((ingest / "manifest.json").read_text())["compact_index"])
         self.assertIn("compact catalog", op.worker_prompt(json.loads((ingest / "manifest.json").read_text()),
                                                           ingest / "corpus"))
-        for kind, inputs, task in (("compile", ["wiki/sources/trial-a.md"], "t"), ("query", [], "q?")):
+        named = self.staged("compile", ["wiki/sources/trial-a.md"], "t")
+        self.assertIn("Compact copy", (named / "corpus/wiki/index.md").read_text())
+        for kind, inputs, task in (("compile", [], "t"), ("query", [], "q?")):
             operation = self.staged(kind, inputs, task)
             self.assertEqual((operation / "corpus/wiki/index.md").read_text(), full)
         self.assertEqual((self.vault / "wiki/index.md").read_text(), full)

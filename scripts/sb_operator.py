@@ -393,7 +393,8 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
         path = corpus / target
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(source.read_bytes())
-    compact = kind == "ingest" and (corpus / "wiki/index.md").is_file()
+    # Workers with named inputs need titles and paths; compile by topic and query choose pages by description.
+    compact = (kind == "ingest" or (kind == "compile" and inputs)) and (corpus / "wiki/index.md").is_file()
     if compact:
         index = corpus / "wiki/index.md"
         index.write_text(compact_index(index.read_text(encoding="utf-8")))

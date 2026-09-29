@@ -1329,3 +1329,15 @@ fresh operation and otherwise stops the series. The default `steps` is 20,
 because searches and figure reads use turns.
 
 Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Compact index for named-input compiles; evaluation search
+
+The deployment's first chapter compile failed twice on the full-read check of
+the 66 KB index, although its second attempt produced a chapter proposal. A
+compile given named inputs now gets the compact index like an ingest; compile
+by topic and query keep the full index because they choose pages by
+description. `tests/researcher_eval.py --search` grants the researcher grep
+and glob on its staged copy and scores those calls, so evaluations can
+compare index-only and search-enabled retrieval.
+
+Verification: 134 offline tests pass; `git diff --check` passes.

@@ -83,9 +83,10 @@ holds any file without a read grant. OpenCode checks a search against its
 pattern, not the files it returns, and grep includes hidden folders, so the
 staged copy must contain only files the worker may read.
 
-An ingest worker gets a compact copy of `wiki/index.md`: headings, titles and
-paths, without descriptions or frontmatter. Compile and query workers get the
-full index. The vault's own index is never trimmed.
+Ingest workers, and compile workers given named inputs, get a compact copy of
+`wiki/index.md`: headings, titles and paths, without descriptions or
+frontmatter. Compile-by-topic and query workers choose pages by their
+descriptions, so they get the full index. The vault's own index is never trimmed.
 
 ### Proposal format
 

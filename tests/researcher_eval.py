@@ -132,7 +132,7 @@ def extract_citations(text):
     return sorted({path if path.endswith(".md") else path + ".md" for path in found})
 
 
-def score(question, events, corpus, before, after, returncode=0):
+def score(question, events, corpus, before, after, returncode=0, search=False):
     """Deterministic checks for one answer; returns checks, metrics and answer."""
     calls, text = tool_calls(events), answer_text(events)
     reads = []
@@ -148,7 +148,8 @@ def score(question, events, corpus, before, after, returncode=0):
         "run_completed": returncode == 0 and bool(text),
         "skill_loaded": any(c["tool"] == "skill" and c.get("state", {}).get("status") == "completed"
                             and c["state"].get("input", {}).get("name") == SKILL for c in calls),
-        "tools_ok": all(c["tool"] in ("read", "skill") and c.get("state", {}).get("status") == "completed" for c in calls),
+        "tools_ok": all(c["tool"] in (("read", "skill", "grep", "glob") if search else ("read", "skill"))
+                        and c.get("state", {}).get("status") == "completed" for c in calls),
         "index_first": index_at is not None and (first_content is None or index_at < first_content),
         "citations_exist": all(p in before for p in cited),
         "citations_read": all(p in reads for p in cited),
@@ -171,6 +172,7 @@ def score(question, events, corpus, before, after, returncode=0):
             value = part.get("tokens", {}).get(key) if isinstance(part.get("tokens"), dict) else None
             tokens[key] += value if isinstance(value, int) else 0
     metrics = {"content_pages_read": len(set(content_reads)), "read_calls": len(reads),
+               "searches": sum(c["tool"] in ("grep", "glob") for c in calls),
                "failed_tool_calls": sum(c.get("state", {}).get("status") != "completed" for c in calls),
                "steps": sum(e.get("type") == "step_start" for e in events),
                "tokens_input": tokens["input"], "tokens_output": tokens["output"]}
@@ -187,15 +189,20 @@ def summarize(results):
             "seconds_total": round(sum(r["metrics"].get("seconds", 0) for r in results), 1)}
 
 
-def prompt_for(question, corpus, include_raw):
+def prompt_for(question, corpus, include_raw, search=False):
     raw = ("Approved raw captures are staged under raw/." if include_raw else
            "Raw captures are not staged for this evaluation; rely on the wiki's recorded locators and "
            "list raw evidence as not consulted.")
     return (
-        "Operator preflight verified your exact read grants; edits and all other tools are denied. "
+        "Operator preflight verified your exact read grants"
+        + ("; you can also search the staged files with grep and glob" if search else "")
+        + ". Edits and all other tools are denied. "
         f"Load your designated skill with the skill tool. Working directory: {corpus}. "
         f"The operation manifest is {corpus / 'operation.md'} and the contract is {CONTRACT}. "
         f"Read wiki/index.md first, then only the pages you need, and follow their links. {raw} "
+        + ("When the index does not point to the answer, search the staged pages with grep before concluding "
+           "the wiki does not cover it; read every page you cite completely. " if search else "")
+        +
         f"Question: {question['question']} "
         "Answer only from pages you actually read. Put exact vault-relative page paths such as "
         "wiki/sources/name.md beside each claim, with section locators. If the wiki does not answer, say so. "
@@ -215,6 +222,7 @@ def main():
     parser.add_argument("--include-raw", action="store_true", help="also stage raw captures named by source pages")
     parser.add_argument("--steps", type=int, default=8, help="researcher step limit per question")
     parser.add_argument("--timeout", type=int, default=300, help="seconds per question")
+    parser.add_argument("--search", action="store_true", help="also grant grep and glob over the staged copy")
     args = parser.parse_args()
     if not args.live:
         parser.error("provider use is opt-in; pass --live only after owner approval")
@@ -229,20 +237,22 @@ def main():
             "role": ROLE, "skill": SKILL, "model": args.model, "worktree": str(corpus),
             "approved_reads": f"{len(reads)} staged files: wiki pages, {CONTRACT}, this manifest"
                               + (", raw captures" if args.include_raw else ""),
+            "search": "grep and glob over these staged files" if args.search else "not available",
             "limitation": "owner auth/session context; staged copy, not filesystem isolation"}, indent=2) + "\n```\n")
     env = configure_worker(corpus, profile, ROLE, SKILL, reads, args.agent, args.model,
-                           args.opencode_version, args.steps)
+                           args.opencode_version, args.steps, args.search)
     results = []
     for question in questions:
         before = corpus_state(corpus)
-        events, returncode, seconds = run_role(env, corpus, ROLE, prompt_for(question, corpus, args.include_raw),
+        events, returncode, seconds = run_role(env, corpus, ROLE, prompt_for(question, corpus, args.include_raw, args.search),
                                                args.timeout)
-        result = score(question, events, corpus, before, corpus_state(corpus), returncode)
+        result = score(question, events, corpus, before, corpus_state(corpus), returncode, args.search)
         result["question"] = question["question"]
         result["metrics"]["seconds"] = seconds
         results.append(result)
         print(json.dumps({k: result[k] for k in ("id", "passed", "checks", "metrics")}), flush=True)
     report = {"summary": summarize(results), "opencode_version": args.opencode_version, "model": args.model,
+              "search": args.search,
               "staged": origin, "include_raw": args.include_raw, "results": results}
     output = base / "results.json"
     output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
