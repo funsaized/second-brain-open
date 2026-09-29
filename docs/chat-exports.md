@@ -177,7 +177,7 @@ and receives only the approved material.
 Record a local approval manifest: export identity/hash, selected ID/branch,
 converted artifact/hash, omissions, privacy decision, approved archive path,
 provider and requested bounded ingest. Copy/reference only that artifact into the
-approved source archive, then [ingest it with the operator](operator.md#ingest-a-capture).
+approved source archive, then [ingest it with the operator](operator.md#ingest-a-file-you-saved).
 Use the explicitly selected roles and plain vetted requests, not slash wrappers
 or untrusted `@file`/shell-like arguments.
 
