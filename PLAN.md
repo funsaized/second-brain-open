@@ -1425,3 +1425,17 @@ owner recorded `sampled` acceptance (pages not itemized, no defects reported)
 for all 130 pending operations; none remain partial and unaccepted.
 
 Verification: 136 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Primary agent cannot load worker skills
+
+Asked "what does the wiki say about…", the deployment's primary agent loaded
+`second-brain-query` directly instead of the operator skill. In the vault root
+that worker skill found no staged copy or contract and asked for a read scope.
+The permission profile now denies both worker skills to the primary agent
+(workers load them from their own profile), the worker skill descriptions say
+they are worker-only, and the operator skill's description covers any question
+about the wiki.
+
+Verification: 136 offline tests pass; `git diff --check` passes; `opencode
+debug agent` resolves the operator skill as allowed and both worker skills as
+denied for the example profile.

@@ -1,6 +1,6 @@
 ---
 name: second-brain-operator
-description: Use when the owner gives a URL or a raw/ file to add to the second brain, asks to catch up on new captures, to create a concept from what the wiki already knows, or to answer a question from the managed wiki; runs the sandboxed sb-ingestor/sb-researcher workers through the operator CLI.
+description: Use for anything the owner asks of the second brain or wiki — any question about what the wiki, vault or notes say, adding a URL or raw/ file, catching up on new captures, creating concept or synthesis pages, or recording acceptance; runs the sandboxed sb-ingestor/sb-researcher workers through the operator CLI.
 ---
 
 # Operate the second-brain workers

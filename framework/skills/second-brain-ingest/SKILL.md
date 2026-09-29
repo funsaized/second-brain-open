@@ -1,6 +1,6 @@
 ---
 name: second-brain-ingest
-description: Use when an operator asks you to ingest an approved raw capture, or compile concept pages from existing source notes, into a proposal for the managed wiki; not for general questions.
+description: Worker skill for sb-ingestor only, launched by the operator in a staged copy of the wiki; turns an approved raw capture or existing source notes into a proposal. A primary agent adding or compiling knowledge uses second-brain-operator instead.
 ---
 
 # Propose wiki changes from approved inputs

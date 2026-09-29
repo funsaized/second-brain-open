@@ -1,6 +1,6 @@
 ---
 name: second-brain-query
-description: Use when answering a question from approved managed wiki pages with source locators and coverage gaps; not for ingest, web research or editing notes.
+description: Worker skill for sb-researcher only, launched by the operator in a staged copy of the wiki; answers with source locators and coverage gaps. A primary agent answering the owner uses second-brain-operator instead.
 ---
 
 # Query the managed wiki

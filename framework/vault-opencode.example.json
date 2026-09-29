@@ -13,6 +13,10 @@
         },
         "grep": "ask",
         "glob": "ask",
+        "skill": {
+          "second-brain-ingest": "deny",
+          "second-brain-query": "deny"
+        },
         "edit": {
           "*": "ask",
           "wiki/**": "deny",

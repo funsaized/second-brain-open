@@ -82,6 +82,10 @@ and the two paths filled in:
         },
         "grep": "ask",
         "glob": "ask",
+        "skill": {
+          "second-brain-ingest": "deny",
+          "second-brain-query": "deny"
+        },
         "edit": {
           "*": "ask",
           "wiki/**": "deny",
@@ -116,6 +120,10 @@ are relative to the vault. What each part does:
   returns, and grep includes hidden folders, so a search at the vault root can
   reach `.obsidian`. Workers search their staged copy instead, which holds
   only readable files.
+- **skill:** the two worker skills are denied, so the agent always goes through
+  the operator. Loaded directly in the vault, the query skill finds no staged
+  copy or contract and asks for a read scope instead of answering. Workers
+  are unaffected: they run with their own profile.
 - **edit:** the operator CLI is the only writer of `wiki/`, `raw/` and the
   installed machinery, so the agent can't edit them. Other files ask.
 - **bash:** the CLI and the skill's `sleep` between progress checks run
