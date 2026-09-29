@@ -570,6 +570,11 @@ class SeriesTests(unittest.TestCase):
         self.assertEqual(op.link_check.check(self.vault)["errors"], [])
         again = op.series(self.vault, [], None, self.config, emit=lines.append, plan=plan)
         self.assertEqual(again["skipped"], 1)
+        plan["items"][0]["done_if"] = "wiki/sources/book-ch2.md"
+        self.replies = [lambda m: "<<<NOTES>>>\ncannot map the chapter"]
+        declined = op.series(self.vault, [], None, self.config, emit=lines.append, plan=plan)
+        self.assertEqual(declined["status"], "stopped")  # a plan page that was not created is not a no-op
+        self.assertIn("cannot map", declined["reason"])
         for bad in ({"items": []}, {"items": [{"kind": "query", "task": "t"}]},
                     {"items": [{"kind": "ingest", "task": "t", "file_inputs_under": "x"}]},
                     {"items": [{"kind": "compile", "task": "t", "done_if": "raw/x.md"}]}):

@@ -84,8 +84,11 @@ idea, where the sources agree, where they disagree and what remains open.
 
 **Chapter pages.** When a compile's task asks for a page for one chapter or
 section of a long document, built from its part notes, write a source page.
-Its `raw` is the original document (for example the PDF), and its title names
-the chapter and page range. The body gives the chapter's question and
+Its `raw` is the original document's path (for example the PDF); that
+document is usually not staged and you don't need to read it. Its title names
+the chapter and page range, taken from the part notes' page locators; where a
+boundary falls inside a part and the notes don't pin it, give the nearest page
+and mark it approximate. The body gives the chapter's question and
 argument, a map of its sections with the part note and pages covering each,
 and its key claims with locators. Link every part note; the part notes keep
 the detail, so don't copy them. Then write one to three concept pages the

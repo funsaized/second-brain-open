@@ -1267,6 +1267,9 @@ def series(vault, inputs, task, config_path=None, sources_only=True, limit=None,
                     kind=entry["kind"], inputs=entry.get("inputs") or None)
             except (ValueError, RuntimeError, subprocess.SubprocessError, KeyError, IndexError) as error:
                 line = {"input": item, "position": position, "status": "stopped", "reason": str(error)}
+            if line["status"] == "no change" and entry.get("done_if") and not (vault / entry["done_if"]).is_file():
+                line = {**line, "status": "stopped",
+                        "reason": f"{entry['done_if']} was not created: " + (line.get("notes") or "")[:300]}
             emit(line)
             if line["status"] == "stopped":
                 return {"status": "stopped", "stopped_at": item, "reason": line["reason"], **counts}

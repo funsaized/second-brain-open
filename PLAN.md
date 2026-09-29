@@ -1341,3 +1341,14 @@ and glob on its staged copy and scores those calls, so evaluations can
 compare index-only and search-enabled retrieval.
 
 Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Chapter pages without the raw document
+
+The first chapter compile on the deployment replied NOTES only: it treated the
+unstaged PDF named as the chapter page's `raw` as a required read and would not
+infer the chapter's page range. The series recorded it as `no change` and moved
+on. The ingest skill now says the raw document need not be staged or read and
+that the range comes from the part notes, marked approximate where needed. A
+plan item whose `done_if` page was not created now stops the series.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
