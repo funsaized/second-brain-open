@@ -87,7 +87,7 @@ def load_config(vault, path=None):
     missing = {"agent", "model", "opencode_version", "workdir"} - config.keys()
     if missing or set(config) - CONFIG_KEYS:
         raise ValueError(f"operator config needs {sorted(CONFIG_KEYS)}; missing {sorted(missing)}")
-    config = {"max_pages": 10, "steps": 20, "timeout": 600, "auto_apply": True, "search": True, **config}
+    config = {"max_pages": 10, "steps": 40, "timeout": 600, "auto_apply": True, "search": True, **config}
     workdir = Path(config["workdir"]).expanduser().resolve()
     if workdir == vault.resolve() or vault.resolve() in workdir.parents:
         raise ValueError("operator workdir must be outside the vault")

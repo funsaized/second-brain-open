@@ -1472,3 +1472,10 @@ to review, and the owner set no per-operation cap on notes, so `max_pages` now
 counts only pages a proposal writes whole.
 
 Verification: 140 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Default step limit 40
+
+The first synthesis needed about 40 reads, so the default worker `steps` is
+now 40 (and on the deployment). A worker that finishes earlier is unaffected.
+
+Verification: 140 offline tests pass; `git diff --check` passes.

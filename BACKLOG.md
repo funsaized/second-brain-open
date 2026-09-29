@@ -92,8 +92,7 @@
   pages); a 20-step budget was too small for the reading (rerun at 40); 25
   back-link lines counted toward the page limit (only whole pages count now).
 - **Next.**
-  1. Step budget per operation kind: a synthesis read 40 files; consider a
-     larger default `steps` for compiles, or a `--steps` override on `stage`.
+  1. ✅ Step budget: the default `steps` is now 40 (the deployment too).
   2. The synthesis links 3 of the 6 concepts it drew on and no chapter pages;
      a follow-up compile can add them.
   3. Owner acceptance of the synthesis and the networking-stack concept.

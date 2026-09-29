@@ -5,7 +5,7 @@
   "opencode_version": "1.18.33",
   "workdir": "/path/outside/the/vault/sb-operations",
   "max_pages": 10,
-  "steps": 20,
+  "steps": 40,
   "timeout": 600,
   "auto_apply": true
 }

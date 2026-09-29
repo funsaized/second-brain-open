@@ -59,7 +59,7 @@ found problems, or `undo` skipped changed files; `2` invalid input or setup.
 | `opencode_version` | Installed OpenCode version you approved | required |
 | `workdir` | Where operations are staged; must be outside the vault | required |
 | `max_pages` | Most pages one proposal may write whole (FILE); LINKS back-link lines don't count | `10` |
-| `steps` | Worker turn limit; searches and figure reads use turns too | `20` |
+| `steps` | Worker turn limit; searches, figure reads and a synthesis's wide reading use turns too | `40` |
 | `timeout` | Seconds per worker run. Separately, a worker with no output after 120 s is treated as an OpenCode startup stall: it is killed and relaunched once, and a second stall fails the run with "OpenCode did not start" | `600` |
 | `auto_apply` | Whether the operator skill may apply a passing proposal without asking | `true` |
 | `search` | Whether workers may use grep and glob over their staged copy | `true` |
