@@ -87,7 +87,7 @@ def load_config(vault, path=None):
     missing = {"agent", "model", "opencode_version", "workdir"} - config.keys()
     if missing or set(config) - CONFIG_KEYS:
         raise ValueError(f"operator config needs {sorted(CONFIG_KEYS)}; missing {sorted(missing)}")
-    config = {"max_pages": 10, "steps": 10, "timeout": 600, "auto_apply": True, "search": True, **config}
+    config = {"max_pages": 10, "steps": 20, "timeout": 600, "auto_apply": True, "search": True, **config}
     workdir = Path(config["workdir"]).expanduser().resolve()
     if workdir == vault.resolve() or vault.resolve() in workdir.parents:
         raise ValueError("operator workdir must be outside the vault")
@@ -1150,6 +1150,10 @@ def series_step(vault, item, task, config_path, info, emit, kind="ingest", input
         if not result["passed"] and result.get("proposal_error"):
             line["retries"].append(f"format: {result['proposal_error']}")
             result = revise(op)
+            # A format-only revision restates the previous reply; if that reply held no proposal (for
+            # example the worker ran out of steps), NOTES alone are a failed run, not a no-op.
+            if result["passed"] and not result.get("proposed_files") and not result.get("proposed_links"):
+                result = {**result, "passed": False, "proposal_error": "the format revision found no proposal to restate"}
         if result["passed"]:
             break
         line["retries"].append("run failed: " + ", ".join(k for k, ok in result.get("checks", {}).items() if not ok)

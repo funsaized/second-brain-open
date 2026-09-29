@@ -12,7 +12,7 @@ results and failures; its old test counts and "next step" statements are not the
 current backlog. The phase specifications and runbooks describe requirements and
 repeatable procedures, not a list of features that are all still unimplemented.
 
-**Verification baseline:** 133 offline tests pass with
+**Verification baseline:** 134 offline tests pass with
 `python3 -m unittest discover -s tests`. Live native probes are opt-in and are not
 part of that count. Static fixtures, driver-applied model proposals, native tool
 edits, and owner content acceptance are different evidence classes.
@@ -67,7 +67,7 @@ edits, and owner content acceptance are different evidence classes.
 
 | Evidence class | What is established | Where to inspect |
 |---|---|---|
-| Offline distribution suite | 133 passing static/CLI/guard tests; includes operator stage/apply/undo/revise, worker search evidence, compact and themed index handling, checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
+| Offline distribution suite | 134 passing static/CLI/guard tests; includes operator stage/apply/undo/revise, worker search evidence, compact and themed index handling, checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
 | Live researcher evaluation | Scored native `sb-researcher` answers on a staged wiki copy (OpenCode 1.18.33); the synthetic fixture passed 3/3 | `docs/researcher-evaluation.md`; private-wiki results stay local |
 | Isolated native runtime probes | Documented version-specific loading/read/refusal behavior; fake-provider cases are not semantic ingest proof | `tests/runtime_read_probe.py`, `tests/runtime_roles_probe.py`, historical execution record below |
 | Live, driver-applied semantic rehearsal | Two-source proposals, contradiction retention, repeat and sourced answering; driver applied the pages | `docs/native-acceptance-trials.md` (earlier rehearsals), `docs/synthetic-acceptance.md` |
@@ -420,7 +420,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-Current result: **133 tests pass**. The structured source-template test is static
+Current result: **134 tests pass**. The structured source-template test is static
 compatibility evidence, not proof of model editorial quality. Historical counts
 in the execution record and dated evidence reports describe their own checkpoints.
 
@@ -1317,3 +1317,15 @@ concept or entity page that a proposed source page links, and reports it. The
 compact staged index addresses the second failure.
 
 Verification: 133 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Step budget and empty format revisions
+
+Resuming the textbook series on the new code, parts 79 and 80 were recorded as
+`no change` without source pages. The worker ran out of its 12 steps (search,
+six figure reads and related pages). Its reply was a status message, and the
+format-only revision had no proposal to restate, so it replied with NOTES only.
+A format revision without a proposal now counts as a failed run, which gets a
+fresh operation and otherwise stops the series. The default `steps` is 20,
+because searches and figure reads use turns.
+
+Verification: 134 offline tests pass; `git diff --check` passes.

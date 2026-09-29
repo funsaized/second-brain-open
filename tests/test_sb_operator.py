@@ -468,7 +468,9 @@ class SeriesTests(unittest.TestCase):
             (operation / "response.md").write_text(text)
             result = {"passed": True, "checks": {"run_completed": True}}
             try:
-                (operation / "proposal.json").write_text(json.dumps(op.parse_proposal(text)))
+                proposal = op.parse_proposal(text)
+                (operation / "proposal.json").write_text(json.dumps(proposal))
+                result.update(proposed_files=sorted(proposal["files"]), proposed_links=len(proposal["links"]))
             except ValueError as error:
                 result.update(passed=False, proposal_error=str(error))
             (operation / "run.json").write_text(json.dumps(result))
@@ -572,6 +574,15 @@ class SeriesTests(unittest.TestCase):
             plan_file.write_text(json.dumps(bad))
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 op.load_plan(self.vault, plan_file)
+
+    def test_series_does_not_count_an_empty_format_revision_as_no_change(self):
+        self.replies = [lambda m: "Maximum steps reached before the proposal.",   # status message, no markers
+                        lambda m: "<<<NOTES>>>\nnothing to restate",               # format revision: notes only
+                        self.good]                                                 # fresh operation succeeds
+        lines = []
+        result = op.series(self.vault, ["raw/book-part-1.md"], None, self.config, emit=lines.append)
+        self.assertEqual((result["status"], lines[0]["status"]), ("completed", "applied"))
+        self.assertIn("no proposal to restate", " ".join(lines[0]["retries"]))
 
     def test_series_stops_after_bounded_retries(self):
         self.replies = [lambda m: "no markers"] * 4

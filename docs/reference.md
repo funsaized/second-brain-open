@@ -57,7 +57,7 @@ found problems, or `undo` skipped changed files; `2` invalid input or setup.
 | `opencode_version` | Installed OpenCode version you approved | required |
 | `workdir` | Where operations are staged; must be outside the vault | required |
 | `max_pages` | Most pages one proposal may change | `10` |
-| `steps` | Worker turn limit | `10` |
+| `steps` | Worker turn limit; searches and figure reads use turns too | `20` |
 | `timeout` | Seconds per worker run | `600` |
 | `auto_apply` | Whether the operator skill may apply a passing proposal without asking | `true` |
 | `search` | Whether workers may use grep and glob over their staged copy | `true` |
