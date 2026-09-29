@@ -1237,3 +1237,17 @@ link to a later part, and ad-hoc agent-written retry loops.
   background series with no retries.
 
 Verification: 125 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Large files read in ranges
+
+Once `wiki/index.md` passed OpenCode's roughly 50 KB read cap, every
+operation failed its full-read check, which stalled the textbook series at
+part 47.
+
+- **Coverage check.** The check now accepts a file read in several
+  offset/limit ranges when the reads together show every line and none was
+  cut short. The worker prompt says to keep reading in ranges.
+- **Stop reasons.** Series stops name the file not read in full.
+- **Live check.** Part 47's run passed on the deployment.
+
+Verification: 125 offline tests pass; `git diff --check` passes.

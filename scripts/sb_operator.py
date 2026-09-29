@@ -44,13 +44,13 @@ import urllib.parse
 if __package__:
     from . import link_check
     from . import pdf_capture, web_capture
-    from .sb_runtime import (answer_text, configure_worker, full_read, relative_read, run_role, tool_calls,
+    from .sb_runtime import (answer_text, configure_worker, relative_read, run_role, tool_calls,
                              validate_scope)
 else:
     import link_check
     import pdf_capture
     import web_capture
-    from sb_runtime import (answer_text, configure_worker, full_read, relative_read, run_role, tool_calls,
+    from sb_runtime import (answer_text, configure_worker, relative_read, run_role, tool_calls,
                             validate_scope)
 
 
@@ -439,7 +439,9 @@ def worker_prompt(manifest, corpus):
             f"lists them (for example wiki/index.md, {CONTRACT}, templates/concept.md); do not retype the absolute "
             "directory. If a read is denied, you used a path that is not staged: retry with the listed relative "
             "path, or continue without an optional page. Stop only when the index, the contract or an input cannot "
-            "be read at its listed path. Read wiki/index.md first. ")
+            "be read at its listed path. A file too long for one read (the output says it was capped, or does not "
+            "end with 'End of file') must be read in consecutive ranges with offset and limit until you have seen "
+            "every line; the operator checks that every line was read. Read wiki/index.md first. ")
     if kind == "query":
         return head + (
             f"Question: {manifest['task']} Answer only from pages you actually read. Put exact vault-relative "
@@ -588,29 +590,50 @@ def parse_proposal(text):
             "notes": "\n".join(sections["NOTES"]).strip(), "warnings": warnings}
 
 
+def lines_seen(output):
+    """Line numbers shown in one read tool output ("12: text" lines)."""
+    body = output.split("<content>", 1)[-1]
+    return {int(number) for number in re.findall(r"(?m)^(\d+): ", body)}
+
+
 def verify_events(manifest, corpus, events, returncode, before, after, required=None):
-    """Worker evidence: designated skill, only complete in-scope reads, no writes."""
+    """Worker evidence: designated skill, in-scope reads covering every required line, no writes.
+
+    A large file may be read in several ranges (offset/limit); it counts as read when
+    the reads together show every one of its lines and none was cut short.
+    """
     calls = tool_calls(events)
-    reads = {}
+    seen, cut = {}, set()
     for call in calls:
         state = call.get("state", {})
         if call["tool"] == "read" and state.get("status") == "completed":
             path = relative_read(corpus, state.get("input", {}).get("filePath", ""))
-            reads[path] = reads.get(path, False) or full_read(state)
+            output = state.get("output", "")
+            seen.setdefault(path, set()).update(lines_seen(output))
+            if "(line truncated to" in output:
+                cut.add(path)
+    reads = {}
+    for path, numbers in seen.items():
+        target = corpus / path if path else None
+        if target is not None and target.is_file() and target.suffix.lower() in (".md", ".txt", ".json"):
+            total = len(target.read_text(encoding="utf-8", errors="replace").splitlines())
+            reads[path] = path not in cut and set(range(1, total + 1)) <= numbers
+        else:
+            reads[path] = False
     required = required or {"wiki/index.md", CONTRACT, *manifest["inputs"]}
     checks = {
         "run_completed": returncode == 0 and bool(answer_text(events)),
         "skill_loaded": any(c["tool"] == "skill" and c.get("state", {}).get("status") == "completed"
                             and c["state"].get("input", {}).get("name") == manifest["skill"] for c in calls),
         "only_reads": all(c["tool"] in ("read", "skill") for c in calls),
-        "reads_in_scope": all(p in manifest["reads"] for p in reads),
+        "reads_in_scope": all(p in manifest["reads"] for p in seen),
         "required_full_reads": all(reads.get(p) for p in required),
         "zero_writes": before == after,
     }
     failed = [{"tool": c["tool"] if c["tool"] in ("read", "skill", "edit", "bash") else "other",
                "path": relative_read(corpus, c.get("state", {}).get("input", {}).get("filePath", "")) or None}
               for c in calls if c.get("state", {}).get("status") != "completed"]
-    evidence = {"checks": checks, "reads": sorted(p or "(outside)" for p in reads),
+    evidence = {"checks": checks, "reads": sorted(p or "(outside)" for p in seen),
                 "failed_tool_calls": failed,
                 "unread_required": sorted(p for p in required if not reads.get(p))}
     return all(checks.values()), evidence
@@ -1009,11 +1032,13 @@ def series_step(vault, item, task, config_path, info, emit):
         if result["passed"]:
             break
         line["retries"].append("run failed: " + ", ".join(k for k, ok in result.get("checks", {}).items() if not ok)
+                               + (f" (not read in full: {', '.join(result['unread_required'])})"
+                                  if result.get("unread_required") else "")
                                + (f" ({result['proposal_error']})" if result.get("proposal_error") else ""))
         op = None
     line["operation"] = str(op) if op else None
     if op is None:
-        return {**line, "status": "stopped", "reason": "the worker failed twice"}
+        return {**line, "status": "stopped", "reason": "the worker failed twice: " + " | ".join(line["retries"])[:500]}
     proposal = json.loads((op / "proposal.json").read_text())
     if not proposal["files"] and not proposal["links"]:
         return {**line, "status": "no change", "notes": proposal["notes"][:300]}

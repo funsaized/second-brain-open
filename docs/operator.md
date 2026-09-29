@@ -169,7 +169,9 @@ the operation's `response.md`.
 ## When a step fails
 
 - **The worker run fails verification.** `run` prints the failed checks and
-  any required input it did not read completely. A capture too long to read in
+  any required input it did not read completely. Files over OpenCode's 50 KB
+  read limit, such as a large index, are read in ranges automatically, so this
+  now points to a real problem with that file. A capture too long to read in
   one pass has to be split into smaller captures first. Stage a new operation
   afterwards.
 - **The dry run lists problems.** Run `revise OPERATION` once. The worker gets

@@ -277,9 +277,15 @@ class OperatorTests(unittest.TestCase):
         manifest = json.loads((operation / "manifest.json").read_text())
         corpus = operation / "corpus"
 
-        def read(path, output="text\n(End of file - total 3 lines)"):
+        def read(path, first=1, last=None, suffix=None):
+            lines = (corpus / path).read_text().splitlines()
+            last = len(lines) if last is None else last
+            body = "\n".join(f"{n}: {lines[n - 1]}" for n in range(first, last + 1))
+            end = suffix or (f"(End of file - total {len(lines)} lines)" if last == len(lines)
+                             else f"(Output capped. Use offset={last + 1} to continue.)")
             return {"type": "tool_use", "part": {"tool": "read", "state": {
-                "status": "completed", "input": {"filePath": str(corpus / path)}, "output": output}}}
+                "status": "completed", "input": {"filePath": str(corpus / path)},
+                "output": f"<path>{path}</path>\n<content>\n{body}\n\n{end}\n</content>"}}}
         skill = {"type": "tool_use", "part": {"tool": "skill", "state": {
             "status": "completed", "input": {"name": "second-brain-ingest"}}}}
         text = {"type": "text", "part": {"text": "<<<NOTES>>>\nno-op"}}
@@ -287,7 +293,14 @@ class OperatorTests(unittest.TestCase):
                 read("wiki/sources/trial-a.md"), text]
         passed, evidence = op.verify_events(manifest, corpus, good, 0, {"a": 1}, {"a": 1})
         self.assertTrue(passed, evidence)
-        truncated = good[:3] + [read("wiki/sources/trial-a.md", "text\n(line truncated to 2000)")] + [text]
+        half = len((corpus / "wiki/index.md").read_text().splitlines()) // 2
+        chunked = [skill, read("wiki/index.md", 1, half), read("wiki/index.md", half + 1),
+                   read("instructions/wiki-contract.md"), read("wiki/sources/trial-a.md"), text]
+        self.assertTrue(op.verify_events(manifest, corpus, chunked, 0, {}, {})[0])  # large files in ranges
+        gap = [skill, read("wiki/index.md", 1, half), read("instructions/wiki-contract.md"),
+               read("wiki/sources/trial-a.md"), text]
+        self.assertEqual(op.verify_events(manifest, corpus, gap, 0, {}, {})[1]["unread_required"], ["wiki/index.md"])
+        truncated = good[:3] + [read("wiki/sources/trial-a.md", suffix="(line truncated to 2000)")] + [text]
         passed, evidence = op.verify_events(manifest, corpus, truncated, 0, {}, {})
         self.assertEqual(evidence["unread_required"], ["wiki/sources/trial-a.md"])
         outside = good + [{"type": "tool_use", "part": {"tool": "read", "state": {

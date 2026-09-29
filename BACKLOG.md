@@ -40,6 +40,12 @@
 - **Long-document ingest (2026-09-29):** made reliable with the tolerant
   parser, format-only revise, mechanical repairs, and a resumable,
   backgroundable `series` command.
+- **Large-file reads (2026-09-29):** delivered. Workers read files over the
+  read cap in ranges, and coverage is checked line by line.
+- **New item H2:** index growth. Every operation reads the whole index, so
+  token cost grows with the wiki. Options: split the index into per-type
+  pages behind a short hub, or stage a compact index (titles and paths) for
+  workers.
 - **Suggested next step:** A1. Compile the first concept pages in the
   deployment with the operator, then rerun the A2 evaluation.
 
