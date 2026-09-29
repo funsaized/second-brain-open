@@ -140,6 +140,11 @@ python3 <cli> stage . query --question "<the owner's question>"
 python3 <cli> run <operation>
 ```
 
+If the run fails only `citations_read`, the answer cited pages the researcher
+never opened (often search hits): run `python3 <cli> revise <operation>` once,
+which asks it to read them or drop those claims. If it fails again, report the
+unread citations instead of relaying the answer.
+
 Relay the answer from the file named in `answer`, keeping its page citations and
 its `Read:` and `Not covered:` lines. Do not add facts from outside the answer.
 Saving an answer to the wiki is a separate compile or ingest operation.

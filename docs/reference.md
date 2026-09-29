@@ -74,6 +74,7 @@ Example: [`framework/operator.example.json`](../framework/operator.example.json)
 | `skill_loaded` | The worker loaded its designated skill with the skill tool |
 | `only_reads` | Every tool call was a read or skill call, or a grep or glob when `search` is on |
 | `searches_in_scope` | Every grep or glob path, if given, stays inside the staged copy |
+| `citations_read` | Queries only: every `wiki/` page the answer cites was opened with the read tool; a search hit does not count. Failures list `unread_citations`, and `revise` gives the researcher one retry |
 | `reads_in_scope` | Every completed read was a staged file |
 | `required_full_reads` | Every line of the index, the contract and each input was read. A large file may be read in several offset/limit ranges; the reads together must show all of its lines, and none may be cut short at 2,000 characters |
 | `zero_writes` | Staged files are byte-identical afterwards |

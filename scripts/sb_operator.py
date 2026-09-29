@@ -44,14 +44,14 @@ import urllib.parse
 if __package__:
     from . import link_check
     from . import pdf_capture, web_capture
-    from .sb_runtime import (answer_text, configure_worker, relative_read, run_role, tool_calls,
-                             validate_scope)
+    from .sb_runtime import (answer_text, configure_worker, extract_citations, relative_read, run_role,
+                             tool_calls, validate_scope)
 else:
     import link_check
     import pdf_capture
     import web_capture
-    from sb_runtime import (answer_text, configure_worker, relative_read, run_role, tool_calls,
-                            validate_scope)
+    from sb_runtime import (answer_text, configure_worker, extract_citations, relative_read, run_role,
+                            tool_calls, validate_scope)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -672,6 +672,9 @@ def verify_events(manifest, corpus, events, returncode, before, after, required=
         else:
             reads[path] = False
     required = required or {"wiki/index.md", CONTRACT, *manifest["inputs"]}
+    # An answer may cite only pages the researcher opened; a search hit is not a read.
+    unread_citations = ([p for p in extract_citations(answer_text(events)) if p not in seen]
+                        if manifest["kind"] == "query" else [])
     checks = {
         "run_completed": returncode == 0 and bool(answer_text(events)),
         "skill_loaded": any(c["tool"] == "skill" and c.get("state", {}).get("status") == "completed"
@@ -684,12 +687,15 @@ def verify_events(manifest, corpus, events, returncode, before, after, required=
         "required_full_reads": all(reads.get(p) for p in required),
         "zero_writes": before == after,
     }
+    if manifest["kind"] == "query":
+        checks["citations_read"] = not unread_citations
     failed = [{"tool": c["tool"] if c["tool"] in ("read", "skill", "grep", "glob", "edit", "bash") else "other",
                "path": relative_read(corpus, c.get("state", {}).get("input", {}).get("filePath", "")) or None}
               for c in calls if c.get("state", {}).get("status") != "completed"]
     evidence = {"checks": checks, "reads": sorted(p or "(outside)" for p in seen), "searches": len(searches),
                 "failed_tool_calls": failed,
-                "unread_required": sorted(p for p in required if not reads.get(p))}
+                "unread_required": sorted(p for p in required if not reads.get(p)),
+                **({"unread_citations": unread_citations} if unread_citations else {})}
     return all(checks.values()), evidence
 
 
@@ -704,6 +710,10 @@ def run(op, feedback=None, format_only=False):
         prompt += ("\n\nYour previous reply, saved as previous-proposal.md, could not be read: " + "; ".join(feedback)
                    + ". You already read the inputs completely for it. Read previous-proposal.md and return the same "
                    "content in exactly the reply format above: FILE blocks, then INDEX, LINKS, LOG and NOTES sections.")
+    elif feedback is not None and manifest["kind"] == "query":
+        prompt += ("\n\nThe operator's checks rejected your previous answer, saved as previous-proposal.md: "
+                   + "; ".join(feedback) + ". Read previous-proposal.md, open and read every page you cite, or drop "
+                   "the claims that rest on pages you have not read, and return a complete corrected answer.")
     elif feedback is not None:
         prompt += ("\n\nThe operator's checks rejected your previous proposal, saved as previous-proposal.md. "
                    "Problems: " + "; ".join(feedback) + ". Read previous-proposal.md, fix every problem and return "
@@ -744,13 +754,18 @@ def revise(op):
     """Rerun the worker with feedback: parse errors (format only) or dry-run problems; at most twice."""
     op = Path(op)
     manifest = json.loads((op / "manifest.json").read_text())
-    if manifest["kind"] == "query" or (op / "receipt.json").exists():
+    if (op / "receipt.json").exists():
         raise ValueError("revise needs an unapplied ingest or compile operation")
     attempts = len(list(op.glob("attempt-*")))
     if attempts >= MAX_REVISIONS:
         raise ValueError(f"already revised {attempts} times; stage a new operation")
     previous = json.loads((op / "run.json").read_text()) if (op / "run.json").exists() else {}
-    if (op / "proposal.json").exists():
+    if manifest["kind"] == "query":
+        failed = [name for name, ok in previous.get("checks", {}).items() if not ok]
+        if failed != ["citations_read"]:
+            raise ValueError("revise a query only when citations_read is its one failed check")
+        problems, format_only = [f"you cited pages you did not read: {', '.join(previous['unread_citations'])}"], False
+    elif (op / "proposal.json").exists():
         problems, format_only = apply(op, dry_run=True)["problems"], False
         if not problems:
             raise ValueError("the proposal already passes; apply it")

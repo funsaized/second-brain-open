@@ -261,6 +261,21 @@ def answer_text(events):
                      if e.get("type") == "text" and isinstance(e.get("part"), dict)).strip()
 
 
+CONTENT = re.compile(r"wiki/(?:sources|concepts|entities|synthesis)/[^\s\[\]|#`'\"()<>,;*]+")
+
+
+def extract_citations(text):
+    """Canonical content paths cited in an answer, as `.md` paths."""
+    found = set()
+    for token in re.findall(r"\[\[([^\]]+)\]\]", text):
+        target = token.split("|", 1)[0].split("#", 1)[0].strip()
+        if CONTENT.match(target):
+            found.add(target)
+    bare = re.sub(r"\[\[[^\]]+\]\]", " ", text)  # wikilink targets may contain spaces
+    found.update(match.rstrip(".:") for match in CONTENT.findall(bare))
+    return sorted({path if path.endswith(".md") else path + ".md" for path in found})
+
+
 def relative_read(corpus, file_path):
     path = Path(file_path)
     if path.is_absolute():

@@ -427,9 +427,46 @@ class OperatorTests(unittest.TestCase):
         self.assertFalse(op.verify_events(manifest, corpus, edit, 0, {}, {})[1]["checks"]["only_reads"])
         self.assertFalse(op.verify_events(manifest, corpus, good, 0, {"a": 1}, {"a": 2})[0])
 
+    def test_query_citations_must_be_read(self):
+        query = op.stage(self.vault, "query", [], "What did Trial A find?", self.config)
+        manifest, corpus = json.loads((query / "manifest.json").read_text()), query / "corpus"
+
+        def read(path):
+            lines = (corpus / path).read_text().splitlines()
+            body = "\n".join(f"{n}: {line}" for n, line in enumerate(lines, 1))
+            return {"type": "tool_use", "part": {"tool": "read", "state": {
+                "status": "completed", "input": {"filePath": path},
+                "output": f"<content>\n{body}\n\n(End of file - total {len(lines)} lines)\n</content>"}}}
+        skill = {"type": "tool_use", "part": {"tool": "skill", "state": {
+            "status": "completed", "input": {"name": "second-brain-query"}}}}
+        grep = {"type": "tool_use", "part": {"tool": "grep", "state": {"status": "completed", "input": {"pattern": "vent"}}}}
+        answer = ("Trial A timed 18 minutes (wiki/sources/trial-a.md, Measurements); Trial B differed "
+                  "([[wiki/sources/trial-b|Trial B]]).\nRead: ...\nNot covered: none")
+        base = [skill, read("wiki/index.md"), read("instructions/wiki-contract.md"), read("wiki/sources/trial-a.md"), grep]
+        text = {"type": "text", "part": {"text": answer}}
+        passed, evidence = op.verify_events(manifest, corpus, base + [text], 0, {}, {})
+        self.assertFalse(passed)
+        self.assertEqual(evidence["unread_citations"], ["wiki/sources/trial-b.md"])
+        self.assertTrue(op.verify_events(manifest, corpus, base + [read("wiki/sources/trial-b.md"), text], 0, {}, {})[0])
+        (query / "run.json").write_text(json.dumps({"passed": False, "checks": dict(evidence["checks"]),
+                                                    "unread_citations": evidence["unread_citations"]}))
+        (query / "response.md").write_text(answer + "\n")
+        calls = []
+        saved = op.run
+        op.run = lambda operation, feedback=None, format_only=False: calls.append(feedback) or {"passed": True}
+        try:
+            op.revise(query)
+        finally:
+            op.run = saved
+        self.assertIn("wiki/sources/trial-b.md", calls[0][0])
+        self.assertIn("previous-proposal.md", json.loads((query / "manifest.json").read_text())["reads"])
+        ingest = self.staged("ingest", ["raw/trial-b.md"], "Ingest trial B")
+        imanifest = json.loads((ingest / "manifest.json").read_text())
+        self.assertNotIn("citations_read", op.verify_events(imanifest, ingest / "corpus", [text], 0, {}, {})[1]["checks"])
+
     def test_revise_only_for_a_failing_unapplied_proposal(self):
         query = op.stage(self.vault, "query", [], "What did Trial A find?", self.config)
-        with self.assertRaisesRegex(ValueError, "revise needs"):
+        with self.assertRaisesRegex(ValueError, "revise a query only"):
             op.revise(query)
         operation = self.staged()
         with self.assertRaisesRegex(ValueError, "revise needs"):

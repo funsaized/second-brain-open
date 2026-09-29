@@ -74,13 +74,13 @@
   reorganized into 21 chapter pages plus back matter with 30 concepts (A1 for
   the textbook, A4 per-chapter notes); A2 rerun: 9/10 index-only (effectively
   10/10 after a scorer fix), 8/10 with search.
+- **Query citations:** delivered. `run` now fails a query whose answer cites
+  pages the researcher never opened (`citations_read`), and `revise` gives it
+  one retry. The evaluation stays an optional, manually run check; extending
+  its question set was dropped by the owner.
 - **Next.**
-  1. Search-mode researcher misses: cited grep hits it never read, and one
-     answer skipped the index. Consider checking "cited pages were read" in
-     `run` for queries, not only in the evaluation.
-  2. Extend the A2 question set to the textbook's chapter and concept layer.
-  3. Series-level acceptance record, and a series startup timeout (H1).
-  4. The first synthesis page (still 0).
+  1. Series-level acceptance record, and a series startup timeout (H1).
+  2. The first synthesis page (still 0).
 
 ## How the review was done
 

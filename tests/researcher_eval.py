@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts import link_check  # noqa: E402
 from scripts.sb_runtime import (  # noqa: E402
-    answer_text, configure_worker, relative_read, run_role, tool_calls, validate_scope)
+    CONTENT, answer_text, configure_worker, extract_citations, relative_read, run_role, tool_calls, validate_scope)
 
 
 ROLE, SKILL = "sb-researcher", "second-brain-query"
@@ -38,7 +38,6 @@ INSTALLED = {
     "role": (f".opencode/agents/{ROLE}.md", f"framework/agents/{ROLE}.md"),
     "skill": (f".opencode/skills/{SKILL}/SKILL.md", f"framework/skills/{SKILL}/SKILL.md"),
 }
-CONTENT = re.compile(r"wiki/(?:sources|concepts|entities|synthesis)/[^\s\[\]|#`'\"()<>,;*]+")
 ABSTAIN = re.compile(
     r"not covered|not (?:recorded|stated|established|found|mentioned|addressed|specified|documented|identified)"
     r"|no (?:evidence|information|record|source|page)|unknown|(?:cannot|can[’']t) (?:answer|determine|confirm)"
@@ -118,18 +117,6 @@ def stage(vault, base, include_raw=False):
 def corpus_state(corpus):
     return {p.relative_to(corpus).as_posix(): digest(p.read_bytes())
             for p in sorted(corpus.rglob("*")) if p.is_file() and ".git" not in p.relative_to(corpus).parts}
-
-
-def extract_citations(text):
-    """Canonical content paths cited in an answer, as `.md` paths."""
-    found = set()
-    for token in re.findall(r"\[\[([^\]]+)\]\]", text):
-        target = token.split("|", 1)[0].split("#", 1)[0].strip()
-        if CONTENT.match(target):
-            found.add(target)
-    bare = re.sub(r"\[\[[^\]]+\]\]", " ", text)  # wikilink targets may contain spaces
-    found.update(match.rstrip(".:") for match in CONTENT.findall(bare))
-    return sorted({path if path.endswith(".md") else path + ".md" for path in found})
 
 
 def score(question, events, corpus, before, after, returncode=0, search=False):
