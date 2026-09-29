@@ -84,7 +84,19 @@
 - **H1: delivered.** `run_role` treats a worker with no output after 120 s as a
   startup stall, kills it and relaunches once; a second stall raises "OpenCode
   did not start" instead of waiting out the full timeout.
-- **Next.** The first synthesis page (still 0).
+- **First synthesis: delivered.** "Consistency versus availability across
+  Distributed Systems: Concepts and Design" is in `wiki/synthesis/`, citing 19
+  part notes with a "Where they disagree" section and labelled inference. It
+  took three attempts, each exposing a machinery gap, now fixed: a concurrent
+  compile's log/index changes blocked apply (drift now guards only rewritten
+  pages); a 20-step budget was too small for the reading (rerun at 40); 25
+  back-link lines counted toward the page limit (only whole pages count now).
+- **Next.**
+  1. Step budget per operation kind: a synthesis read 40 files; consider a
+     larger default `steps` for compiles, or a `--steps` override on `stage`.
+  2. The synthesis links 3 of the 6 concepts it drew on and no chapter pages;
+     a follow-up compile can add them.
+  3. Owner acceptance of the synthesis and the networking-stack concept.
 
 ## How the review was done
 
