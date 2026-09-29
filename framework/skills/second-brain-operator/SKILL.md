@@ -78,7 +78,11 @@ vault's `opencode.json`. Do not improvise the steps by hand.
    acceptance); never append acceptance yourself.
 
 A worker reply with only NOTES (a no-op repeat, or an input it could not read
-completely) is a valid result: report its reason and stop.
+completely) is a valid result: report its reason and stop. When you are
+ingesting the parts of one document in sequence, record a NOTES-only part (for
+example front matter with nothing reusable) and continue with the next part.
+Stop the series only on a failed run, or on problems that remain after one
+`revise`.
 
 ## Catch up on new captures
 

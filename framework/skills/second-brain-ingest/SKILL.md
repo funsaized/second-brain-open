@@ -42,7 +42,8 @@ capture holds every page the PDF has (its `pages` field): if the document's own
 text ends abruptly or mid-sentence, that is the source, not a truncated read.
 Ingest it and record the abrupt ending as a gap. When
 the frontmatter has `part: "k/n"`, the capture is one page range of a longer
-document. Title the source page with its page range, and link the source page
+document, and text cut off at its last page continues in the next part. That
+is a part boundary, not a truncated read: ingest what the pages contain. Title the source page with its page range, and link the source page
 of the previous part when the index lists it. When `ocr` is true, the text came
 from OCR: flag every number and proper noun you rely on as needing verification
 against the original PDF.

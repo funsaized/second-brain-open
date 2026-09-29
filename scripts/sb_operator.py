@@ -100,7 +100,7 @@ def wiki_state(vault):
 
 
 CAPTURE_SUFFIXES = (".md", ".txt", ".html", ".htm")
-MIN_WORDS, MAX_LINES, WRAP_AT = 150, 1900, 1500
+MIN_WORDS, MAX_LINES, WRAP_AT, MAX_LINE = 150, 1900, 1500, 1900
 
 
 def text_blocks(body):
@@ -152,6 +152,9 @@ def readable_lines(body):
             out.extend(textwrap.wrap(line, 500, break_long_words=False, break_on_hyphens=False))
         else:
             out.append(line)
+    # The read tool truncates lines over 2,000 characters; split any that remain (code and tables too).
+    out = [chunk for line in out for chunk in ([line[i:i + MAX_LINE] for i in range(0, len(line), MAX_LINE)]
+                                                 if len(line) > MAX_LINE else [line])]
     return "\n".join(out).rstrip("\n") + "\n"
 
 
@@ -164,7 +167,10 @@ def capture_text(url, final_url, body, meta, captured, part=None):
 
 
 def frontmatter(fields):
-    return "---\n" + "".join(f"{k}: {json.dumps(v, ensure_ascii=False)}\n" for k, v in fields.items()) + "---\n\n"
+    lines = [f"{k}: {json.dumps(v, ensure_ascii=False)}" for k, v in fields.items()]
+    if any(len(line) > MAX_LINE for line in lines):
+        raise ValueError("a capture frontmatter line would exceed the read tool's line limit")
+    return "---\n" + "".join(line + "\n" for line in lines) + "---\n\n"
 
 
 def exclusive(vault, stem, suffix, data):
@@ -190,7 +196,11 @@ def capture_pdf(vault, pdf, url=None, today=None):
     assets = vault / "raw/assets" / Path(stem).name
     if assets.exists():
         raise ValueError(f"figure directory already exists: {assets.relative_to(vault)}")
-    rendered, skipped = pdf_capture.render_figures(vault / pdf, texts, assets)
+    captions = pdf_capture.figure_pages(texts)
+    chosen = []
+    for first, last, _ in pdf_capture.split(texts):
+        chosen += [page for page in captions if first <= page <= last][:pdf_capture.FIGURES_PER_PART]
+    rendered = pdf_capture.render_figures(vault / pdf, chosen, captions, assets, len(texts))
     marked = list(texts)
     for page, (labels, image) in rendered.items():
         link = os.path.relpath(image, (vault / stem).parent)
@@ -203,18 +213,19 @@ def capture_pdf(vault, pdf, url=None, today=None):
         body = readable_lines(body)
         figures = [{"page": page, "figures": labels, "image": image.relative_to(vault).as_posix()}
                    for page, (labels, image) in rendered.items() if first <= page <= last]
+        not_rendered = sum(first <= page <= last and page not in rendered for page in captions)
         fields = {"url": url, "source_pdf": pdf, "pdf_sha256": file_hash(vault / pdf), "title": meta["title"],
                   "author": meta["author"], "published": meta["published"], "pdf_created": meta["pdf_created"],
                   "pages": len(texts),
                   "page_range": f"{first}-{last}", "part": f"{index}/{len(parts)}" if len(parts) > 1 else None,
                   "captured": captured, "extracted_with": f"pdftotext ({meta['mode']})", "ocr": meta["ocr"],
                   "quality": meta["quality"], "figures": figures,
-                  "figure_pages_not_rendered": skipped, "body_sha256": digest(body.encode())}
+                  "figures_not_rendered": not_rendered, "body_sha256": digest(body.encode())}
         name = stem + (f"-part-{index}" if len(parts) > 1 else "")
         written.append(exclusive(vault, name, ".md", (frontmatter(fields) + body).encode()))
     return {"raw": written[0], "parts": written, "pdf": pdf, "title": meta["title"], "pages": len(texts),
             "ocr": meta["ocr"], "mode": meta["mode"], "figure_pages": sorted(rendered),
-            "figure_pages_not_rendered": skipped}
+            "figures_not_rendered": sum(page not in rendered for page in captions)}
 
 
 def capture_fields(path):
@@ -356,9 +367,12 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
     profile.mkdir()
     copies = {key: vault / key for key in state}
     copies.update({item: vault / item for item in inputs})
-    figures = []
+    figures, input_parts = [], {}
     for item in inputs if kind == "ingest" else ():
-        for figure in capture_fields(vault / item).get("figures") or []:
+        fields = capture_fields(vault / item)
+        if fields.get("part"):
+            input_parts[item] = {"part": fields["part"], "page_range": fields.get("page_range")}
+        for figure in fields.get("figures") or []:
             image = figure.get("image") if isinstance(figure, dict) else None
             if (isinstance(image, str) and image.startswith("raw/assets/") and link_check.canonical_parts(image)
                     and (vault / image).is_file()):
@@ -389,7 +403,7 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
     manifest = {"id": op.name, "kind": kind, "role": role, "skill": skill, "vault": str(vault), "date": today,
                 "task": task, "inputs": inputs, "input_sha256": {i: file_hash(vault / i) for i in inputs},
                 "wiki_preimages": state, "reads": sorted(copies) + ["operation.md"], "origin": origin,
-                "figures": figures,
+                "figures": figures, "input_parts": input_parts,
                 "config": {k: config[k] for k in sorted(config)},
                 "capture": captured}
     (corpus / "operation.md").write_text(
@@ -438,6 +452,11 @@ def worker_prompt(manifest, corpus):
               f"{manifest['date']}). When author or published is null there but the document itself states it, "
               "such as a paper's author list or dated byline, use that; otherwise leave it null. "
               "For a PDF capture, cite its '## Page N' headings as locators and follow the skill's PDF rules. "
+              + "".join(f"{name} is part {info['part']} of a longer document"
+                        + (f" (pages {info['page_range']})" if info.get("page_range") else "")
+                        + ": text cut off at its end continues in the next part, so this is not a truncated read; "
+                          "ingest what these pages contain and note the continuation. "
+                        for name, info in manifest.get("input_parts", {}).items())
               + (f"Rendered figure pages you can open with the read tool: {', '.join(manifest['figures'])}. "
                  "Look at each figure the text relies on and follow the skill's figure rules. "
                  if manifest.get("figures") else "")

@@ -19,7 +19,7 @@ from pathlib import Path
 
 MIN_WORDS = 150
 MAX_PART_LINES = 1850
-MAX_FIGURE_PAGES = 12
+FIGURES_PER_PART = 6  # figure budget per part, so long books keep figures throughout
 FIGURE_DPI = 110
 CAPTION = re.compile(r"(?m)^\s*(?:Figure|Fig\.)\s*(\d+[A-Za-z]?)\s*[.:|]")
 
@@ -112,11 +112,13 @@ def extract(path):
                      + ". Try exporting the document from its source, or a tool such as Zotero, into raw/")
 
 
-MAX_PART_BYTES = 45_000  # OpenCode's read tool truncates output above about 50 KB
+MAX_PART_BYTES = 42_000  # OpenCode's read output (with line-number prefixes) truncates above about 50 KB
+LINE_PREFIX_BYTES = 8     # "00123| " per line in the read tool's output
 
 
 def fits(text):
-    return text.count("\n") + 1 <= MAX_PART_LINES and len(text.encode()) <= MAX_PART_BYTES
+    lines = text.count("\n") + 1
+    return lines <= MAX_PART_LINES and len(text.encode()) + LINE_PREFIX_BYTES * lines <= MAX_PART_BYTES
 
 
 def pack(blocks):
@@ -153,18 +155,16 @@ def figure_pages(texts):
     return found
 
 
-def render_figures(path, texts, directory):
-    """Render caption pages to directory/page-NN.png; returns (rendered {page: (labels, file)}, skipped pages)."""
-    pages_found = figure_pages(texts)
-    chosen = list(pages_found)[:MAX_FIGURE_PAGES]
+def render_figures(path, pages, labels, directory, total_pages):
+    """Render the chosen caption pages to directory/page-NN.png; returns {page: (labels, file)}."""
     rendered = {}
-    if chosen:
+    if pages:
         directory.mkdir(parents=True, exist_ok=True)
-    width = max(2, len(str(len(texts))))
-    for page in chosen:
+    width = max(2, len(str(total_pages)))
+    for page in pages:
         target = directory / f"page-{page:0{width}d}"
         result = subprocess.run(["pdftoppm", "-r", str(FIGURE_DPI), "-png", "-singlefile", "-f", str(page),
                                  "-l", str(page), str(path), str(target)], capture_output=True, timeout=120)
         if result.returncode == 0 and target.with_suffix(".png").is_file():
-            rendered[page] = (pages_found[page], target.with_suffix(".png"))
-    return rendered, [page for page in pages_found if page not in chosen]
+            rendered[page] = (labels[page], target.with_suffix(".png"))
+    return rendered

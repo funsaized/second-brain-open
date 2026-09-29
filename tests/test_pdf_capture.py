@@ -93,6 +93,10 @@ class PdfCaptureTests(unittest.TestCase):
             self.assertLessEqual(body.count("\n"), pdf_capture.MAX_PART_LINES)
             self.assertLessEqual(len(body.encode()), pdf_capture.MAX_PART_BYTES)
         self.assertEqual(self.fields(result["parts"][1])["part"], f"2/{len(result['parts'])}")
+        operation = op.stage(self.vault, "ingest", [result["parts"][1]], "Ingest part 2", self.config, "2026-09-29")
+        manifest = json.loads((operation / "manifest.json").read_text())
+        self.assertEqual(manifest["input_parts"][result["parts"][1]]["part"], f"2/{len(result['parts'])}")
+        self.assertIn("not a truncated read", op.worker_prompt(manifest, operation / "corpus"))
 
     def test_quality_check_and_refusals(self):
         metrics, problems = pdf_capture.quality(["a\nb\nc\n" * 200])
@@ -126,7 +130,7 @@ class PdfCaptureTests(unittest.TestCase):
                  PAGE[:30] + ["Fig. 2. Invented diagram of the oven.", "As Figure 1 shows, times fall."], PAGE[:30]]
         (self.vault / "raw/study.pdf").write_bytes(make_pdf(pages))
         result = op.capture_pdf(self.vault, "raw/study.pdf")
-        self.assertEqual((result["figure_pages"], result["figure_pages_not_rendered"]), ([2, 3], []))
+        self.assertEqual((result["figure_pages"], result["figures_not_rendered"]), ([2, 3], 0))
         for page in ("02", "03"):
             self.assertTrue((self.vault / f"raw/assets/study/page-{page}.png").read_bytes().startswith(b"\x89PNG"))
         body = (self.vault / result["raw"]).read_text()
@@ -150,8 +154,23 @@ class PdfCaptureTests(unittest.TestCase):
         pages = [PAGE[:20] + [f"Figure {i}: invented plot {i}."] for i in range(1, 16)]
         (self.vault / "raw/many.pdf").write_bytes(make_pdf(pages))
         result = op.capture_pdf(self.vault, "raw/many.pdf")
-        self.assertEqual(len(result["figure_pages"]), pdf_capture.MAX_FIGURE_PAGES)
-        self.assertEqual(result["figure_pages_not_rendered"], [13, 14, 15])
+        self.assertEqual(result["figure_pages"], list(range(1, pdf_capture.FIGURES_PER_PART + 1)))
+        self.assertEqual(result["figures_not_rendered"], 15 - pdf_capture.FIGURES_PER_PART)
+        self.assertEqual(self.fields(result["raw"])["figures_not_rendered"], 15 - pdf_capture.FIGURES_PER_PART)
+
+    def test_long_book_spreads_figures_and_keeps_lines_readable(self):
+        pages = [PAGE + [f"Figure {i}: invented plot {i}."] for i in range(1, 121)]
+        (self.vault / "raw/book.pdf").write_bytes(make_pdf(pages))
+        result = op.capture_pdf(self.vault, "raw/book.pdf")
+        self.assertGreater(len(result["parts"]), 2)
+        for part in result["parts"]:
+            fields = self.fields(part)
+            self.assertTrue(fields["figures"], part)  # every part keeps some figures
+            self.assertLessEqual(len(fields["figures"]), pdf_capture.FIGURES_PER_PART)
+            text = (self.vault / part).read_text()
+            self.assertTrue(all(len(line) <= op.MAX_LINE for line in text.splitlines()))
+            body = text.split("---\n\n", 1)[1]
+            self.assertTrue(pdf_capture.fits(body))
 
     @unittest.skipUnless(shutil.which("ocrmypdf") and shutil.which("tesseract"), "OCR tools not installed")
     def test_scanned_pdf_is_ocrd(self):

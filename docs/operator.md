@@ -62,7 +62,7 @@ The operator does the rest:
    boundaries into parts. The operator ingests the parts in order, each as its
    own source page, linked to the previous part.
 5. **Capture figures.** Every page with a `Figure N` caption is rendered to
-   an image in `raw/assets/<capture>/` (up to 12 pages) and linked under that
+   an image in `raw/assets/<capture>/` (up to 6 per part) and linked under that
    page's text, so you see the figures in Obsidian.
 6. **Read the figures.** The worker looks at the figures the paper relies on.
    It writes a labelled "Figure reading" (type, axes, trend, key values, with

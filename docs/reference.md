@@ -176,7 +176,7 @@ Tesseract.
 - **Figures.** Pages whose text has a line starting `Figure N` or `Fig. N`
   followed by `.`, `:` or `|` are rendered with `pdftoppm` at 110 dpi to
   `raw/assets/<capture>/page-NN.png`. That covers embedded images and vector
-  charts alike. Only the first 12 such pages are rendered. Each rendered page
+  charts alike. Up to 6 such pages are rendered per part, so long books keep figures throughout. Each rendered page
   gets a `![Figure N (page P)](...)` line under its text. `stage` copies the
   input capture's figure images into the staged copy, so the worker can read
   them; image reads are optional, not required full reads.
@@ -198,7 +198,7 @@ PDF capture frontmatter:
 | `pages`, `page_range`, `part` | Total pages, this capture's pages, and `k/n` for parts (`null` if one part) |
 | `extracted_with`, `ocr`, `quality` | Extraction mode, whether OCR produced the text, and the quality metrics |
 | `figures` | Rendered figure pages in this capture: page, figure numbers and image path |
-| `figure_pages_not_rendered` | Caption pages past the 12-page limit |
+| `figures_not_rendered` | Count of caption pages in this part beyond the per-part limit |
 | `captured`, `body_sha256` | UTC capture time and the hash of the Markdown body |
 
 ## Worker roles

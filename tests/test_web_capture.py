@@ -109,8 +109,9 @@ class CaptureTests(unittest.TestCase):
                             self.fake(text, "text/plain", "https://example.com/n.txt"))
         body = (self.vault / result["raw"]).read_text().split("---\n\n", 1)[1]
         self.assertEqual(result["title"], "Plain notes")
-        self.assertIn("x" * 3000, body)  # code is never rewrapped
-        self.assertTrue(all(len(line) <= 3000 for line in body.splitlines()))
+        code = body.split("```\n", 1)[1].split("\n```", 1)[0]
+        self.assertEqual(code.replace("\n", ""), "x" * 3000)  # split to fit a read, nothing lost
+        self.assertTrue(all(len(line) <= op.MAX_LINE for line in (self.vault / result["raw"]).read_text().splitlines()))
         self.assertTrue(max(len(line) for line in body.splitlines() if not line.startswith("x")) <= 500)
 
     def test_pending_lists_unreferenced_captures_oldest_first(self):
