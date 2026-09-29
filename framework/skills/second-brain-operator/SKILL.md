@@ -78,7 +78,10 @@ and tell the owner. The fix is the agent permissions in the vault's
    operation directory and the undo command:
    `python3 <cli> undo <operation>`. The log records the operation as
    `partial` until the owner records acceptance (see the contract's Owner
-   acceptance); never append acceptance yourself.
+   acceptance). Only when the owner states their acceptance, its level and
+   what they reviewed, record it with `python3 <cli> accept . --level <level>
+   --sample "<what they read>" --defects "<none or list>"` (dry-run first). Never
+   decide acceptance yourself.
 
 A worker reply with only NOTES (a no-op repeat, or an input it could not read
 completely) is a valid result: report its reason and stop. For more than two

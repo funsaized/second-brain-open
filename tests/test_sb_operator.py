@@ -207,6 +207,31 @@ class OperatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "without read grants: stray.md"):
             op.run(operation)
 
+    def test_accept_appends_one_record_for_unaccepted_operations(self):
+        log = self.vault / "wiki/log.md"
+        log.write_text(log.read_text().rstrip("\n") + "\n\n## 2026-09-28 — Book part 1 ingest — partial\n- x\n\n"
+                       "## 2026-09-28 — Owner acceptance (sampled) — completed\n- Accepted operations: "
+                       "2026-09-28 book part 1 ingest.\n\n## 2026-09-29 — Book part 2 ingest — partial\n- y\n\n"
+                       "## 2026-09-29 — Chapter 1 compile — partial\n- z\n")
+        self.assertEqual(op.unaccepted(log.read_text())[-2:], ["2026-09-29 Book part 2 ingest", "2026-09-29 Chapter 1 compile"])
+        with self.assertRaisesRegex(ValueError, "needs --sample"):
+            op.accept(self.vault, "sampled", " ", "none", config_path=self.config)
+        preview = op.accept(self.vault, "sampled", "not itemized", "none", match="book part", config_path=self.config,
+                            dry_run=True, today="2026-09-30")
+        self.assertEqual((preview["operations"], preview["first"]), (1, "2026-09-29 Book part 2 ingest"))
+        before = log.read_text()
+        done = op.accept(self.vault, "sampled", "chapter 1 page, not itemized otherwise", "none",
+                         config_path=self.config, today="2026-09-30")
+        text = log.read_text()
+        self.assertTrue(text.startswith(before.rstrip("\n")))
+        self.assertIn("## 2026-09-30 — Owner acceptance (sampled) — completed\n- Accepted operations:\n"
+                      "  - 2026-09-29 Book part 2 ingest\n  - 2026-09-29 Chapter 1 compile", text)
+        self.assertTrue(Path(done["backup"]).is_file())
+        self.assertNotIn("2026-09-29 Chapter 1 compile", op.unaccepted(text))
+        with self.assertRaisesRegex(ValueError, "no unaccepted"):
+            op.accept(self.vault, "full", "all", "none", match="Chapter 1", config_path=self.config)
+        self.assertEqual(op.link_check.check(self.vault)["errors"], [])
+
     def test_links_patch_existing_pages_without_rewriting(self):
         page = '---\ntitle: "t"\nupdated: "2026-01-01"\n---\n\n# T\n\nBody.\n\n## Links\n\n- [[wiki/concepts/a|A]] — old.\n\n## Notes\n\nEnd.\n'
         patched = op.add_links(page, ["- [[wiki/concepts/b|B]] — new.", "- [[wiki/concepts/a|A]] — duplicate."], "2026-09-29")

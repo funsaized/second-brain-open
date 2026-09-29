@@ -1163,6 +1163,64 @@ def undo(op):
     return {"restored": sorted(restored), "skipped_changed_since": sorted(skipped)}
 
 
+ACCEPT_LEVELS = ("technical", "sampled", "full")
+
+
+def unaccepted(log_text):
+    """Partial operation records ('date name') that no owner acceptance record names yet, in log order."""
+    records = re.split(r"(?m)^(?=## )", log_text)
+    accepted = " ".join(r.lower() for r in records if re.match(r"## .+ — Owner acceptance \(", r))
+    found = []
+    for record in records:
+        match = re.match(r"## (\d{4}-\d{2}-\d{2}) — (.+) — partial\s*$", record.split("\n", 1)[0])
+        if match and "owner acceptance" not in match.group(2).lower():
+            key = f"{match.group(1)} {match.group(2)}"
+            if key.lower() not in accepted:
+                found.append(key)
+    return found
+
+
+def accept(vault, level, sample, defects, match=None, config_path=None, dry_run=False, today=None):
+    """Append one owner acceptance record naming every unaccepted partial operation (optionally filtered).
+
+    The operator records what the owner states; it never judges content. `technical` keeps the
+    operations partial; `sampled` and `full` complete them.
+    """
+    vault = Path(vault).resolve()
+    config = load_config(vault, config_path)
+    if level not in ACCEPT_LEVELS:
+        raise ValueError(f"level must be one of {', '.join(ACCEPT_LEVELS)}")
+    if not sample.strip() or not defects.strip():
+        raise ValueError("acceptance needs --sample (pages reviewed, or 'not itemized') and --defects ('none' or a list)")
+    log = vault / "wiki/log.md"
+    text = log.read_text(encoding="utf-8")
+    operations = [key for key in unaccepted(text) if not match or re.search(match, key, re.I)]
+    if not operations:
+        raise ValueError("no unaccepted partial operations match")
+    status = "partial" if level == "technical" else "completed"
+    today = today or date.today().isoformat()
+    record = "\n".join([f"## {today} — Owner acceptance ({level}) — {status}", "- Accepted operations:",
+                         *[f"  - {key}" for key in operations],
+                         f"- Sample: {sample.strip()}.".replace("..", "."),
+                         f"- Defects: {defects.strip()}.".replace("..", "."),
+                         f"- Result: {len(operations)} operation(s) " + (
+                             "remain partial; technical acceptance does not complete them." if level == "technical"
+                             else f"are completed at the `{level}` acceptance level.")])
+    summary = {"level": level, "status": status, "operations": len(operations), "first": operations[0],
+               "last": operations[-1], "record_heading": record.split("\n", 1)[0], "dry_run": dry_run}
+    if dry_run:
+        return summary
+    backup = Path(config["workdir"]) / f"accept-{datetime.now():%Y%m%d-%H%M%S}-log.md"
+    backup.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(log, backup)
+    atomic_write(log, text.rstrip("\n") + "\n\n" + record + "\n")
+    after = link_check.check(vault)
+    if after["errors"] or after["unsupported"]:
+        atomic_write(log, text)
+        raise ValueError("the checker failed after appending; the log was restored")
+    return {**summary, "backup": str(backup)}
+
+
 def natural_key(text):
     return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", text)]
 
@@ -1391,6 +1449,14 @@ def main():
     running.add_argument("--config", type=Path)
     running.add_argument("--log", type=Path, help=argparse.SUPPRESS)
     commands.add_parser("series-status", help="progress of the latest background series").add_argument("vault", type=Path)
+    accepting = commands.add_parser("accept", help="append the owner's acceptance record for partial operations")
+    accepting.add_argument("vault", type=Path)
+    accepting.add_argument("--level", required=True, choices=ACCEPT_LEVELS)
+    accepting.add_argument("--sample", required=True, help="pages the owner reviewed, or 'not itemized'")
+    accepting.add_argument("--defects", required=True, help="'none' or the defects found")
+    accepting.add_argument("--match", help="only operations whose 'date name' matches this regex")
+    accepting.add_argument("--dry-run", action="store_true")
+    accepting.add_argument("--config", type=Path)
     for name, text in (("run", "run the worker on a staged operation"), ("status", "show an operation's stage"),
                        ("revise", "rerun the worker once with the dry-run problems as feedback"),
                        ("undo", "restore files an applied operation changed")):
@@ -1417,6 +1483,8 @@ def main():
                 result = capture(args.vault, args.url, args.config)
         elif args.command == "pending":
             result = {"pending": pending(args.vault)}
+        elif args.command == "accept":
+            result = accept(args.vault, args.level, args.sample, args.defects, args.match, args.config, args.dry_run)
         elif args.command == "series-status":
             result = series_status(args.vault)
         elif args.command == "series":

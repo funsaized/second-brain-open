@@ -78,8 +78,11 @@
   pages the researcher never opened (`citations_read`), and `revise` gives it
   one retry. The evaluation stays an optional, manually run check; extending
   its question set was dropped by the owner.
+- **Acceptance:** delivered. `accept` appends one owner record for every
+  unaccepted partial operation; the owner recorded `sampled` acceptance for all
+  130 pending deployment operations.
 - **Next.**
-  1. Series-level acceptance record, and a series startup timeout (H1).
+  1. A series startup timeout (H1).
   2. The first synthesis page (still 0).
 
 ## How the review was done
