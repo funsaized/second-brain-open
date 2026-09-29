@@ -431,6 +431,7 @@ class OperatorTests(unittest.TestCase):
         operation = self.staged()
         prompt = op.worker_prompt(json.loads((operation / "manifest.json").read_text()), operation / "corpus")
         self.assertIn("at most 3 new or changed pages", prompt)
+        self.assertIn("wiki/log.md, may be read in part", prompt)
         self.assertNotIn("@", prompt)
         result = subprocess.run([sys.executable, str(CLI), "status", str(operation)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)

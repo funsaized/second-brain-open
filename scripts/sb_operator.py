@@ -467,9 +467,10 @@ def worker_prompt(manifest, corpus):
             f"lists them (for example wiki/index.md, {CONTRACT}, templates/concept.md); do not retype the absolute "
             "directory. If a read is denied, you used a path that is not staged: retry with the listed relative "
             "path, or continue without an optional page. Stop only when the index, the contract or an input cannot "
-            "be read at its listed path. A file too long for one read (the output says it was capped, or does not "
-            "end with 'End of file') must be read in consecutive ranges with offset and limit until you have seen "
-            "every line; the operator checks that every line was read. Read wiki/index.md first. "
+            "be read at its listed path. The index, the contract and every input must be read completely: when one "
+            "is too long for one read (the output says it was capped, or does not end with 'End of file'), read "
+            "it in consecutive ranges with offset and limit until you have seen every line; the operator checks "
+            "this. Other files, such as wiki/log.md, may be read in part. Read wiki/index.md first. "
             + ("Search results are leads, not evidence: read a page completely before you rely on it or cite it. "
                if search else ""))
     if kind == "query":

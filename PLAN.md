@@ -1352,3 +1352,13 @@ that the range comes from the part notes, marked approximate where needed. A
 plan item whose `done_if` page was not created now stops the series.
 
 Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Only required files must be read in full
+
+The deployment's chapter plan applied chapters 1–7 and stopped at chapter 8:
+the worker read the 100 KB log, which is optional, hit the read cap and treated
+the prompt's complete-read rule as covering every file. The prompt now limits
+that rule to the index, the contract and the inputs, which are what the
+operator checks; other files, such as the log, may be read in part.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
