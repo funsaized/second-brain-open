@@ -110,6 +110,10 @@ on a real failure. Never write your own loop around `stage`/`run`/`apply`.
 4. To resume after a stop or an interruption, run the same `series` command
    again. Already-ingested items are skipped.
 
+To compile a long document by chapter after its series, the owner can approve
+a plan file (one compile per chapter, naming its part notes). Run it with
+`series . --plan <file> --background` and follow it the same way.
+
 A series writes source pages only, links each part to the previous one, and
 files the parts' index entries under the document's title. Add
 `--theme "<title>"` when the capture's title is missing or unhelpful.

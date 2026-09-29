@@ -82,6 +82,16 @@ source note that supports it, with its locator, and add the reciprocal link on
 each source note you draw from. Do not re-summarize the sources; explain the
 idea, where the sources agree, where they disagree and what remains open.
 
+**Chapter pages.** When a compile's task asks for a page for one chapter or
+section of a long document, built from its part notes, write a source page.
+Its `raw` is the original document (for example the PDF), and its title names
+the chapter and page range. The body gives the chapter's question and
+argument, a map of its sections with the part note and pages covering each,
+and its key claims with locators. Link every part note; the part notes keep
+the detail, so don't copy them. Then write one to three concept pages the
+chapter supports, citing the chapter page, and give each part note a LINKS line
+to its chapter.
+
 For every page:
 
 - Material claims carry a source identity and a useful locator (section, page,

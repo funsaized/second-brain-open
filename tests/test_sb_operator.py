@@ -514,6 +514,52 @@ class SeriesTests(unittest.TestCase):
         self.assertIn("book-part-2|", themed)
         self.assertEqual(op.link_check.check(self.vault)["errors"], [])
 
+    def test_plan_series_compiles_chapters_and_refiles_inputs(self):
+        self.replies = [self.good, self.good, self.good]
+        lines = []
+        op.series(self.vault, [f"raw/book-part-{n}.md" for n in (1, 2, 3)], None, self.config,
+                  emit=lines.append, theme="Invented book")
+
+        def chapter(manifest):
+            page = ('---\ntitle: "Chapter 1"\ntype: "source"\ncreated: "2026-09-29"\nupdated: "2026-09-29"\n'
+                    'aliases: []\ntags: []\nurl: null\nauthor: null\npublished: null\ncaptured: "2026-09-28"\n'
+                    'raw: "raw/book.pdf"\n---\n\n# Chapter 1\n\nParts: [[wiki/sources/book-part-1|Part 1]], '
+                    '[[wiki/sources/book-part-2|Part 2]].\n')
+            return ("<<<FILE wiki/sources/book-ch1.md>>>\n" + page + "<<<END FILE>>>\n<<<INDEX>>>\n"
+                    "Sources | - [[wiki/sources/book-ch1|Chapter 1]] — chapter one.\n"
+                    "Sources | - [[wiki/sources/book-part-1|Part 1]] — worker's own line.\n<<<LINKS>>>\n"
+                    "wiki/sources/book-part-1.md | - [[wiki/sources/book-ch1|Chapter 1]] — its chapter\n"
+                    "<<<LOG>>>\n## 2026-09-29 — compile chapter 1 — partial\n<<<NOTES>>>\nok")
+        plan_file = Path(self.tmp.name) / "plan.json"
+        plan_file.write_text(json.dumps({"theme": "Invented book", "items": [
+            {"kind": "compile", "inputs": ["wiki/sources/book-part-1.md", "wiki/sources/book-part-2.md"],
+             "task": "Chapter 1 page", "done_if": "wiki/sources/book-ch1.md",
+             "file_inputs_under": "Invented book: parts"}]}))
+        plan = op.load_plan(self.vault, plan_file)
+        self.replies = [chapter]
+        result = op.series(self.vault, [], None, self.config, emit=lines.append, plan=plan)
+        self.assertEqual(result["status"], "completed", (result, lines[-1]))
+        series_info = self.prompts[-1][0]
+        self.assertEqual((series_info["file_inputs_under"], series_info["sources_only"]), ("Invented book: parts", False))
+        index = (self.vault / "wiki/index.md").read_text()
+        book = index.split("### Invented book\n", 1)[1].split("\n### ", 1)[0]
+        parts = index.split("### Invented book: parts\n", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("book-ch1|", book)
+        self.assertIn("book-part-3|", book)
+        self.assertIn("[[wiki/sources/book-part-1|Part 1]] — part 1.", parts)  # original line, not the worker's
+        self.assertIn("book-part-2|", parts)
+        self.assertNotIn("worker's own line", index)
+        self.assertIn("book-ch1", (self.vault / "wiki/sources/book-part-1.md").read_text())
+        self.assertEqual(op.link_check.check(self.vault)["errors"], [])
+        again = op.series(self.vault, [], None, self.config, emit=lines.append, plan=plan)
+        self.assertEqual(again["skipped"], 1)
+        for bad in ({"items": []}, {"items": [{"kind": "query", "task": "t"}]},
+                    {"items": [{"kind": "ingest", "task": "t", "file_inputs_under": "x"}]},
+                    {"items": [{"kind": "compile", "task": "t", "done_if": "raw/x.md"}]}):
+            plan_file.write_text(json.dumps(bad))
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                op.load_plan(self.vault, plan_file)
+
     def test_series_stops_after_bounded_retries(self):
         self.replies = [lambda m: "no markers"] * 4
         result = op.series(self.vault, ["raw/book-part-1.md"], None, self.config, emit=lambda line: None)

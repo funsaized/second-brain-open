@@ -512,9 +512,12 @@ def worker_prompt(manifest, corpus):
         reading += (f"This is item {series['position']} of {series['count']} in an ordered series. "
                     + (f"The previous item's source page is {series['previous_source']}; link it as the previous part. "
                        if series.get("previous_source") else "")
-                    + "Later items have not been ingested yet: never link to them. "
-                    + (f"The operator files this item's Sources index entry under the theme '{series['theme']}'. "
+                    + "Pages from later items do not exist yet: never link to them. "
+                    + (f"The operator files this item's new Sources index entries under the theme '{series['theme']}'. "
                        if series.get("theme") else "")
+                    + (f"The operator re-files the input notes' existing index entries under the theme "
+                       f"'{series['file_inputs_under']}': give no INDEX lines for them. "
+                       if series.get("file_inputs_under") else "")
                     + ("Write only this item's source page and its index entry; do not create or update concept, "
                        "entity or synthesis pages, which are compiled after the series. "
                        if series.get("sources_only") else ""))
@@ -952,16 +955,34 @@ def normalize(manifest, proposal):
             links.append([path, entry])
     proposal["links"] = links
     index = []
-    theme = (manifest.get("series") or {}).get("theme")
+    series = manifest.get("series") or {}
+    theme, refile = series.get("theme"), series.get("file_inputs_under")
+    inputs = {path[:-3] for path in manifest["inputs"]}
     for section_name, entry, *rest in proposal.get("index", []):
         target = first_link(entry)
         if target and missing(target):
             fixes.append(f"dropped index entry for missing {target}")
             continue
-        if theme and section_name == "Sources" and (target or "").startswith("wiki/sources/") and rest[:1] != [theme]:
+        if refile and target in inputs:
+            fixes.append(f"dropped the worker's index entry for input {target}; the operator re-files it")
+            continue
+        if (theme and section_name == "Sources" and (target or "").startswith("wiki/sources/")
+                and target not in inputs and rest[:1] != [theme]):
             rest = [theme]
             fixes.append(f"filed the index entry for {target} under the series theme")
         index.append([section_name, entry, *rest[:1]] if rest and rest[0] else [section_name, entry])
+    if refile:
+        current = Path(manifest["vault"], "wiki/index.md")
+        lines = current.read_text(encoding="utf-8").split("\n") if current.is_file() else []
+        heading, sub = None, None
+        for line in lines:
+            if line.startswith("## "):
+                heading, sub = line[3:].strip(), None
+            elif line.startswith("### "):
+                sub = line[4:].strip()
+            elif line.startswith("- ") and first_link(line) in inputs and sub != refile:
+                index.append([heading, line, refile])
+                fixes.append(f"re-filed the index entry for {first_link(line)} under '{refile}'")
     proposal["index"] = index
     record = (proposal.get("log") or "").strip()
     if files or links:
@@ -1104,12 +1125,12 @@ def raw_sources(vault):
             if key.startswith("wiki/sources/") and isinstance(page["metadata"].get("raw"), str)}
 
 
-def series_step(vault, item, task, config_path, info, emit):
+def series_step(vault, item, task, config_path, info, emit, kind="ingest", inputs=None):
     """Stage, run, repair and apply one item with the fixed retry policy; returns its result line."""
     line = {"input": item, "position": info["position"], "count": info["count"], "retries": []}
     op = None
     for attempt in (1, 2):
-        op = stage(vault, "ingest", [item], task, config_path, series=info)
+        op = stage(vault, kind, inputs or [item], task, config_path, series=info)
         result = run(op)
         if not result["passed"] and result.get("proposal_error"):
             line["retries"].append(f"format: {result['proposal_error']}")
@@ -1158,11 +1179,41 @@ def series_theme(vault, inputs, theme=None):
     return theme or None
 
 
-def series(vault, inputs, task, config_path=None, sources_only=True, limit=None, emit=None, theme=None):
-    """Ingest inputs in order, one operation each; skips inputs already ingested, so reruns resume."""
+def load_plan(vault, path):
+    """A series plan: {"theme"?, "items": [{"kind", "inputs", "task", "done_if"?, "file_inputs_under"?}]}."""
+    plan = json.loads(Path(path).read_text(encoding="utf-8"))
+    items = plan.get("items") if isinstance(plan, dict) else None
+    if not items or set(plan) - {"theme", "items"}:
+        raise ValueError("a plan is {\"theme\": optional, \"items\": [...]}")
+    for item in items:
+        if (not isinstance(item, dict) or item.get("kind") not in ("ingest", "compile")
+                or set(item) - {"kind", "inputs", "task", "done_if", "file_inputs_under"}
+                or not isinstance(item.get("task"), str) or not isinstance(item.get("inputs", []), list)):
+            raise ValueError("each plan item needs kind (ingest|compile), task, and optional inputs, done_if, "
+                             "file_inputs_under")
+        done_if = item.get("done_if")
+        if done_if is not None and not (WRITABLE.fullmatch(done_if) and link_check.canonical_parts(done_if)):
+            raise ValueError(f"done_if must be a wiki page path: {done_if}")
+        if item.get("file_inputs_under") is not None and item["kind"] != "compile":
+            raise ValueError("file_inputs_under applies to compile items")
+    return plan
+
+
+def series(vault, inputs, task, config_path=None, sources_only=True, limit=None, emit=None, theme=None, plan=None):
+    """Run items in order, one operation each, and resume on rerun.
+
+    Without a plan, each input is an ingest, skipped once a source page cites it.
+    A plan's items may also be compiles, skipped once their done_if page exists.
+    """
     vault = Path(vault).resolve()
     config = load_config(vault, config_path)
-    theme = series_theme(vault, inputs, theme)
+    if plan is not None:
+        theme = series_theme(vault, [], plan.get("theme"))
+        items = [dict(item, label=item.get("done_if") or item["task"][:80]) for item in plan["items"]]
+    else:
+        theme = series_theme(vault, inputs, theme)
+        items = [{"kind": "ingest", "inputs": [item], "label": item, "task": task or "Ingest {input}"}
+                 for item in inputs]
     emit = emit or (lambda line: print(json.dumps(line, ensure_ascii=False), flush=True))
     lock = Path(config["workdir"]) / "series.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
@@ -1176,19 +1227,25 @@ def series(vault, inputs, task, config_path=None, sources_only=True, limit=None,
     lock.write_text(str(os.getpid()))
     try:
         done, counts = raw_sources(vault), {"applied": 0, "no change": 0, "skipped": 0}
-        for position, item in enumerate(inputs, 1):
-            if item in done:
+        for position, entry in enumerate(items, 1):
+            item = entry["label"]
+            if (entry.get("done_if") and (vault / entry["done_if"]).is_file()) or (
+                    plan is None and item in done):
                 counts["skipped"] += 1
                 continue
             if limit is not None and counts["applied"] + counts["no change"] >= limit:
                 return {"status": "paused", "next": item, **counts}
-            previous = inputs[position - 2] if position > 1 else None
-            info = {"position": position, "count": len(inputs), "sources_only": sources_only, "theme": theme,
+            previous = items[position - 2]["inputs"][0] if position > 1 and entry["kind"] == "ingest" and \
+                items[position - 2]["kind"] == "ingest" else None
+            info = {"position": position, "count": len(items), "theme": theme,
+                    "sources_only": sources_only and entry["kind"] == "ingest" and plan is None,
+                    "file_inputs_under": entry.get("file_inputs_under"),
                     "previous_source": raw_sources(vault).get(previous) if previous else None}
             try:
-                line = series_step(vault, item, (task or "Ingest {input}").format(
-                    input=item, position=position, count=len(inputs)), config_path, info, emit)
-            except (ValueError, RuntimeError, subprocess.SubprocessError) as error:
+                line = series_step(vault, item, entry["task"].format(
+                    input=item, position=position, count=len(items)), config_path, info, emit,
+                    kind=entry["kind"], inputs=entry.get("inputs") or None)
+            except (ValueError, RuntimeError, subprocess.SubprocessError, KeyError, IndexError) as error:
                 line = {"input": item, "position": position, "status": "stopped", "reason": str(error)}
             emit(line)
             if line["status"] == "stopped":
@@ -1264,6 +1321,7 @@ def main():
     running.add_argument("--task", help="task template; {input}, {position} and {count} are filled in")
     running.add_argument("--with-concepts", action="store_true", help="let each item create or update concepts")
     running.add_argument("--theme", help="index theme for the items' source entries (default: the capture title)")
+    running.add_argument("--plan", type=Path, help="JSON plan of ingest/compile items, run in order (replaces --input)")
     running.add_argument("--limit", type=int, help="stop after this many items (rerun to continue)")
     running.add_argument("--background", action="store_true", help="run detached; check with series-status")
     running.add_argument("--config", type=Path)
@@ -1306,14 +1364,16 @@ def main():
                 inputs += sorted((p.relative_to(vault).as_posix() for p in vault.glob(args.glob)
                                   if p.is_file() and p.suffix == ".md"), key=natural_key)
             inputs = list(dict.fromkeys(inputs))
-            if not inputs:
-                raise ValueError("series needs --input or --glob")
+            plan = load_plan(vault, args.plan) if args.plan else None
+            if bool(plan) == bool(inputs):
+                raise ValueError("series needs --input/--glob or --plan, not both")
             if args.background:
                 config = load_config(vault, args.config)
                 log = Path(config["workdir"]) / f"series-{datetime.now().strftime('%Y%m%d-%H%M%S')}.jsonl"
                 log.parent.mkdir(parents=True, exist_ok=True)
                 command = [sys.executable, str(Path(__file__).resolve()), "series", str(vault), "--log", str(log)]
                 command += [f"--input={item}" for item in inputs]
+                command += [f"--plan={args.plan.resolve()}"] if args.plan else []
                 command += [f"--task={args.task}"] if args.task else []
                 command += ["--with-concepts"] if args.with_concepts else []
                 command += [f"--theme={args.theme}"] if args.theme else []
@@ -1323,11 +1383,12 @@ def main():
                     process = subprocess.Popen(command, cwd=vault, stdout=stream, stderr=subprocess.STDOUT,
                                                stdin=subprocess.DEVNULL, start_new_session=True)
                 log.with_suffix(".pid").write_text(str(process.pid))
-                result = {"series": "started in background", "items": len(inputs), "log": str(log),
+                result = {"series": "started in background", "items": len(plan["items"]) if plan else len(inputs),
+                          "log": str(log),
                           "check": f"python3 {Path(__file__).resolve()} series-status ."}
             else:
                 result = series(vault, inputs, args.task, args.config, not args.with_concepts, args.limit,
-                                theme=args.theme)
+                                theme=args.theme, plan=plan)
         elif args.command == "run":
             result = run(args.operation)
             if json.loads((args.operation / "manifest.json").read_text())["kind"] == "query":
