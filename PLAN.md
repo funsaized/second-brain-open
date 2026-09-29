@@ -1380,3 +1380,13 @@ the next offset, never stopping, and a plan item that declines without
 creating its `done_if` page gets one fresh operation before the series stops.
 
 Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Back-links for every new source ↔ concept edge
+
+Chapters 8–14 applied; chapter 15 stopped because the worker's LINKS lines
+added part → concept links while its new concept page did not link those
+parts. The repair now covers every source ↔ concept/entity link a proposal
+adds, from pages or LINKS lines, and writes the back-link into the proposed
+page when the proposal writes it.
+
+Verification: 134 offline tests pass; `git diff --check` passes.

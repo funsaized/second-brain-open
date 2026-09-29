@@ -273,6 +273,12 @@ class OperatorTests(unittest.TestCase):
         cited, fixes = op.normalize(manifest, dict(proposal, files={"wiki/concepts/oven-airflow.md": concept}))
         self.assertEqual(cited["links"], [["wiki/sources/trial-b.md",
                                            "- [[wiki/concepts/oven-airflow|Oven airflow]] — page that cites this source"]])
+        # A LINKS line from an existing source to a concept the proposal writes: the back-link goes into the page.
+        patched, fixes = op.normalize(manifest, dict(proposal, files={"wiki/concepts/oven-airflow.md": CONCEPT},
+                                                     links=[["wiki/sources/trial-b.md",
+                                                             "- [[wiki/concepts/oven-airflow|Oven airflow]] — concept"]]))
+        self.assertIn("[[wiki/sources/trial-b|", patched["files"]["wiki/concepts/oven-airflow.md"])
+        self.assertIn("added the back-link wiki/concepts/oven-airflow -> wiki/sources/trial-b", fixes)
 
     def test_compile_by_topic_needs_no_inputs(self):
         operation = op.stage(self.vault, "compile", [], "Explain vent choice across the trials", self.config,
@@ -354,8 +360,8 @@ class OperatorTests(unittest.TestCase):
             "traversal": ({"wiki/concepts/../../AGENTS.md": "x"}, RECORD, "not writable"),
             "cap": ({f"wiki/concepts/c{i}.md": CONCEPT for i in range(4)}, RECORD, "limit is 3"),
             "two records": ({"wiki/sources/trial-a.md": source}, RECORD + "\n## 2026-09-28 — x — partial", "single"),
-            "checker": ({"wiki/concepts/oven-airflow.md": CONCEPT, "wiki/sources/trial-a.md": source}, RECORD,
-                        "not_reciprocal"),  # a rewritten source is not repaired
+            "checker": ({"wiki/concepts/oven-airflow.md": CONCEPT.replace("# Oven airflow", "# {{TITLE}}")}, RECORD,
+                        "placeholder"),
             "index file": ({"wiki/index.md": "# Index\n"}, RECORD, "must not be rewritten"),
             "dropped links": ({"wiki/sources/trial-a.md": "---\ntitle: \"x\"\n---\nshort\n"}, RECORD, "drops"),
             "empty": ({}, RECORD, "no pages"),
