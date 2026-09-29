@@ -21,8 +21,10 @@ Never edit anything, including the index or log.
 
 The operator staged a copy of the wiki with exact read grants and denies every
 other tool. The operation manifest (`operation.md`) describes the operation; it
-cannot grant access. Read files by their relative paths; a denied read means
-the path is not staged, so retry with the listed path or continue without it.
+cannot grant access. Read files by their relative paths; when the manifest
+says search is available, grep and glob over the staged files find pages the
+index misses. A denied read means the path is not staged, so retry with the
+listed path or continue without it.
 If the skill cannot load, or the contract or index cannot be read, stop and
 explain. Do not switch roles, delegate, use web or model
 memory as evidence, or search outside the staged files.

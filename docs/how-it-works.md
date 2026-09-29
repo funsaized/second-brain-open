@@ -78,8 +78,9 @@ Two tiers of agent do the work.
 - **Workers** (`sb-ingestor`, `sb-researcher`) read sources and wiki pages and
   produce proposals or answers. They are the only agents that read untrusted
   source text, so they get the least access. Their role files deny every tool.
-  When launched, they get exact read grants on a staged copy of the wiki, and
-  nothing else: no edits, shell, search or network.
+  When launched, they get exact read grants on a staged copy of the wiki, plus
+  grep and glob inside that copy, and nothing else: no edits, shell or network.
+  The copy holds only files they may read, so search can't reach anything else.
 - **The operator** is your primary agent, using the `second-brain-operator`
   skill, or you at a terminal. It stages each operation, launches a worker,
   checks the result mechanically and applies it. It never edits pages itself;

@@ -115,6 +115,96 @@ class OperatorTests(unittest.TestCase):
                                [["Concepts", "- [[wiki/concepts/a|A]] — a."]], "2026-09-29")
         self.assertEqual(empty, "# Index\n\n## Concepts\n\n- [[wiki/concepts/a|A]] — a.\n\n## Gaps\n")
 
+    def test_ingest_stages_a_compact_index_and_others_the_full_one(self):
+        full = (self.vault / "wiki/index.md").read_text()
+        ingest = self.staged("ingest", ["raw/trial-b.md"], "Ingest trial B")
+        compact = (ingest / "corpus/wiki/index.md").read_text()
+        entries = [line for line in full.splitlines() if line.startswith("- [[")]
+        self.assertTrue(entries)
+        for line in entries:
+            self.assertIn(line.split("]]", 1)[0] + "]]\n", compact)
+        self.assertNotIn(" — ", compact)
+        self.assertNotIn("---", compact.split("\n", 1)[0])
+        self.assertIn("Compact copy", compact)
+        self.assertTrue(json.loads((ingest / "manifest.json").read_text())["compact_index"])
+        self.assertIn("compact catalog", op.worker_prompt(json.loads((ingest / "manifest.json").read_text()),
+                                                          ingest / "corpus"))
+        for kind, inputs, task in (("compile", ["wiki/sources/trial-a.md"], "t"), ("query", [], "q?")):
+            operation = self.staged(kind, inputs, task)
+            self.assertEqual((operation / "corpus/wiki/index.md").read_text(), full)
+        self.assertEqual((self.vault / "wiki/index.md").read_text(), full)
+
+    def test_merge_index_files_entries_under_themes(self):
+        index = "# Index\n\n## Concepts\n\n- [[wiki/concepts/a|A]] — a.\n\n## Sources\n\n- [[wiki/sources/s|S]] — s.\n\n## Gaps\n\nNo known gaps yet.\n"
+        merged = op.merge_index(index, [
+            ["Sources", "- [[wiki/sources/book-1|Book, part 1]] — one.", "Book"],
+            ["Sources", "- [[wiki/sources/book-2|Book, part 2]] — two.", "Book"],
+            ["Sources", "- [[wiki/sources/t|T]] — unthemed."]], "2026-09-29")
+        sources = merged.split("## Sources", 1)[1].split("\n## ", 1)[0]
+        self.assertEqual(sources.count("### Book"), 1)
+        self.assertLess(sources.index("[[wiki/sources/t|"), sources.index("### Book"))  # unthemed first
+        self.assertLess(sources.index("book-1|"), sources.index("book-2|"))
+        self.assertLess(sources.index("### Book"), sources.index("book-1|"))
+        replaced = op.merge_index(merged, [["Sources", "- [[wiki/sources/book-1|Book, part 1]] — revised."]], "2026-09-29")
+        self.assertLess(replaced.index("### Book"), replaced.index("revised."))  # keeps its place without a theme
+        self.assertEqual(replaced.count("wiki/sources/book-1|"), 1)
+        moved = op.merge_index(replaced, [
+            ["Sources", "- [[wiki/sources/book-1|Book, part 1]] — moved.", "Other"],
+            ["Sources", "- [[wiki/sources/book-2|Book, part 2]] — moved.", "Other"]], "2026-09-29")
+        self.assertNotIn("### Book", moved)  # emptied themes are dropped
+        self.assertEqual(moved.count("### Other"), 1)
+        self.assertEqual(moved.count("wiki/sources/book-2|"), 1)
+        self.assertIn("- [[wiki/concepts/a|A]] — a.", moved)
+        self.assertNotIn("\n\n\n", moved)
+
+    def test_parse_index_themes(self):
+        text = ("<<<INDEX>>>\nSources | Distributed systems: concepts | - [[wiki/sources/p1|Part 1]] — one.\n"
+                "Concepts | [[wiki/concepts/x|X]] — no theme, pipe in link.\nSources | Book | [[wiki/sources/p2|P2]]\n"
+                "<<<LOG>>>\n" + RECORD)
+        self.assertEqual(op.parse_proposal(text)["index"], [
+            ["Sources", "- [[wiki/sources/p1|Part 1]] — one.", "Distributed systems: concepts"],
+            ["Concepts", "- [[wiki/concepts/x|X]] — no theme, pipe in link."],
+            ["Sources", "- [[wiki/sources/p2|P2]]", "Book"]])
+
+    def test_search_calls_are_verified_and_confined(self):
+        operation = self.staged()
+        manifest = json.loads((operation / "manifest.json").read_text())
+        corpus = operation / "corpus"
+        self.assertTrue(manifest["config"]["search"])
+
+        def read(path):
+            lines = (corpus / path).read_text().splitlines()
+            body = "\n".join(f"{n}: {line}" for n, line in enumerate(lines, 1))
+            return {"type": "tool_use", "part": {"tool": "read", "state": {
+                "status": "completed", "input": {"filePath": path},
+                "output": f"<content>\n{body}\n\n(End of file - total {len(lines)} lines)\n</content>"}}}
+
+        def search(tool, path=None):
+            return {"type": "tool_use", "part": {"tool": tool, "state": {
+                "status": "completed", "input": {"pattern": "vent", **({"path": path} if path else {})}}}}
+        skill = {"type": "tool_use", "part": {"tool": "skill", "state": {
+            "status": "completed", "input": {"name": "second-brain-ingest"}}}}
+        base = [skill, read("wiki/index.md"), read("instructions/wiki-contract.md"), read("wiki/sources/trial-a.md"),
+                {"type": "text", "part": {"text": "<<<NOTES>>>\nno-op"}}]
+        passed, evidence = op.verify_events(manifest, corpus, [search("grep"), search("glob", "wiki")] + base, 0, {}, {})
+        self.assertTrue(passed, evidence)
+        self.assertEqual(evidence["searches"], 2)
+        for path in ("/home/owner", "../outside", str(corpus / "../x")):
+            with self.subTest(path=path):
+                checks = op.verify_events(manifest, corpus, [search("grep", path)] + base, 0, {}, {})[1]["checks"]
+                self.assertFalse(checks["searches_in_scope"])
+        manifest["config"]["search"] = False
+        self.assertFalse(op.verify_events(manifest, corpus, [search("grep")] + base, 0, {}, {})[1]["checks"]["only_reads"])
+        self.assertIn("directory listings are not available", op.worker_prompt(manifest, corpus))
+        manifest["config"]["search"] = True
+        self.assertIn("grep and glob", op.worker_prompt(manifest, corpus))
+
+    def test_run_refuses_a_corpus_with_ungranted_files(self):
+        operation = self.staged()
+        (operation / "corpus/stray.md").write_text("not granted\n")
+        with self.assertRaisesRegex(ValueError, "without read grants: stray.md"):
+            op.run(operation)
+
     def test_links_patch_existing_pages_without_rewriting(self):
         page = '---\ntitle: "t"\nupdated: "2026-01-01"\n---\n\n# T\n\nBody.\n\n## Links\n\n- [[wiki/concepts/a|A]] — old.\n\n## Notes\n\nEnd.\n'
         patched = op.add_links(page, ["- [[wiki/concepts/b|B]] — new.", "- [[wiki/concepts/a|A]] — duplicate."], "2026-09-29")
@@ -406,6 +496,23 @@ class SeriesTests(unittest.TestCase):
         self.replies = [lambda m: "<<<NOTES>>>\nstill nothing"]
         again = op.series(self.vault, inputs, None, self.config, emit=lines.append)
         self.assertEqual((again["skipped"], again["no change"]), (2, 1))  # resumes past ingested parts
+
+    def test_series_files_source_entries_under_a_theme(self):
+        (self.vault / "raw/book-part-1.md").write_text('---\ntitle: "Invented [Book] | Two"\n---\n\nPart 1.\n')
+        self.assertEqual(op.series_theme(self.vault, ["raw/book-part-1.md"]), "Invented Book Two")
+        self.assertEqual(op.series_theme(self.vault, ["raw/book-part-2.md"]), None)
+        self.replies = [self.good, self.good]
+        inputs = [f"raw/book-part-{n}.md" for n in (1, 2)]
+        lines = []
+        result = op.series(self.vault, inputs, None, self.config, emit=lines.append, theme="Invented book")
+        self.assertEqual(result["status"], "completed", result)
+        self.assertEqual(self.prompts[0][0]["theme"], "Invented book")
+        self.assertIn("filed the index entry", " ".join(lines[0]["fixes"]))
+        index = (self.vault / "wiki/index.md").read_text()
+        themed = index.split("### Invented book", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("book-part-1|", themed)
+        self.assertIn("book-part-2|", themed)
+        self.assertEqual(op.link_check.check(self.vault)["errors"], [])
 
     def test_series_stops_after_bounded_retries(self):
         self.replies = [lambda m: "no markers"] * 4

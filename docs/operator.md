@@ -90,7 +90,9 @@ background, one operation per part:
 - A failed run gets one fresh attempt.
 - Failed checks get one revision.
 
-Each part becomes a source page linked to the previous part. Concept pages
+Each part becomes a source page linked to the previous part, and its index
+entry is filed under the document's title (a `### theme` heading in Sources;
+override it with `--theme`). Concept pages
 are compiled after the series, so the same concept isn't rewritten for every
 part. A part with nothing reusable, such as front matter, is recorded and
 skipped. The operator checks progress every few minutes and reports when the

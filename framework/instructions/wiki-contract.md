@@ -116,7 +116,9 @@ These are body/proposal rules, not additional page types or metadata fields.
   basenames, alias-only targets and embeds are unsupported by the managed
   checker until adopted explicitly. Frontmatter/fenced examples are not edges.
 - Catalog actual knowledge pages under the index's four sections with short
-  descriptions. Put missing information in **Gaps** as plain text, not broken
+  descriptions. Within a section, related entries may sit under a `### theme`
+  heading, such as the parts of one document or one topic; the index stays a
+  single page. Put missing information in **Gaps** as plain text, not broken
   links. Do not promise exhaustive retrieval from an incomplete index.
 - In the same operation as content changes, update the index and append a dated
   log record: source identity, actual changed paths, contradictions/gaps,

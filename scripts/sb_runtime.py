@@ -189,8 +189,16 @@ def verify_role(agent, role, prompt, allowed, model, steps, denied=DENIED_TOOLS)
             raise RuntimeError(f"Tool denial missing: {tool}")
 
 
-def configure_worker(corpus, profile, role, skill, reads, agent, model, version, steps):
-    """Overlay granting `role` exact reads plus its skill; verified before use."""
+SEARCH_TOOLS = ("grep", "glob")
+
+
+def configure_worker(corpus, profile, role, skill, reads, agent, model, version, steps, search=False):
+    """Overlay granting `role` exact reads plus its skill; verified before use.
+
+    search=True also grants grep and glob. Their permission matches the search
+    pattern, not the files it returns, so they are safe only when the corpus
+    holds nothing but readable files; external_directory keeps them inside it.
+    """
     env = prepare_environment(agent, model, version, clean=True)
     env.update(PWD=str(corpus), OPENCODE_CONFIG_DIR=str(profile))
     config = json.loads(env["OPENCODE_CONFIG_CONTENT"])
@@ -199,6 +207,7 @@ def configure_worker(corpus, profile, role, skill, reads, agent, model, version,
     config["agent"][role] = {"model": model, "steps": steps, "permission": {
         "*": "deny", "read": {"*": "deny", **{p: "allow" for p in reads}}, "edit": "deny",
         "question": "deny", "skill": {"*": "deny", skill: "allow"},
+        **({tool: "allow" for tool in SEARCH_TOOLS} if search else {}),
         "external_directory": {"*": "deny", skill_dir: "allow"}}}
     env["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
     effective = debug(env, corpus, "config")
@@ -214,7 +223,9 @@ def configure_worker(corpus, profile, role, skill, reads, agent, model, version,
                                               / "opencode/tool-output/*"))
     body = (profile / f"agents/{role}.md").read_text().split("---", 2)[2].strip()
     allowed = {("read", p) for p in reads} | {("skill", skill), ("external_directory", skill_dir), output_gate}
-    verify_role(debug(env, corpus, "agent", role), role, body, allowed, model, steps)
+    allowed |= {(tool, "*") for tool in SEARCH_TOOLS} if search else set()
+    denied = tuple(t for t in DENIED_TOOLS if not (search and t in SEARCH_TOOLS))
+    verify_role(debug(env, corpus, "agent", role), role, body, allowed, model, steps, denied)
     skills = [s for s in debug(env, corpus, "skill") if s.get("name") == skill]
     if len(skills) != 1 or Path(skills[0].get("location", "")) != profile / f"skills/{skill}/SKILL.md":
         raise RuntimeError("Designated skill is missing or shadowed")

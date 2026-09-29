@@ -49,6 +49,34 @@
 - **Suggested next step:** A1. Compile the first concept pages in the
   deployment with the operator, then rerun the A2 evaluation.
 
+## Status update (2026-09-29, later)
+
+- **Owner decisions.** Keep `wiki/index.md` as one page; no split into
+  per-type or topic pages. No cap on notes per operation (A4), but notes
+  should follow the source's logical structure. Let the running textbook
+  series finish on the current code.
+- **H2: delivered without a split.** Ingest workers read a compact staged
+  index (titles and paths only). On the deployment that is 57.5 KB → 32.0 KB
+  with all 183 entries, back under the single-read cap. INDEX lines can name a
+  theme, filed as a `### theme` heading inside the section, and a series
+  files its parts under the document's title.
+- **B5: delivered, in the staged copy.** Workers get grep and glob over the
+  staged copy. A Bubblewrap probe shows they can't leave it. Grep sees every
+  file there, hidden ones included, so `run` refuses a copy with ungranted
+  files. A2 had found search unnecessary at 110 notes; it is now in place for
+  the larger wiki and for the "does this page already exist?" check.
+- **B4: narrowed.** The staged copy plus the corpus check is the practiced
+  confinement for workers; OS isolation remains probe-only.
+- **Primary-agent permissions.** Installation step 2 and
+  `framework/vault-opencode.example.json` define the operator agent's vault
+  permissions. The deployment still has only the `external_directory` allow.
+- **Next.**
+  1. After the series: install the changed framework files and the permission
+     profile (owner approval), then rerun A2 on the deployment.
+  2. A4 follow-up: notes per chapter rather than per capture part, and
+     re-theming the existing textbook entries.
+  3. Series-level acceptance record and a series startup timeout (H1).
+
 ## How the review was done
 
 - Read README, PLAN.md, all of `docs/`, `framework/` and `scripts/`, and the
@@ -145,13 +173,13 @@ Deployment facts (sanitized):
 | A1 | Compile a first concept layer from existing sources | Implement | P0 | M | — |
 | A2 | ✅ Evaluate the researcher on the real wiki | Verify | P0 | S | — |
 | A3 | ✅ Define owner acceptance that can finish — deployment record awaits owner | Decide | P0 | S | Yes |
-| A4 | Collection captures and batch size | Decide | P1 | S | Yes |
+| A4 | Collection captures — decided: no cap, logical notes; themes delivered, per-chapter notes pending | Decide | P1 | S | Yes |
 | A5 | Ingest one non-meta source tied to actual goals | Verify | P1 | S | Yes |
 | B1 | ✅ Ship an operator launcher (manifest → overlay → verify → run) — `sb_operator.py` | Implement | P0 | M | — |
 | B2 | ✅ Make "propose → operator apply" the primary write path — agent as operator | Simplify | P0 | M | Yes |
 | B3 | Install/upgrade planner | Implement | P1 | M | Yes |
-| B4 | Reconcile the isolation requirement with practice | Decide | P1 | S | Yes |
-| B5 | Scoped search inside a confined corpus — not needed per A2 | Decide | P2 | M | Yes |
+| B4 | Reconcile the isolation requirement with practice — narrowed by the staged-copy corpus check | Decide | P1 | S | Yes |
+| B5 | ✅ Scoped search inside a confined corpus — grep/glob in the staged copy | Decide | P2 | M | Yes |
 | C1 | ✅ Residue, index-completeness and reciprocity checks | Implement | P0 | S | — |
 | C2 | ✅ Stop permanent exit 1 on legacy controls — deployment cleanup awaits owner | Improve | P0 | S | — |
 | C3 | Validate raw evidence links; report Markdown links | Improve | P1 | S | — |

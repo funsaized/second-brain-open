@@ -1,7 +1,7 @@
 # Plan: OpenCode-native second-brain machinery
 
 > Status: public core delivered; native evidence is bounded; project round-trip demonstration outstanding; deployment acceptance is owner-local
-> Updated: 2026-09-28
+> Updated: 2026-09-29
 > Execution update (2026-09-24): the owner authorized implementation up to the first blocker/approval gate, including operational autonomy. After the D1 question, “continue” approved MIT with `Copyright (c) 2026 Funsaized`. The original planning record below remains historical; its planning-only restrictions do not revoke that later authorization. Named integration checkpoints remain in force.
 
 ## Current delivery status
@@ -12,7 +12,7 @@ results and failures; its old test counts and "next step" statements are not the
 current backlog. The phase specifications and runbooks describe requirements and
 repeatable procedures, not a list of features that are all still unimplemented.
 
-**Verification baseline:** 125 offline tests pass with
+**Verification baseline:** 131 offline tests pass with
 `python3 -m unittest discover -s tests`. Live native probes are opt-in and are not
 part of that count. Static fixtures, driver-applied model proposals, native tool
 edits, and owner content acceptance are different evidence classes.
@@ -67,7 +67,7 @@ edits, and owner content acceptance are different evidence classes.
 
 | Evidence class | What is established | Where to inspect |
 |---|---|---|
-| Offline distribution suite | 125 passing static/CLI/guard tests; includes operator stage/apply/undo/revise, checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
+| Offline distribution suite | 131 passing static/CLI/guard tests; includes operator stage/apply/undo/revise, worker search evidence, compact and themed index handling, checker contract checks and researcher-evaluation scoring | `tests/`, current verification baseline above |
 | Live researcher evaluation | Scored native `sb-researcher` answers on a staged wiki copy (OpenCode 1.18.33); the synthetic fixture passed 3/3 | `docs/researcher-evaluation.md`; private-wiki results stay local |
 | Isolated native runtime probes | Documented version-specific loading/read/refusal behavior; fake-provider cases are not semantic ingest proof | `tests/runtime_read_probe.py`, `tests/runtime_roles_probe.py`, historical execution record below |
 | Live, driver-applied semantic rehearsal | Two-source proposals, contradiction retention, repeat and sourced answering; driver applied the pages | `docs/native-acceptance-trials.md` (earlier rehearsals), `docs/synthetic-acceptance.md` |
@@ -420,7 +420,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-Current result: **125 tests pass**. The structured source-template test is static
+Current result: **131 tests pass**. The structured source-template test is static
 compatibility evidence, not proof of model editorial quality. Historical counts
 in the execution record and dated evidence reports describe their own checkpoints.
 
@@ -1251,3 +1251,42 @@ part 47.
 - **Live check.** Part 47's run passed on the deployment.
 
 Verification: 125 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Worker search, compact staged index and index themes
+
+The owner kept `wiki/index.md` as one page and set no cap on notes per
+operation. Three changes address index growth (backlog H2) within that.
+
+- **Worker search (B5).** Workers get grep and glob over their staged copy
+  (`search`, on by default). A fake-provider Bubblewrap probe on OpenCode
+  1.18.33 showed that `external_directory` confines both to the worktree,
+  including against traversal and outside symlinks. It also showed that grep
+  sees every worktree file, granted or not, hidden folders included. `run`
+  therefore refuses a staged copy holding any file without a read grant, and
+  a new check, `searches_in_scope`, verifies search paths. Prompts treat
+  search hits as leads that must be read before use, and ingest searches for
+  existing pages before creating new ones (upstream's "check what already
+  exists").
+- **Compact staged index.** Ingest workers read a copy of the index with
+  headings, titles and paths only. On the deployment it measured 57.5 KB →
+  32.0 KB, all 183 entries kept. Compile and query workers still get the full
+  index, and the vault's index is unchanged.
+- **Themes.** INDEX lines may name a theme, which `apply` files under a
+  `### theme` heading in the section. A replacement without a theme keeps its
+  place, and emptied themes are dropped. A series files its source entries
+  under the capture's title, or `--theme`.
+- **Primary-agent permissions.** `framework/vault-opencode.example.json`
+  and installation step 2 give the operator agent path-scoped reads of
+  `wiki/` and `raw/`, no edits to managed folders, CLI-only shell without a
+  prompt, and grep and glob on ask, because a vault-root search reaches
+  `.obsidian`. `opencode debug` resolves the example as intended.
+
+Live evidence (OpenCode 1.18.33, previously approved route, synthetic fixture)
+is in `docs/native-acceptance-trials.md`: the search probe passed 8/8 cases,
+worker permission verification passed with search on and off, and a synthetic
+ingest and query each passed every run check while using search. Not yet done:
+installing the changed framework files and the permission profile into the
+deployment (after its running textbook series), rerunning the researcher
+evaluation there, and logically structured notes for long documents (A4).
+
+Verification: 131 offline tests pass; `git diff --check` passes.

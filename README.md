@@ -99,7 +99,7 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-The offline suite currently has **125 passing tests**. It uses synthetic fixtures
+The offline suite currently has **131 passing tests**. It uses synthetic fixtures
 and does not make model calls. Live native trials require separate opt-in setup
 and approvals; they are not part of this command.
 

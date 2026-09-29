@@ -63,10 +63,12 @@ INSTALLED = {
     "templates": ("templates/second-brain", "framework/templates"),
 }
 TEMPLATES = ("source", "concept", "entity", "synthesis")
-CONFIG_KEYS = {"cli", "agent", "model", "opencode_version", "workdir", "max_pages", "steps", "timeout", "auto_apply"}
+CONFIG_KEYS = {"cli", "agent", "model", "opencode_version", "workdir", "max_pages", "steps", "timeout", "auto_apply",
+               "search"}
 WRITABLE = re.compile(r"wiki/(?:sources|concepts|entities|synthesis)/.+\.md")
 INDEX_SECTIONS = ("Concepts", "Entities", "Synthesis", "Sources", "Gaps")
 LINK = re.compile(r"\[\[([^\]|#]+)")
+INDEX_LINE = re.compile(r"\s*(?:[-*]\s*)?(\w+)\s*\|\s*(?:(?!-\s)([^|\[\]\n]+?)\s*\|\s*)?(.+?)\s*")
 RECORD = re.compile(r"## (\d{4}-\d{2}-\d{2}) — .+ — partial")
 FILE_BLOCK = re.compile(r"^<<<FILE ([^\n]+)>>>\n(.*?)^<<<END FILE>>>[ \t]*$", re.M | re.S)
 
@@ -85,7 +87,7 @@ def load_config(vault, path=None):
     missing = {"agent", "model", "opencode_version", "workdir"} - config.keys()
     if missing or set(config) - CONFIG_KEYS:
         raise ValueError(f"operator config needs {sorted(CONFIG_KEYS)}; missing {sorted(missing)}")
-    config = {"max_pages": 10, "steps": 10, "timeout": 600, "auto_apply": True, **config}
+    config = {"max_pages": 10, "steps": 10, "timeout": 600, "auto_apply": True, "search": True, **config}
     workdir = Path(config["workdir"]).expanduser().resolve()
     if workdir == vault.resolve() or vault.resolve() in workdir.parents:
         raise ValueError("operator workdir must be outside the vault")
@@ -391,6 +393,10 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
         path = corpus / target
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(source.read_bytes())
+    compact = kind == "ingest" and (corpus / "wiki/index.md").is_file()
+    if compact:
+        index = corpus / "wiki/index.md"
+        index.write_text(compact_index(index.read_text(encoding="utf-8")))
     origin = {}
     for name in (f"agents/{role}.md", f"skills/{skill}/SKILL.md"):
         local = vault / ".opencode" / name
@@ -403,7 +409,7 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
     manifest = {"id": op.name, "kind": kind, "role": role, "skill": skill, "vault": str(vault), "date": today,
                 "task": task, "inputs": inputs, "input_sha256": {i: file_hash(vault / i) for i in inputs},
                 "wiki_preimages": state, "reads": sorted(copies) + ["operation.md"], "origin": origin,
-                "figures": figures, "input_parts": input_parts, "series": series,
+                "figures": figures, "input_parts": input_parts, "series": series, "compact_index": compact,
                 "config": {k: config[k] for k in sorted(config)},
                 "capture": captured}
     (corpus / "operation.md").write_text(
@@ -411,6 +417,8 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
             "status": "operator preflight verifies these read grants before the worker starts",
             "operation": kind, "role": role, "task": task, "inputs": inputs, "date": today,
             "readable": f"{len(manifest['reads'])} staged files: every wiki page the index links, plus the paths below",
+            "index": ("compact: titles and paths only; search the pages for more" if compact else "full catalog"),
+            "search": "grep and glob over these staged files" if config["search"] else "not available",
             "paths": {"contract": CONTRACT, "index": "wiki/index.md", "log": "wiki/log.md",
                       "templates": [f"templates/{name}.md" for name in TEMPLATES] if kind != "query" else [],
                       "inputs": inputs, "figures": figures},
@@ -426,6 +434,23 @@ def write_json(path, data):
     path.chmod(0o600)
 
 
+def compact_index(text):
+    """The index without frontmatter, comments or entry descriptions: headings, titles and paths only."""
+    lines = text.split("\n")
+    if lines and lines[0] == "---" and "---" in lines[1:]:
+        lines = lines[lines.index("---", 1) + 1:]
+    body = re.sub(r"<!--.*?-->", "", "\n".join(lines), flags=re.S)
+    out, noted = [], False
+    for line in body.split("\n"):
+        entry = re.match(r"- \[\[[^\]]+\]\]", line)
+        out.append(entry.group(0) if entry else line.rstrip())
+        if line.startswith("# ") and not noted:
+            out += ["", "> Compact copy for this operation: titles and paths only; the vault's index keeps the "
+                        "descriptions. Search the staged pages when a title is not enough."]
+            noted = True
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip("\n") + "\n"
+
+
 def corpus_state(corpus):
     return {p.relative_to(corpus).as_posix(): digest(p.read_bytes())
             for p in sorted(corpus.rglob("*")) if p.is_file() and ".git" not in p.relative_to(corpus).parts}
@@ -433,20 +458,26 @@ def corpus_state(corpus):
 
 def worker_prompt(manifest, corpus):
     kind, config = manifest["kind"], manifest["config"]
-    head = ("You are running under an operator. Your read grants were verified before this call; edits and all "
-            "other tools are denied. Load your designated skill with the skill tool. "
+    search = config.get("search", False)
+    head = ("You are running under an operator. Your read grants were verified before this call"
+            + ("; you can also search the staged files with grep and glob" if search else "")
+            + ". Edits and all other tools are denied. Load your designated skill with the skill tool. "
             f"Working directory: {corpus}. Read files by their paths relative to it, exactly as operation.md "
             f"lists them (for example wiki/index.md, {CONTRACT}, templates/concept.md); do not retype the absolute "
             "directory. If a read is denied, you used a path that is not staged: retry with the listed relative "
             "path, or continue without an optional page. Stop only when the index, the contract or an input cannot "
             "be read at its listed path. A file too long for one read (the output says it was capped, or does not "
             "end with 'End of file') must be read in consecutive ranges with offset and limit until you have seen "
-            "every line; the operator checks that every line was read. Read wiki/index.md first. ")
+            "every line; the operator checks that every line was read. Read wiki/index.md first. "
+            + ("Search results are leads, not evidence: read a page completely before you rely on it or cite it. "
+               if search else ""))
     if kind == "query":
         return head + (
             f"Question: {manifest['task']} Answer only from pages you actually read. Put exact vault-relative "
-            "page paths such as wiki/sources/name.md beside each claim, with section locators. If the wiki does "
-            "not answer, say so. End with a line starting 'Read:' and a line starting 'Not covered:'.")
+            "page paths such as wiki/sources/name.md beside each claim, with section locators. "
+            + ("When the index does not point to the answer, search the staged pages with grep before concluding "
+               "the wiki does not cover it. " if search else "")
+            + "If the wiki does not answer, say so. End with a line starting 'Read:' and a line starting 'Not covered:'.")
     inputs = ", ".join(manifest["inputs"])
     source = ("This is an ingest: the input is an approved raw capture; use its path as the source page's raw "
               "field. When the capture has frontmatter, take the source page's url and any non-null author and "
@@ -465,23 +496,32 @@ def worker_prompt(manifest, corpus):
               if kind == "ingest" else
               ("This is a compile: the inputs are existing source notes; build concept, entity or synthesis pages "
                "from them and add the reciprocal links on those source notes. " if manifest["inputs"] else
-               "This is a compile by topic: choose the existing pages most relevant to the task from the index, "
+               "This is a compile by topic: choose the existing pages most relevant to the task from the index"
+               + (" and by searching the staged pages" if search else "") + ", "
                "usually three to eight source notes plus any concept pages on the topic, read those completely, "
                "and build concept, entity or synthesis pages from them with reciprocal links on the notes you "
                "draw from. You do not need to read every related page; name the ones you left out in NOTES. "))
     reading = (f"Read these inputs completely before proposing: {inputs}. " if manifest["inputs"] else "")
+    if manifest.get("compact_index"):
+        reading += "wiki/index.md is a compact catalog here: titles and paths, no descriptions. "
+    if search and kind == "ingest":
+        reading += ("Before writing, search the staged pages for the input's main concepts and entities, so you "
+                    "update or link existing pages instead of creating duplicates. ")
     series = manifest.get("series")
     if series:
         reading += (f"This is item {series['position']} of {series['count']} in an ordered series. "
                     + (f"The previous item's source page is {series['previous_source']}; link it as the previous part. "
                        if series.get("previous_source") else "")
                     + "Later items have not been ingested yet: never link to them. "
+                    + (f"The operator files this item's Sources index entry under the theme '{series['theme']}'. "
+                       if series.get("theme") else "")
                     + ("Write only this item's source page and its index entry; do not create or update concept, "
                        "entity or synthesis pages, which are compiled after the series. "
                        if series.get("sources_only") else ""))
     return head + source + (
-        f"Task: {manifest['task']} {reading}Readable files, by "
-        f"exact path only (directory listings are not available): every page the index links, wiki/log.md, "
+        f"Task: {manifest['task']} {reading}Readable files, by exact relative path"
+        + (" (find them with the index, grep or glob)" if search else " only (directory listings are not available)")
+        + ": every page the index links, wiki/log.md, "
         f"{', '.join(f'templates/{name}.md' for name in TEMPLATES)}, the inputs and the manifest. "
         "Open candidate pages from the index as needed. "
         f"Today is {manifest['date']}. Propose at most {config['max_pages']} new or changed pages under "
@@ -492,7 +532,9 @@ def worker_prompt(manifest, corpus):
         "Reply with no outer code fence, in this format:\n<<<FILE path>>>\ncomplete Markdown with final newline\n"
         "<<<END FILE>>>\n(one block per page)\n<<<INDEX>>>\none line per new or changed catalog entry, as "
         "'<Concepts|Entities|Synthesis|Sources|Gaps> | - [[wiki/<folder>/<page>|Title]] — short description' "
-        "(Gaps entries are plain text); an entry replaces the existing entry for the same page\n"
+        "or, to file it under a '### <theme>' heading in that section (the document a part belongs to, or a "
+        "topic), '<Section> | <theme> | - [[...]] — description'. Gaps entries are plain text. An entry replaces "
+        "the existing entry for the same page; without a theme it keeps that entry's place\n"
         "<<<LINKS>>>\none line per link to add to an existing page without rewriting it, as "
         "'wiki/<folder>/<page>.md | - [[wiki/<folder>/<page>|Title]] — how they relate'; use this for "
         "reciprocal back-links on long source notes\n"
@@ -568,13 +610,13 @@ def parse_proposal(text):
     for line in sections["INDEX"]:
         if not line.strip():
             continue
-        match = re.fullmatch(r"\s*(?:[-*]\s*)?(\w+)\s*\|\s*(.+?)\s*", line)
+        match = INDEX_LINE.fullmatch(line)
         name = match.group(1).capitalize() if match else None
         if name not in INDEX_SECTIONS:
             warnings.append(f"skipped INDEX line: {line.strip()[:60]}")
             continue
-        entry = match.group(2) if match.group(2).startswith("- ") else "- " + match.group(2)
-        index.append([name, entry])
+        entry = match.group(3) if match.group(3).startswith("- ") else "- " + match.group(3)
+        index.append([name, entry, match.group(2)] if match.group(2) else [name, entry])
     links = []
     for line in sections["LINKS"]:
         if not line.strip():
@@ -603,6 +645,9 @@ def verify_events(manifest, corpus, events, returncode, before, after, required=
     the reads together show every one of its lines and none was cut short.
     """
     calls = tool_calls(events)
+    search = manifest["config"].get("search", False)
+    allowed_tools = ("read", "skill", "grep", "glob") if search else ("read", "skill")
+    searches = [c.get("state", {}).get("input", {}).get("path") for c in calls if c["tool"] in ("grep", "glob")]
     seen, cut = {}, set()
     for call in calls:
         state = call.get("state", {})
@@ -625,15 +670,18 @@ def verify_events(manifest, corpus, events, returncode, before, after, required=
         "run_completed": returncode == 0 and bool(answer_text(events)),
         "skill_loaded": any(c["tool"] == "skill" and c.get("state", {}).get("status") == "completed"
                             and c["state"].get("input", {}).get("name") == manifest["skill"] for c in calls),
-        "only_reads": all(c["tool"] in ("read", "skill") for c in calls),
+        "only_reads": all(c["tool"] in allowed_tools for c in calls),
+        "searches_in_scope": all(not path or (relative_read(corpus, path) is not None
+                                              and ".." not in Path(relative_read(corpus, path)).parts)
+                                 for path in searches),
         "reads_in_scope": all(p in manifest["reads"] for p in seen),
         "required_full_reads": all(reads.get(p) for p in required),
         "zero_writes": before == after,
     }
-    failed = [{"tool": c["tool"] if c["tool"] in ("read", "skill", "edit", "bash") else "other",
+    failed = [{"tool": c["tool"] if c["tool"] in ("read", "skill", "grep", "glob", "edit", "bash") else "other",
                "path": relative_read(corpus, c.get("state", {}).get("input", {}).get("filePath", "")) or None}
               for c in calls if c.get("state", {}).get("status") != "completed"]
-    evidence = {"checks": checks, "reads": sorted(p or "(outside)" for p in seen),
+    evidence = {"checks": checks, "reads": sorted(p or "(outside)" for p in seen), "searches": len(searches),
                 "failed_tool_calls": failed,
                 "unread_required": sorted(p for p in required if not reads.get(p))}
     return all(checks.values()), evidence
@@ -654,8 +702,13 @@ def run(op, feedback=None, format_only=False):
         prompt += ("\n\nThe operator's checks rejected your previous proposal, saved as previous-proposal.md. "
                    "Problems: " + "; ".join(feedback) + ". Read previous-proposal.md, fix every problem and return "
                    "a complete corrected proposal in the same format, including every page that should change.")
+    search = config.get("search", False)
+    extra = sorted(set(corpus_state(corpus)) - set(manifest["reads"]))
+    if search and extra:
+        # Search permission matches the pattern, not the files, so everything staged must be readable.
+        raise ValueError(f"staged corpus holds files without read grants: {', '.join(extra[:5])}")
     env = configure_worker(corpus, profile, manifest["role"], manifest["skill"], manifest["reads"],
-                           config["agent"], config["model"], config["opencode_version"], config["steps"])
+                           config["agent"], config["model"], config["opencode_version"], config["steps"], search)
     before = corpus_state(corpus)
     events, returncode, seconds = run_role(env, corpus, manifest["role"], prompt, config["timeout"])
     text = answer_text(events)
@@ -765,18 +818,34 @@ def first_link(line):
 
 
 def merge_index(text, entries, today):
-    """Add or replace catalog entries section by section; never removes other entries."""
+    """Add or replace catalog entries section by section; never removes other entries.
+
+    An entry is [section, line] or [section, line, theme]. A theme files the line
+    under a '### theme' heading inside its section. A replacement without a theme
+    keeps the existing entry's place; theme headings left empty are dropped.
+    """
     lines = text.rstrip("\n").split("\n")
     if lines and lines[0] == "---" and "---" in lines[1:]:
         for i in range(1, lines.index("---", 1)):
             if lines[i].startswith("updated: "):
                 lines[i] = f'updated: "{today}"'
-    for section_name, entry in entries:
+
+    def section_of(position):
+        return next((lines[i][3:].strip() for i in range(position, -1, -1) if lines[i].startswith("## ")), None)
+
+    for section_name, entry, *rest in entries:
+        theme = rest[0] if rest and rest[0] else None
         target = first_link(entry)
-        if target:
-            lines = [line for line in lines if not (line.startswith("- ") and first_link(line) == target)]
-        elif entry in lines:
+        if not target and entry in lines:
             continue
+        existing = [i for i, line in enumerate(lines) if target and line.startswith("- ") and first_link(line) == target]
+        if existing and theme is None and section_of(existing[0]) == section_name:
+            lines[existing[0]] = entry
+            for i in reversed(existing[1:]):
+                del lines[i]
+            continue
+        for i in reversed(existing):
+            del lines[i]
         heading = f"## {section_name}"
         if heading not in lines:
             position = lines.index("## Gaps") if "## Gaps" in lines and section_name != "Gaps" else len(lines)
@@ -787,6 +856,13 @@ def merge_index(text, entries, today):
             if re.match(r"\s*No (pages|known gaps) yet", lines[i]):
                 del lines[i]
                 end -= 1
+        if theme:
+            sub = f"### {theme}"
+            if sub not in lines[start + 1:end]:
+                lines[end:end] = ["", sub, "", entry, ""]
+                continue
+            start = lines.index(sub, start + 1)
+        end = next((i for i in range(start + 1, end) if lines[i].startswith("### ")), end)
         items = [i for i in range(start + 1, end) if lines[i].startswith("- ")]
         if items:
             lines.insert(items[-1] + 1, entry)
@@ -795,6 +871,11 @@ def merge_index(text, entries, today):
                 del lines[start + 1]
                 end -= 1
             lines[start + 1:start + 1] = ["", entry, ""]
+    for i in reversed(range(len(lines))):
+        if lines[i].startswith("### "):
+            following = next((j for j in range(i + 1, len(lines)) if lines[j].startswith("#")), len(lines))
+            if not any(line.strip() for line in lines[i + 1:following]):
+                del lines[i:following]
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).rstrip("\n") + "\n"
 
 
@@ -871,12 +952,16 @@ def normalize(manifest, proposal):
             links.append([path, entry])
     proposal["links"] = links
     index = []
-    for section_name, entry in proposal.get("index", []):
+    theme = (manifest.get("series") or {}).get("theme")
+    for section_name, entry, *rest in proposal.get("index", []):
         target = first_link(entry)
         if target and missing(target):
             fixes.append(f"dropped index entry for missing {target}")
-        else:
-            index.append([section_name, entry])
+            continue
+        if theme and section_name == "Sources" and (target or "").startswith("wiki/sources/") and rest[:1] != [theme]:
+            rest = [theme]
+            fixes.append(f"filed the index entry for {target} under the series theme")
+        index.append([section_name, entry, *rest[:1]] if rest and rest[0] else [section_name, entry])
     proposal["index"] = index
     record = (proposal.get("log") or "").strip()
     if files or links:
@@ -958,8 +1043,8 @@ def apply(op, dry_run=False):
     summary = {"operation": manifest["id"], "dry_run": dry_run, "problems": problems, "fixes": fixes,
                "files": [{"path": p, "action": "update" if manifest["wiki_preimages"].get(p) else "create"}
                          for p in sorted(proposal["files"])],
-               "index_entries": [f"{section_name}: {first_link(entry) or entry}"
-                                 for section_name, entry in proposal.get("index", [])],
+               "index_entries": [f"{item[0]}{' / ' + item[2] if len(item) > 2 else ''}: {first_link(item[1]) or item[1]}"
+                                 for item in proposal.get("index", [])],
                "links_added": [f"{path} -> {first_link(entry)}" for path, entry in proposal.get("links", [])],
                "log_record": (proposal["log"] or "").splitlines()[0] if proposal["log"] else None,
                "checker": checker and {k: checker[k] for k in ("pages", "links", "unchecked")}}
@@ -1063,10 +1148,21 @@ def series_step(vault, item, task, config_path, info, emit):
             "fixes": applied["fixes"], "checker": applied["checker"]}
 
 
-def series(vault, inputs, task, config_path=None, sources_only=True, limit=None, emit=None):
+def series_theme(vault, inputs, theme=None):
+    """The index theme for a series: the given one, else the first capture's title; None when neither is usable."""
+    if theme is None and inputs and (vault / inputs[0]).is_file():
+        theme = capture_fields(vault / inputs[0]).get("title")
+    if not isinstance(theme, str):
+        return None
+    theme = re.sub(r"\s+", " ", re.sub(r"[|\[\]#]", " ", theme)).strip()[:100]
+    return theme or None
+
+
+def series(vault, inputs, task, config_path=None, sources_only=True, limit=None, emit=None, theme=None):
     """Ingest inputs in order, one operation each; skips inputs already ingested, so reruns resume."""
     vault = Path(vault).resolve()
     config = load_config(vault, config_path)
+    theme = series_theme(vault, inputs, theme)
     emit = emit or (lambda line: print(json.dumps(line, ensure_ascii=False), flush=True))
     lock = Path(config["workdir"]) / "series.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
@@ -1087,7 +1183,7 @@ def series(vault, inputs, task, config_path=None, sources_only=True, limit=None,
             if limit is not None and counts["applied"] + counts["no change"] >= limit:
                 return {"status": "paused", "next": item, **counts}
             previous = inputs[position - 2] if position > 1 else None
-            info = {"position": position, "count": len(inputs), "sources_only": sources_only,
+            info = {"position": position, "count": len(inputs), "sources_only": sources_only, "theme": theme,
                     "previous_source": raw_sources(vault).get(previous) if previous else None}
             try:
                 line = series_step(vault, item, (task or "Ingest {input}").format(
@@ -1167,6 +1263,7 @@ def main():
     running.add_argument("--glob", help="raw/ glob added in natural order, e.g. 'raw/book-part-*.md'")
     running.add_argument("--task", help="task template; {input}, {position} and {count} are filled in")
     running.add_argument("--with-concepts", action="store_true", help="let each item create or update concepts")
+    running.add_argument("--theme", help="index theme for the items' source entries (default: the capture title)")
     running.add_argument("--limit", type=int, help="stop after this many items (rerun to continue)")
     running.add_argument("--background", action="store_true", help="run detached; check with series-status")
     running.add_argument("--config", type=Path)
@@ -1219,6 +1316,7 @@ def main():
                 command += [f"--input={item}" for item in inputs]
                 command += [f"--task={args.task}"] if args.task else []
                 command += ["--with-concepts"] if args.with_concepts else []
+                command += [f"--theme={args.theme}"] if args.theme else []
                 command += [f"--limit={args.limit}"] if args.limit else []
                 command += [f"--config={args.config}"] if args.config else []
                 with open(log, "a") as stream:
@@ -1228,7 +1326,8 @@ def main():
                 result = {"series": "started in background", "items": len(inputs), "log": str(log),
                           "check": f"python3 {Path(__file__).resolve()} series-status ."}
             else:
-                result = series(vault, inputs, args.task, args.config, not args.with_concepts, args.limit)
+                result = series(vault, inputs, args.task, args.config, not args.with_concepts, args.limit,
+                                theme=args.theme)
         elif args.command == "run":
             result = run(args.operation)
             if json.loads((args.operation / "manifest.json").read_text())["kind"] == "query":

@@ -13,7 +13,7 @@ library; `run` and `revise` need Linux and OpenCode.
 sb_operator.py capture VAULT URL | raw/<file>.pdf
 sb_operator.py pending VAULT
 sb_operator.py series VAULT (--input raw/<capture> ... | --glob 'raw/<stem>-part-*.md') [--task TEMPLATE]
-                     [--with-concepts] [--limit N] [--background]
+                     [--with-concepts] [--theme TEXT] [--limit N] [--background]
 sb_operator.py series-status VAULT
 sb_operator.py stage VAULT ingest  --url URL --task TEXT
 sb_operator.py stage VAULT ingest  --input raw/<capture> [--input ...] --task TEXT
@@ -37,7 +37,7 @@ sb_operator.py status OPERATION
 | `stage` | Writes `operation.md`, listing the exact contract, index, log, template, input and figure paths the worker may read. With `--url`, runs `capture` first and ingests the result. An ingest `--input` ending in `.pdf` is extracted first. Either way, the printed `capture` lists every part, and the operation ingests part 1. Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
 | `run` | Grants the worker exact reads on the staged files, denies every other tool, verifies the effective configuration with `opencode debug`, then runs the worker once. Saves `response.md`, `run.json` and, for ingest and compile, `proposal.json`. |
 | `revise` | Up to twice per operation: reruns the worker with feedback and its previous reply readable as `previous-proposal.md`; earlier attempts move to `attempt-N/`. A reply that could not be parsed gets a format-only revision, whose only required read is `previous-proposal.md`. Dry-run problems get a content revision, which rereads the inputs. |
-| `series` | Ingests inputs in order, one operation each. Retry policy: a reply that cannot be parsed gets one format-only `revise`; a failed run gets one fresh operation; dry-run problems get one `revise`. Items whose reply adds nothing are recorded as `no change`. Inputs already referenced by a source page are skipped, so rerunning the same command resumes. Workers are told their position, the previous item's source page, and that later items don't exist yet. Without `--with-concepts` they write source pages only. `--background` detaches and logs one JSON line per item to `WORKDIR/series-*.jsonl`. One series runs per workdir at a time. |
+| `series` | Ingests inputs in order, one operation each. Retry policy: a reply that cannot be parsed gets one format-only `revise`; a failed run gets one fresh operation; dry-run problems get one `revise`. Items whose reply adds nothing are recorded as `no change`. Inputs already referenced by a source page are skipped, so rerunning the same command resumes. Workers are told their position, the previous item's source page, and that later items don't exist yet. Without `--with-concepts` they write source pages only. Each item's Sources index entry is filed under one theme: `--theme`, or else the first capture's `title`. `--background` detaches and logs one JSON line per item to `WORKDIR/series-*.jsonl`. One series runs per workdir at a time. |
 | `series-status` | Shows the latest background series: whether it is running, the applied and no-change counts, the last item and the final result. |
 | `apply` | Validates the proposal (below), backs up every file it replaces to `backup/`, writes the pages and appends the log record, then runs the checker on the vault. If that check fails, it undoes the write. `--dry-run` validates without writing. |
 | `undo` | Restores the files an applied operation changed, and removes files it created, when each still matches what `apply` wrote. Files changed since are listed in `skipped_changed_since` and left alone. |
@@ -59,6 +59,7 @@ found problems, or `undo` skipped changed files; `2` invalid input or setup.
 | `steps` | Worker turn limit | `10` |
 | `timeout` | Seconds per worker run | `600` |
 | `auto_apply` | Whether the operator skill may apply a passing proposal without asking | `true` |
+| `search` | Whether workers may use grep and glob over their staged copy | `true` |
 
 Example: [`framework/operator.example.json`](../framework/operator.example.json).
 
@@ -70,10 +71,20 @@ Example: [`framework/operator.example.json`](../framework/operator.example.json)
 |---|---|
 | `run_completed` | The worker exited 0 with a reply |
 | `skill_loaded` | The worker loaded its designated skill with the skill tool |
-| `only_reads` | Every tool call was a read or skill call |
+| `only_reads` | Every tool call was a read or skill call, or a grep or glob when `search` is on |
+| `searches_in_scope` | Every grep or glob path, if given, stays inside the staged copy |
 | `reads_in_scope` | Every completed read was a staged file |
 | `required_full_reads` | Every line of the index, the contract and each input was read. A large file may be read in several offset/limit ranges; the reads together must show all of its lines, and none may be cut short at 2,000 characters |
 | `zero_writes` | Staged files are byte-identical afterwards |
+
+Before launching a worker with `search` on, `run` refuses a staged copy that
+holds any file without a read grant. OpenCode checks a search against its
+pattern, not the files it returns, and grep includes hidden folders, so the
+staged copy must contain only files the worker may read.
+
+An ingest worker gets a compact copy of `wiki/index.md`: headings, titles and
+paths, without descriptions or frontmatter. Compile and query workers get the
+full index. The vault's own index is never trimmed.
 
 ### Proposal format
 
@@ -83,6 +94,7 @@ complete Markdown
 <<<END FILE>>>
 <<<INDEX>>>
 Concepts | - [[wiki/concepts/<page>|Title]] — short description
+Sources | <theme> | - [[wiki/sources/<page>|Title]] — short description
 Gaps | - plain-text gap
 <<<LINKS>>>
 wiki/sources/<note>.md | - [[wiki/concepts/<page>|Title]] — how they relate
@@ -96,9 +108,12 @@ coverage review
 A reply with only `<<<NOTES>>>` is a valid no-op.
 
 - **INDEX.** Optional. Each line names a section (`Concepts`, `Entities`,
-  `Synthesis`, `Sources` or `Gaps`) and an entry. `apply` merges the entries
-  into `wiki/index.md`: an entry replaces any existing entry for the same page,
-  goes after the section's last entry, and replaces a "No pages yet" line.
+  `Synthesis`, `Sources` or `Gaps`), an optional theme, and an entry. `apply`
+  merges the entries into `wiki/index.md`. A theme files the entry under a
+  `### theme` heading in its section, created at the section's end if needed.
+  Without a theme, an entry that replaces an existing one keeps its place, and
+  a new one goes after the section's last unthemed entry. Theme headings left
+  empty are removed, and a "No pages yet" line is replaced.
   Other entries are never removed, and the index's `updated` date is set. The
   worker never returns the whole index.
 - **LINKS.** Optional. Each line names an existing page and a link entry.
@@ -225,9 +240,9 @@ PDF capture frontmatter:
 
 | Role | Skill | Access when launched by the operator |
 |---|---|---|
-| `sb-ingestor` | `second-brain-ingest` | Exact reads on the staged files, including rendered figure images; no edits, shell, search, network or delegation. Returns a proposal. |
-| `sb-researcher` | `second-brain-query` | Exact reads on the staged files; nothing else. Returns an answer ending with `Read:` and `Not covered:`. |
-| Your primary agent | `second-brain-operator` | Its own permissions; it needs shell access to run the CLI. |
+| `sb-ingestor` | `second-brain-ingest` | Exact reads on the staged files, including rendered figure images, plus grep and glob inside the staged copy; no edits, shell, network or delegation. Returns a proposal. |
+| `sb-researcher` | `second-brain-query` | Exact reads plus grep and glob inside the staged copy; nothing else. Returns an answer ending with `Read:` and `Not covered:`. |
+| Your primary agent | `second-brain-operator` | The vault's `opencode.json` ([installation step 2](installation.md#2-configure-the-operator)): reads `wiki/` and `raw/`, runs the operator CLI, never edits managed folders. |
 
 The role files deny every tool on their own. Selecting them in an ordinary
 OpenCode session without the operator gives them no file access.

@@ -7,12 +7,15 @@ description: Use when the owner gives a URL or a raw/ file to add to the second 
 
 You orchestrate; the workers do the reading and writing proposals. The
 `sb-ingestor` and `sb-researcher` roles run in a staged copy of the wiki with
-exact read grants and no other tools. Only the operator CLI's `apply` step
-writes to the vault, only under `wiki/`, after mechanical checks. The workers
-follow `.opencode/instructions/second-brain/wiki-contract.md`; you don't need to
-read it. Don't search for or read other files. Everything you need is in the
-operator config and the CLI's output. In an unattended run, a denied or
-unapproved access ends the session.
+exact read grants, search inside that copy, and no other tools. Only the
+operator CLI's `apply` step writes to the vault, only under `wiki/`, after
+mechanical checks. The workers follow
+`.opencode/instructions/second-brain/wiki-contract.md`; you don't need to read
+it. You may read pages under `wiki/` and captures under `raw/` to check a
+result. Don't search the vault or read other files: to find something in the
+wiki, ask the researcher, which searches its staged copy. Everything else you
+need is in the operator config and the CLI's output. In an unattended run, a
+denied or unapproved access ends the session.
 
 ## Setup you rely on
 
@@ -24,8 +27,8 @@ Read `.opencode/second-brain/operator.json` in the vault. It names:
 
 Run every command from the vault root as `python3 <cli> ...`. If the config or
 CLI is missing, or a command is denied access to the CLI or its workdir, stop
-and tell the owner. The fix is an `external_directory` permission in the
-vault's `opencode.json`. Do not improvise the steps by hand.
+and tell the owner. The fix is the agent permissions in the vault's
+`opencode.json` (see the installation guide). Do not improvise the steps by hand.
 
 ## Ingest a capture or compile concepts
 
@@ -107,7 +110,9 @@ on a real failure. Never write your own loop around `stage`/`run`/`apply`.
 4. To resume after a stop or an interruption, run the same `series` command
    again. Already-ingested items are skipped.
 
-A series writes source pages only and links each part to the previous one.
+A series writes source pages only, links each part to the previous one, and
+files the parts' index entries under the document's title. Add
+`--theme "<title>"` when the capture's title is missing or unhelpful.
 After it completes, offer to compile the document's key concepts by topic.
 
 ## Catch up on new captures

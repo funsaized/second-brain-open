@@ -1,0 +1,37 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "YOUR_PRIMARY_AGENT": {
+      "permission": {
+        "read": {
+          "*": "ask",
+          "wiki/**": "allow",
+          "raw/**": "allow",
+          ".opencode/**": "deny",
+          ".opencode/second-brain/operator.json": "allow",
+          ".obsidian/**": "deny"
+        },
+        "grep": "ask",
+        "glob": "ask",
+        "edit": {
+          "*": "ask",
+          "wiki/**": "deny",
+          "raw/**": "deny",
+          "templates/**": "deny",
+          ".opencode/**": "deny",
+          ".obsidian/**": "deny",
+          "opencode.json": "deny"
+        },
+        "bash": {
+          "*": "ask",
+          "python3 /path/to/second-brain-open/scripts/sb_operator.py *": "allow",
+          "sleep *": "allow"
+        },
+        "external_directory": {
+          "/path/to/second-brain-open/scripts/*": "allow",
+          "/path/outside/the/vault/sb-operations/*": "allow"
+        }
+      }
+    }
+  }
+}

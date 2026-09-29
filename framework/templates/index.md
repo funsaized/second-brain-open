@@ -9,7 +9,7 @@ tags: []
 
 # Index
 
-<!-- Catalog actual pages only, with short descriptions. Resolve dates to ISO YYYY-MM-DD; update this page in the same approved operation as page changes. Use vault-relative extensionless wikilinks with display labels. Remove these instructions when populating. -->
+<!-- Catalog actual pages only, with short descriptions. Group related entries within a section under "### Theme" headings (for example, one per multi-part document). Resolve dates to ISO YYYY-MM-DD; update this page in the same approved operation as page changes. Use vault-relative extensionless wikilinks with display labels. Remove these instructions when populating. -->
 
 ## Concepts
 

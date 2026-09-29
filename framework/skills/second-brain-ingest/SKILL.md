@@ -21,9 +21,15 @@ templates (`templates/<type>.md`, not under `wiki/`), inputs and figures. Read
 by those relative paths. If a read is denied, you used a path it does not list:
 use the listed one instead of stopping. If an input is
 truncated, unreadable or too long to read completely, stop: return only NOTES
-explaining what is missing. Do not summarize from a partial read. Open the
-existing pages the index points to when they may overlap the inputs. The index
-is your map; do not claim the wiki has no related page unless the index says so.
+explaining what is missing. Do not summarize from a partial read.
+
+Check what already exists before writing. The index is your map; for an ingest
+it may be a compact copy with titles and paths only. When the manifest says
+search is available, also grep the staged pages for the input's main concepts,
+entities and distinctive terms. Open the existing pages that may overlap the
+inputs and read them completely before relying on them: a search hit is a lead,
+not evidence. Do not claim the wiki has no related page unless the index and a
+search both say so.
 
 A repeated, unchanged input whose pages, index entries and log record already
 exist is a no-op: return only NOTES saying so. A revised capture gets distinct
@@ -69,7 +75,7 @@ without the conditions it holds under.
 
 **Compile** (inputs are existing source notes, or a topic with no inputs):
 build concept, entity or synthesis pages that connect those notes. For a topic,
-pick the most relevant pages from the index (usually three to eight source
+pick the most relevant pages from the index and a search (usually three to eight source
 notes plus any concept pages on the topic) and read those completely. You don't
 need to read every related page; list the ones you left out in NOTES. Link each material claim to the
 source note that supports it, with its locator, and add the reciprocal link on
@@ -91,6 +97,10 @@ For every page:
 - Check actual pages for filename collisions; keep existing filenames.
 - Give every new page, and every page whose description changes, an INDEX
   entry under the right section. Put missing coverage in Gaps as plain text.
+- Group related entries under a theme inside their section: the parts or
+  chapters of one document under its title, or pages on one topic once a
+  section grows long. An entry without a theme keeps its current place, so
+  give a theme only for new entries or to move one.
 - To add links to an existing page (typically reciprocal back-links on source
   notes), give LINKS lines rather than returning the page. When you do rewrite
   an existing page with a FILE, return all of it: every existing section, claim
@@ -119,9 +129,11 @@ line per catalog entry, then `<<<LINKS>>>` with one line per link to add to an
 existing page, then `<<<LOG>>>` with one log record, then `<<<NOTES>>>`. A LINKS
 line is `wiki/<folder>/<page>.md | - [[wiki/<folder>/<target>|Title]] — relation`.
 The operator appends it to that page's Links section. An INDEX line is
-`<Concepts|Entities|Synthesis|Sources|Gaps> | - [[wiki/<folder>/<page>|Title]] — description`.
-The operator merges it into `wiki/index.md`, replacing any entry for the same
-page, so never return the index itself. The log record's heading is `## YYYY-MM-DD — operation — partial`
+`<Concepts|Entities|Synthesis|Sources|Gaps> | - [[wiki/<folder>/<page>|Title]] — description`,
+or `<Section> | <theme> | - [[...]] — description` to file it under a
+`### <theme>` heading in that section. The operator merges it into
+`wiki/index.md`, replacing any entry for the same page, so never return the
+index itself. The log record's heading is `## YYYY-MM-DD — operation — partial`
 followed by bullets for source identity, changed paths, contradictions, gaps and
 pending verification. Never propose `wiki/index.md` or `wiki/log.md` as a
 FILE, and never propose paths outside `wiki/`.

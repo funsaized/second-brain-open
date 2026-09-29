@@ -38,7 +38,7 @@ local changes deliberately. Never copy directories wholesale.
 | `framework/skills/second-brain-query/SKILL.md` | `.opencode/skills/second-brain-query/SKILL.md` | Sourced-answer procedure |
 | `framework/skills/second-brain-operator/SKILL.md` | `.opencode/skills/second-brain-operator/SKILL.md` | Operator procedure for your primary agent |
 | `framework/operator.example.json` | `.opencode/second-brain/operator.json` | Operator settings; edit after copying |
-| — | `opencode.json` (vault root) | Operator path permission; see step 2 |
+| `framework/vault-opencode.example.json` | merged into `opencode.json` (vault root) | Primary-agent permissions; see step 2 |
 | `LICENSE`, `THIRD_PARTY_NOTICES.md` | `.opencode/second-brain/` | Notices |
 
 The scripts stay in this checkout; the operator config points to them. Don't
@@ -61,10 +61,10 @@ Edit `.opencode/second-brain/operator.json`:
 
 Other keys are in the [config reference](reference.md#operator-config).
 
-Then let your primary agent reach those two paths. Both are outside the vault,
-so OpenCode asks before each use. In the TUI you can answer "always" once. For
-runs without anyone watching, add this to the vault's `opencode.json`, creating
-it if needed:
+Then give your primary agent its permissions in this vault. Merge
+[`framework/vault-opencode.example.json`](../framework/vault-opencode.example.json)
+into the vault's `opencode.json`, creating it if needed, with your agent's name
+and the two paths filled in:
 
 ```json
 {
@@ -72,6 +72,30 @@ it if needed:
   "agent": {
     "YOUR_PRIMARY_AGENT": {
       "permission": {
+        "read": {
+          "*": "ask",
+          "wiki/**": "allow",
+          "raw/**": "allow",
+          ".opencode/**": "deny",
+          ".opencode/second-brain/operator.json": "allow",
+          ".obsidian/**": "deny"
+        },
+        "grep": "ask",
+        "glob": "ask",
+        "edit": {
+          "*": "ask",
+          "wiki/**": "deny",
+          "raw/**": "deny",
+          "templates/**": "deny",
+          ".opencode/**": "deny",
+          ".obsidian/**": "deny",
+          "opencode.json": "deny"
+        },
+        "bash": {
+          "*": "ask",
+          "python3 /path/to/second-brain-open/scripts/sb_operator.py *": "allow",
+          "sleep *": "allow"
+        },
         "external_directory": {
           "/path/to/second-brain-open/scripts/*": "allow",
           "/path/outside/the/vault/sb-operations/*": "allow"
@@ -82,8 +106,24 @@ it if needed:
 }
 ```
 
-This changes only that agent's access to these two directories, and only in
-this vault. The worker roles never read the vault's `opencode.json`: the
+The last matching rule wins, so each folder rule overrides its `*` line. Paths
+are relative to the vault. What each part does:
+
+- **read:** the agent can open wiki pages and captures to check a result, and
+  the operator config. Other files ask; `.obsidian` (plugin data can hold
+  tokens) and the rest of `.opencode` are denied.
+- **grep, glob:** ask. OpenCode checks a search's pattern, not the files it
+  returns, and grep includes hidden folders, so a search at the vault root can
+  reach `.obsidian`. Workers search their staged copy instead, which holds
+  only readable files.
+- **edit:** the operator CLI is the only writer of `wiki/`, `raw/` and the
+  installed machinery, so the agent can't edit them. Other files ask.
+- **bash:** the CLI and the skill's `sleep` between progress checks run
+  without asking; any other command asks.
+- **external_directory:** the CLI and the workdir are outside the vault.
+
+An unattended run ends at the first "ask", so the operator skill uses only the
+allowed actions. This changes only that agent, and only in this vault. The worker roles never read the vault's `opencode.json`: the
 operator launches them with project config disabled.
 
 ## 3. Set up the vault's index and log
