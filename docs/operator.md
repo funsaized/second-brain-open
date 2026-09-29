@@ -78,6 +78,32 @@ listed as not rendered. An extraction that fails the quality check is refused wi
 reason. In that case, export the text another way (for example, Zotero's
 Markdown export) into `raw/` and ingest that file.
 
+## Ingest a whole book or long document
+
+Long PDFs and pages are split into parts. Ask for all of them:
+
+> Use the second-brain-operator skill to ingest all parts of raw/2026-09-29-book.pdf in order.
+
+The operator extracts the parts if needed, then runs a **series** in the
+background, one operation per part:
+- A reply the parser can't read gets one formatting retry.
+- A failed run gets one fresh attempt.
+- Failed checks get one revision.
+
+Each part becomes a source page linked to the previous part. Concept pages
+are compiled after the series, so the same concept isn't rewritten for every
+part. A part with nothing reusable, such as front matter, is recorded and
+skipped. The operator checks progress every few minutes and reports when the
+series finishes or stops.
+
+To resume after a stop, ask again ("continue ingesting the book"): parts
+that are already ingested are skipped. From a terminal:
+
+```sh
+python3 "$CLI" series . --glob 'raw/2026-09-29-book-part-*.md' --background
+python3 "$CLI" series-status .
+```
+
 ## Ingest a file you saved
 
 Save the source into `raw/` (clipped article, extracted PDF text, a converted

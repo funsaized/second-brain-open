@@ -10,8 +10,11 @@ content rules pages must follow, see the
 library; `run` and `revise` need Linux and OpenCode.
 
 ```text
-sb_operator.py capture VAULT URL
+sb_operator.py capture VAULT URL | raw/<file>.pdf
 sb_operator.py pending VAULT
+sb_operator.py series VAULT (--input raw/<capture> ... | --glob 'raw/<stem>-part-*.md') [--task TEMPLATE]
+                     [--with-concepts] [--limit N] [--background]
+sb_operator.py series-status VAULT
 sb_operator.py stage VAULT ingest  --url URL --task TEXT
 sb_operator.py stage VAULT ingest  --input raw/<capture> [--input ...] --task TEXT
 sb_operator.py stage VAULT compile --task TEXT                      # worker picks notes from the index
@@ -33,7 +36,9 @@ sb_operator.py status OPERATION
 | `pending` | Lists `.md`, `.txt` and `.html` files under `raw/` that no source page's `raw` field references, plus PDFs no capture's `source_pdf` names, oldest first. Skips `raw/assets/`, hidden files, and subfolders where any file is already referenced (multi-file captures). |
 | `stage` | Writes `operation.md`, listing the exact contract, index, log, template, input and figure paths the worker may read. With `--url`, runs `capture` first and ingests the result. An ingest `--input` ending in `.pdf` is extracted first. Either way, the printed `capture` lists every part, and the operation ingests part 1. Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
 | `run` | Grants the worker exact reads on the staged files, denies every other tool, verifies the effective configuration with `opencode debug`, then runs the worker once. Saves `response.md`, `run.json` and, for ingest and compile, `proposal.json`. |
-| `revise` | Once per operation: reruns the worker with the dry-run problems as feedback and its previous reply readable as `previous-proposal.md`. The first attempt moves to `attempt-1/`. |
+| `revise` | Up to twice per operation: reruns the worker with feedback and its previous reply readable as `previous-proposal.md`; earlier attempts move to `attempt-N/`. A reply that could not be parsed gets a format-only revision, whose only required read is `previous-proposal.md`. Dry-run problems get a content revision, which rereads the inputs. |
+| `series` | Ingests inputs in order, one operation each. Retry policy: a reply that cannot be parsed gets one format-only `revise`; a failed run gets one fresh operation; dry-run problems get one `revise`. Items whose reply adds nothing are recorded as `no change`. Inputs already referenced by a source page are skipped, so rerunning the same command resumes. Workers are told their position, the previous item's source page, and that later items don't exist yet. Without `--with-concepts` they write source pages only. `--background` detaches and logs one JSON line per item to `WORKDIR/series-*.jsonl`. One series runs per workdir at a time. |
+| `series-status` | Shows the latest background series: whether it is running, the applied and no-change counts, the last item and the final result. |
 | `apply` | Validates the proposal (below), backs up every file it replaces to `backup/`, writes the pages and appends the log record, then runs the checker on the vault. If that check fails, it undoes the write. `--dry-run` validates without writing. |
 | `undo` | Restores the files an applied operation changed, and removes files it created, when each still matches what `apply` wrote. Files changed since are listed in `skipped_changed_since` and left alone. |
 | `status` | Shows the operation's kind, task, inputs and completed stages. |
@@ -102,8 +107,23 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
   has are skipped, and the page's `updated` date is set. This is how
   back-links reach long notes without the worker retyping them. A page may be
   rewritten with FILE or patched with LINKS, not both.
-- **Markers.** A final closing marker line on a section (any `<<<…>>>`) is
-  ignored. Any other marker line inside a page or the log record is an error.
+- **Tolerance.** Text outside sections, repeated section markers, missing
+  or mismatched closing markers, a missing NOTES section and an outer code
+  fence are all ignored. Malformed INDEX or LINKS lines are skipped and
+  reported under `parse_warnings`. Only a reply with no markers, or a FILE
+  marker without a path, fails to parse.
+
+### Repairs before checking
+
+`apply` repairs these mechanically and lists every repair under `fixes`:
+
+- A LINKS entry for a page that is also rewritten is merged into the rewrite.
+- A wikilink to a page that doesn't exist becomes its plain label. Code blocks
+  are left alone.
+- INDEX and LINKS entries that point at missing pages are dropped.
+- A missing log record is written from the changed paths. A record without a
+  proper heading gets one, and a record claiming a status other than
+  `partial` is set to `partial`.
 
 ### Apply checks
 

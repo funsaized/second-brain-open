@@ -106,7 +106,10 @@ influence what a worker proposes, but a proposal only reaches the vault after
 - no updated page loses its existing links
 - the managed checker passes on the result
 
-Every applied operation keeps backups for `undo`. The staged copy also keeps
+Formatting slips and links to pages that don't exist yet are repaired
+mechanically, and each repair is reported. Anything that changes what a page
+claims goes back to the worker or stops. Every applied operation keeps backups
+for `undo`. The staged copy also keeps
 the vault's `AGENTS.md`, which holds your personal instructions, out of the
 workers' provider context.
 

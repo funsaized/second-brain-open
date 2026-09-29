@@ -37,6 +37,9 @@
   runs without `--print-logs`, once while another session of yours was active.
   Next: reproduce it and add a startup timeout to the operator skill's
   guidance.
+- **Long-document ingest (2026-09-29):** made reliable with the tolerant
+  parser, format-only revise, mechanical repairs, and a resumable,
+  backgroundable `series` command.
 - **Suggested next step:** A1. Compile the first concept pages in the
   deployment with the operator, then rerun the A2 evaluation.
 

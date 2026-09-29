@@ -322,7 +322,7 @@ def pending(vault):
     return [relative for _, relative in sorted(found)]
 
 
-def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=None):
+def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=None, series=None):
     vault = Path(vault).resolve()
     captured = None
     if url is not None:
@@ -403,7 +403,7 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
     manifest = {"id": op.name, "kind": kind, "role": role, "skill": skill, "vault": str(vault), "date": today,
                 "task": task, "inputs": inputs, "input_sha256": {i: file_hash(vault / i) for i in inputs},
                 "wiki_preimages": state, "reads": sorted(copies) + ["operation.md"], "origin": origin,
-                "figures": figures, "input_parts": input_parts,
+                "figures": figures, "input_parts": input_parts, "series": series,
                 "config": {k: config[k] for k in sorted(config)},
                 "capture": captured}
     (corpus / "operation.md").write_text(
@@ -468,6 +468,15 @@ def worker_prompt(manifest, corpus):
                "and build concept, entity or synthesis pages from them with reciprocal links on the notes you "
                "draw from. You do not need to read every related page; name the ones you left out in NOTES. "))
     reading = (f"Read these inputs completely before proposing: {inputs}. " if manifest["inputs"] else "")
+    series = manifest.get("series")
+    if series:
+        reading += (f"This is item {series['position']} of {series['count']} in an ordered series. "
+                    + (f"The previous item's source page is {series['previous_source']}; link it as the previous part. "
+                       if series.get("previous_source") else "")
+                    + "Later items have not been ingested yet: never link to them. "
+                    + ("Write only this item's source page and its index entry; do not create or update concept, "
+                       "entity or synthesis pages, which are compiled after the series. "
+                       if series.get("sources_only") else ""))
     return head + source + (
         f"Task: {manifest['task']} {reading}Readable files, by "
         f"exact path only (directory listings are not available): every page the index links, wiki/log.md, "
@@ -501,62 +510,85 @@ def section(text, name):
     return "\n".join(lines).strip()
 
 
+MARKER = re.compile(r"^\s*<<<\s*(END\s+)?(FILE|INDEX|LINKS|LOG|NOTES)(?:\s+([^>]*?))?\s*>>>\s*$")
+
+
 def parse_proposal(text):
-    files, end = {}, 0
-    for match in FILE_BLOCK.finditer(text):
-        name, body = match.group(1).strip(), match.group(2)
-        if text[end:match.start()].strip() or name in files or re.search(r"(?m)^<<<", body):
-            raise ValueError("unexpected text, marker or duplicate FILE block in proposal")
-        files[name] = body
-        end = match.end()
-    rest = text[end:].strip()
+    """Read a worker reply as marked sections, tolerating formatting noise.
+
+    Prose outside sections, repeated section markers and missing closing
+    markers are ignored; malformed INDEX/LINKS lines are skipped with a warning.
+    Only a reply without any proposal marker, or a FILE without a path, fails.
+    """
+    lines = text.strip().splitlines()
+    if len(lines) > 1 and lines[0].startswith("```") and lines[-1].strip().startswith("```"):
+        lines = lines[1:-1]
+    files, sections, warnings = {}, {"INDEX": [], "LINKS": [], "LOG": [], "NOTES": []}, []
+    current, path, buffer, seen, ignored = None, None, [], False, 0
+
+    def close_file():
+        nonlocal path, buffer
+        if path is not None:
+            if path in files:
+                warnings.append(f"duplicate FILE {path}: the last one is used")
+            files[path] = "\n".join(buffer).strip("\n") + "\n"
+        path, buffer = None, []
+
+    for line in lines:
+        match = MARKER.match(line)
+        if not match:
+            if current == "FILE":
+                buffer.append(line)
+            elif current:
+                sections[current].append(line)
+            elif line.strip():
+                ignored += 1
+            continue
+        seen = True
+        closing, kind, argument = bool(match.group(1)), match.group(2), (match.group(3) or "").strip()
+        if current == "FILE":
+            close_file()
+        if closing:
+            current = None
+        elif kind == "FILE":
+            if not argument:
+                raise ValueError("FILE marker without a path")
+            current, path, buffer = "FILE", argument, []
+        else:
+            current = kind
+    if current == "FILE":
+        close_file()
+    if not seen:
+        raise ValueError("the reply contains no proposal markers")
+    if ignored:
+        warnings.append(f"ignored {ignored} line(s) of text outside sections")
     index = []
-    if rest.startswith("<<<INDEX>>>"):
-        after = "<<<LINKS>>>" if "<<<LINKS>>>" in rest else "<<<LOG>>>"
-        block, found, rest = rest.removeprefix("<<<INDEX>>>").partition(after)
-        if not found:
-            raise ValueError("proposal INDEX section must be followed by LINKS or LOG")
-        rest = after + rest
-        for line in section(block, "INDEX").splitlines():
-            if not line.strip():
-                continue
-            match = re.fullmatch(r"\s*(\w+)\s*\|\s*(.+?)\s*", line)
-            if not match or match.group(1) not in INDEX_SECTIONS:
-                raise ValueError(f"INDEX lines must be '<section> | <entry>': {line[:60]}")
-            entry = match.group(2) if match.group(2).startswith("- ") else "- " + match.group(2)
-            index.append([match.group(1), entry])
+    for line in sections["INDEX"]:
+        if not line.strip():
+            continue
+        match = re.fullmatch(r"\s*(?:[-*]\s*)?(\w+)\s*\|\s*(.+?)\s*", line)
+        name = match.group(1).capitalize() if match else None
+        if name not in INDEX_SECTIONS:
+            warnings.append(f"skipped INDEX line: {line.strip()[:60]}")
+            continue
+        entry = match.group(2) if match.group(2).startswith("- ") else "- " + match.group(2)
+        index.append([name, entry])
     links = []
-    if rest.startswith("<<<LINKS>>>"):
-        block, found, rest = rest.removeprefix("<<<LINKS>>>").partition("<<<LOG>>>")
-        if not found:
-            raise ValueError("proposal LINKS section must be followed by LOG")
-        rest = "<<<LOG>>>" + rest
-        for line in section(block, "LINKS").splitlines():
-            if not line.strip():
-                continue
-            match = re.fullmatch(r"\s*(wiki/\S+\.md)\s*\|\s*(.+?)\s*", line)
-            if not match or not first_link(match.group(2)):
-                raise ValueError(f"LINKS lines must be '<page path> | <entry with a [[link]]>': {line[:60]}")
-            entry = match.group(2) if match.group(2).startswith("- ") else "- " + match.group(2)
-            links.append([match.group(1), entry])
-    log, notes = None, rest
-    if rest.startswith("<<<LOG>>>"):
-        log, found, notes = rest.removeprefix("<<<LOG>>>").partition("<<<NOTES>>>")
-        if not found:
-            raise ValueError("proposal LOG section must be followed by NOTES")
-        log = section(log, "LOG")
-        if re.search(r"(?m)^<<<", log):
-            raise ValueError("stray marker inside the LOG record")
-    elif rest.startswith("<<<NOTES>>>"):
-        notes = rest.removeprefix("<<<NOTES>>>")
-    else:
-        raise ValueError("proposal must end with LOG and NOTES (or NOTES only)")
-    if (files or links) and not log:
-        raise ValueError("a proposal with changes needs a LOG record")
-    return {"files": files, "index": index, "links": links, "log": log, "notes": section(notes, "NOTES")}
+    for line in sections["LINKS"]:
+        if not line.strip():
+            continue
+        match = re.fullmatch(r"\s*(?:[-*]\s*)?`?(wiki/\S+?\.md)`?\s*\|\s*(.+?)\s*", line)
+        if not match or not first_link(match.group(2)):
+            warnings.append(f"skipped LINKS line: {line.strip()[:60]}")
+            continue
+        entry = match.group(2) if match.group(2).startswith("- ") else "- " + match.group(2)
+        links.append([match.group(1), entry])
+    log = "\n".join(sections["LOG"]).strip() or None
+    return {"files": files, "index": index, "links": links, "log": log,
+            "notes": "\n".join(sections["NOTES"]).strip(), "warnings": warnings}
 
 
-def verify_events(manifest, corpus, events, returncode, before, after):
+def verify_events(manifest, corpus, events, returncode, before, after, required=None):
     """Worker evidence: designated skill, only complete in-scope reads, no writes."""
     calls = tool_calls(events)
     reads = {}
@@ -565,7 +597,7 @@ def verify_events(manifest, corpus, events, returncode, before, after):
         if call["tool"] == "read" and state.get("status") == "completed":
             path = relative_read(corpus, state.get("input", {}).get("filePath", ""))
             reads[path] = reads.get(path, False) or full_read(state)
-    required = {"wiki/index.md", CONTRACT, *manifest["inputs"]}
+    required = required or {"wiki/index.md", CONTRACT, *manifest["inputs"]}
     checks = {
         "run_completed": returncode == 0 and bool(answer_text(events)),
         "skill_loaded": any(c["tool"] == "skill" and c.get("state", {}).get("status") == "completed"
@@ -584,14 +616,18 @@ def verify_events(manifest, corpus, events, returncode, before, after):
     return all(checks.values()), evidence
 
 
-def run(op, feedback=None):
+def run(op, feedback=None, format_only=False):
     op = Path(op)
     manifest = json.loads((op / "manifest.json").read_text())
     if (op / "run.json").exists() and feedback is None:
         raise ValueError("operation already ran; use revise or stage a new one")
     corpus, profile, config = op / "corpus", op / "profile", manifest["config"]
     prompt = worker_prompt(manifest, corpus)
-    if feedback is not None:
+    if feedback is not None and format_only:
+        prompt += ("\n\nYour previous reply, saved as previous-proposal.md, could not be read: " + "; ".join(feedback)
+                   + ". You already read the inputs completely for it. Read previous-proposal.md and return the same "
+                   "content in exactly the reply format above: FILE blocks, then INDEX, LINKS, LOG and NOTES sections.")
+    elif feedback is not None:
         prompt += ("\n\nThe operator's checks rejected your previous proposal, saved as previous-proposal.md. "
                    "Problems: " + "; ".join(feedback) + ". Read previous-proposal.md, fix every problem and return "
                    "a complete corrected proposal in the same format, including every page that should change.")
@@ -602,39 +638,54 @@ def run(op, feedback=None):
     text = answer_text(events)
     (op / "response.md").write_text(text + "\n")
     (op / "response.md").chmod(0o600)
-    passed, evidence = verify_events(manifest, corpus, events, returncode, before, corpus_state(corpus))
+    passed, evidence = verify_events(manifest, corpus, events, returncode, before, corpus_state(corpus),
+                                     required={"previous-proposal.md"} if format_only else None)
     result = {"passed": passed, "seconds": seconds, **evidence}
     if passed and manifest["kind"] != "query":
         try:
             proposal = parse_proposal(text)
             write_json(op / "proposal.json", proposal)
             result["proposed_files"] = sorted(proposal["files"])
+            result["proposed_links"] = len(proposal["links"])
+            if proposal["warnings"]:
+                result["parse_warnings"] = proposal["warnings"]
         except ValueError as error:
             result.update(passed=False, proposal_error=str(error))
     write_json(op / "run.json", result)
     return result
 
 
+MAX_REVISIONS = 2
+
+
 def revise(op):
-    """One worker retry with the dry-run problems as feedback; earlier attempt archived."""
+    """Rerun the worker with feedback: parse errors (format only) or dry-run problems; at most twice."""
     op = Path(op)
     manifest = json.loads((op / "manifest.json").read_text())
-    if manifest["kind"] == "query" or (op / "receipt.json").exists() or not (op / "proposal.json").exists():
-        raise ValueError("revise needs an unapplied ingest or compile proposal")
-    if (op / "attempt-1").exists():
-        raise ValueError("already revised once; stage a new operation")
-    problems = apply(op, dry_run=True)["problems"]
-    if not problems:
-        raise ValueError("the proposal already passes; apply it")
-    archive = op / "attempt-1"
+    if manifest["kind"] == "query" or (op / "receipt.json").exists():
+        raise ValueError("revise needs an unapplied ingest or compile operation")
+    attempts = len(list(op.glob("attempt-*")))
+    if attempts >= MAX_REVISIONS:
+        raise ValueError(f"already revised {attempts} times; stage a new operation")
+    previous = json.loads((op / "run.json").read_text()) if (op / "run.json").exists() else {}
+    if (op / "proposal.json").exists():
+        problems, format_only = apply(op, dry_run=True)["problems"], False
+        if not problems:
+            raise ValueError("the proposal already passes; apply it")
+    elif previous.get("proposal_error"):
+        problems, format_only = [previous["proposal_error"]], True
+    else:
+        raise ValueError("revise needs a proposal, or a reply that could not be parsed")
+    archive = op / f"attempt-{attempts + 1}"
     archive.mkdir(mode=0o700)
     for name in ("run.json", "proposal.json", "response.md"):
-        os.replace(op / name, archive / name)
+        if (op / name).exists():
+            os.replace(op / name, archive / name)
     corpus = op / "corpus"
     shutil.copy2(archive / "response.md", corpus / "previous-proposal.md")
     manifest["reads"] = sorted({*manifest["reads"], "previous-proposal.md"})
     write_json(op / "manifest.json", manifest)
-    result = run(op, feedback=problems)
+    result = run(op, feedback=problems, format_only=format_only)
     result["feedback"] = problems
     return result
 
@@ -747,6 +798,82 @@ def add_links(text, entries, today):
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).rstrip("\n") + "\n"
 
 
+WIKILINK = re.compile(r"(?<!!)\[\[([^\]|#]+)(#[^\]|]*)?(?:\|([^\]]+))?\]\]")
+
+
+def normalize(manifest, proposal):
+    """Deterministic repairs before checking; every repair is reported, nothing else changes.
+
+    Links for a page that is also rewritten are merged into the rewrite; links to
+    pages that do not exist become plain text (outside code); INDEX and LINKS
+    entries pointing at missing pages are dropped; a missing or mis-headed log
+    record gets an operator heading with status partial.
+    """
+    proposal = json.loads(json.dumps(proposal))
+    files, fixes = proposal["files"], []
+    kept = []
+    for path, entry in proposal.get("links", []):
+        if path in files:
+            files[path] = add_links(files[path], [entry], manifest["date"])
+            fixes.append(f"merged link to {first_link(entry)} into rewritten {path}")
+        else:
+            kept.append([path, entry])
+    existing = {key[:-3] for key in manifest["wiki_preimages"]} | {key[:-3] for key in files if key.endswith(".md")}
+
+    def missing(target):
+        return target.startswith("wiki/") and target not in existing and target not in ("wiki/index", "wiki/log")
+
+    for path, body in files.items():
+        out, fence = [], None
+        for line in body.split("\n"):
+            marker = re.match(r"^\s{0,3}(`{3,}|~{3,})", line)
+            if marker and (fence is None or marker.group(1)[0] == fence[0]):
+                fence = None if fence else marker.group(1)
+            elif fence is None:
+                def unlink(match):
+                    target = match.group(1).strip()
+                    if not missing(target):
+                        return match.group(0)
+                    fixes.append(f"unlinked missing {target} in {path}")
+                    return match.group(3) or target.rsplit("/", 1)[-1]
+                line = WIKILINK.sub(unlink, line)
+            out.append(line)
+        files[path] = "\n".join(out)
+    links = []
+    for path, entry in kept:
+        target = first_link(entry)
+        if path[:-3] not in existing or missing(target):
+            fixes.append(f"dropped link {path} -> {target} (missing page)")
+        else:
+            links.append([path, entry])
+    proposal["links"] = links
+    index = []
+    for section_name, entry in proposal.get("index", []):
+        target = first_link(entry)
+        if target and missing(target):
+            fixes.append(f"dropped index entry for missing {target}")
+        else:
+            index.append([section_name, entry])
+    proposal["index"] = index
+    record = (proposal.get("log") or "").strip()
+    if files or links:
+        heading = f"## {manifest['date']} — {manifest['kind']} {', '.join(manifest['inputs']) or manifest['task'][:60]} — partial"
+        first = record.splitlines()[0].strip() if record else ""
+        match = re.fullmatch(r"## (\d{4}-\d{2}-\d{2}) — (.+) — (\w+)", first)
+        if not record:
+            record = heading + "\n- Changed paths: " + ", ".join(sorted({*files, *(p for p, _ in links)})) + "."
+            fixes.append("added the missing log record")
+        elif not match:
+            record = heading + "\n" + "\n".join(line for line in record.splitlines()
+                                                 if not line.lstrip().startswith("#"))
+            fixes.append("gave the log record an operator heading")
+        elif match.group(3) != "partial":
+            record = f"## {match.group(1)} — {match.group(2)} — partial" + record[len(first):]
+            fixes.append("set the log record status to partial")
+        proposal["log"] = record
+    return proposal, fixes
+
+
 def changes_for(manifest, proposal):
     """Every file the proposal writes: pages, the merged index and the appended log."""
     vault = Path(manifest["vault"])
@@ -798,14 +925,14 @@ def apply(op, dry_run=False):
         raise ValueError("the worker run did not pass verification")
     if (op / "receipt.json").exists():
         raise ValueError("operation already applied")
-    proposal = json.loads((op / "proposal.json").read_text())
+    proposal, fixes = normalize(manifest, json.loads((op / "proposal.json").read_text()))
     vault = Path(manifest["vault"])
     problems = check_proposal(manifest, proposal)
     checker = None if problems else candidate_check(manifest, proposal)
     if checker and checker["errors"]:
         problems += [f"checker: {d['kind']} {d['page']} {d.get('target') or d.get('detail', '')}".strip()
                      for d in checker["errors"]]
-    summary = {"operation": manifest["id"], "dry_run": dry_run, "problems": problems,
+    summary = {"operation": manifest["id"], "dry_run": dry_run, "problems": problems, "fixes": fixes,
                "files": [{"path": p, "action": "update" if manifest["wiki_preimages"].get(p) else "create"}
                          for p in sorted(proposal["files"])],
                "index_entries": [f"{section_name}: {first_link(entry) or entry}"
@@ -858,6 +985,130 @@ def undo(op):
     return {"restored": sorted(restored), "skipped_changed_since": sorted(skipped)}
 
 
+def natural_key(text):
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", text)]
+
+
+def raw_sources(vault):
+    """{raw path: source page} for every adopted source page."""
+    pages, _ = link_check.collect(vault)
+    return {page["metadata"].get("raw"): key for key, page in pages.items()
+            if key.startswith("wiki/sources/") and isinstance(page["metadata"].get("raw"), str)}
+
+
+def series_step(vault, item, task, config_path, info, emit):
+    """Stage, run, repair and apply one item with the fixed retry policy; returns its result line."""
+    line = {"input": item, "position": info["position"], "count": info["count"], "retries": []}
+    op = None
+    for attempt in (1, 2):
+        op = stage(vault, "ingest", [item], task, config_path, series=info)
+        result = run(op)
+        if not result["passed"] and result.get("proposal_error"):
+            line["retries"].append(f"format: {result['proposal_error']}")
+            result = revise(op)
+        if result["passed"]:
+            break
+        line["retries"].append("run failed: " + ", ".join(k for k, ok in result.get("checks", {}).items() if not ok)
+                               + (f" ({result['proposal_error']})" if result.get("proposal_error") else ""))
+        op = None
+    line["operation"] = str(op) if op else None
+    if op is None:
+        return {**line, "status": "stopped", "reason": "the worker failed twice"}
+    proposal = json.loads((op / "proposal.json").read_text())
+    if not proposal["files"] and not proposal["links"]:
+        return {**line, "status": "no change", "notes": proposal["notes"][:300]}
+    summary = apply(op, dry_run=True)
+    if summary["problems"]:
+        line["retries"].append("checks: " + "; ".join(summary["problems"])[:300])
+        try:
+            if not revise(op)["passed"]:
+                return {**line, "status": "stopped", "reason": "the revision failed its run checks"}
+        except ValueError as error:
+            return {**line, "status": "stopped", "reason": str(error)}
+        proposal = json.loads((op / "proposal.json").read_text())
+        if not proposal["files"] and not proposal["links"]:
+            return {**line, "status": "no change", "notes": proposal["notes"][:300]}
+        summary = apply(op, dry_run=True)
+        if summary["problems"]:
+            return {**line, "status": "stopped", "reason": "; ".join(summary["problems"])[:500]}
+    applied = apply(op)
+    if not applied.get("applied"):
+        return {**line, "status": "stopped", "reason": "; ".join(applied["problems"])[:500]}
+    return {**line, "status": "applied", "files": [f["path"] for f in applied["files"]],
+            "fixes": applied["fixes"], "checker": applied["checker"]}
+
+
+def series(vault, inputs, task, config_path=None, sources_only=True, limit=None, emit=None):
+    """Ingest inputs in order, one operation each; skips inputs already ingested, so reruns resume."""
+    vault = Path(vault).resolve()
+    config = load_config(vault, config_path)
+    emit = emit or (lambda line: print(json.dumps(line, ensure_ascii=False), flush=True))
+    lock = Path(config["workdir"]) / "series.lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    if lock.exists():
+        try:
+            os.kill(int(lock.read_text()), 0)
+            raise ValueError("another series is running on this workdir")
+        except (ProcessLookupError, ValueError) as error:
+            if "another series" in str(error):
+                raise
+    lock.write_text(str(os.getpid()))
+    try:
+        done, counts = raw_sources(vault), {"applied": 0, "no change": 0, "skipped": 0}
+        for position, item in enumerate(inputs, 1):
+            if item in done:
+                counts["skipped"] += 1
+                continue
+            if limit is not None and counts["applied"] + counts["no change"] >= limit:
+                return {"status": "paused", "next": item, **counts}
+            previous = inputs[position - 2] if position > 1 else None
+            info = {"position": position, "count": len(inputs), "sources_only": sources_only,
+                    "previous_source": raw_sources(vault).get(previous) if previous else None}
+            try:
+                line = series_step(vault, item, (task or "Ingest {input}").format(
+                    input=item, position=position, count=len(inputs)), config_path, info, emit)
+            except (ValueError, RuntimeError, subprocess.SubprocessError) as error:
+                line = {"input": item, "position": position, "status": "stopped", "reason": str(error)}
+            emit(line)
+            if line["status"] == "stopped":
+                return {"status": "stopped", "stopped_at": item, "reason": line["reason"], **counts}
+            counts[line["status"]] += 1
+        return {"status": "completed", **counts}
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def series_status(vault, config_path=None):
+    """Progress of the most recent background series."""
+    config = load_config(Path(vault).resolve(), config_path)
+    logs = sorted(Path(config["workdir"]).glob("series-*.jsonl"))
+    if not logs:
+        return {"status": "none"}
+    lines = []
+    for line in logs[-1].read_text().splitlines():
+        try:
+            parsed = json.loads(line)
+        except ValueError:
+            continue  # progress lines only; tolerate stray output
+        if isinstance(parsed, dict):
+            lines.append(parsed)
+    pid_file = logs[-1].with_suffix(".pid")
+    running = False
+    if pid_file.exists():
+        try:
+            os.kill(int(pid_file.read_text()), 0)
+            running = True
+        except ProcessLookupError:
+            pass
+    final = next((line for line in reversed(lines) if line.get("status") in ("completed", "stopped", "paused")
+                  and "input" not in line), None)
+    items = [line for line in lines if "input" in line]
+    return {"log": str(logs[-1]), "running": running, "done": len(items),
+            "applied": sum(line["status"] == "applied" for line in items),
+            "no_change": sum(line["status"] == "no change" for line in items),
+            "last": items[-1] if items else None, "result": final}
+
+
 def status(op):
     op = Path(op)
     manifest = json.loads((op / "manifest.json").read_text())
@@ -880,11 +1131,22 @@ def main():
     staging.add_argument("--question", help="query question")
     staging.add_argument("--url", help="ingest: capture this URL into raw/ first")
     staging.add_argument("--config", type=Path, help="operator config (default: VAULT/.opencode/second-brain/operator.json)")
-    capturing = commands.add_parser("capture", help="fetch one URL into raw/ with a webfetch-only worker")
+    capturing = commands.add_parser("capture", help="capture a URL, or extract a raw/ PDF, into raw/ without a model")
     capturing.add_argument("vault", type=Path)
     capturing.add_argument("url")
     capturing.add_argument("--config", type=Path)
     commands.add_parser("pending", help="list raw/ captures without a source page").add_argument("vault", type=Path)
+    running = commands.add_parser("series", help="ingest many inputs in order, one operation each, resumable")
+    running.add_argument("vault", type=Path)
+    running.add_argument("--input", action="append", default=[], help="input in order (repeatable)")
+    running.add_argument("--glob", help="raw/ glob added in natural order, e.g. 'raw/book-part-*.md'")
+    running.add_argument("--task", help="task template; {input}, {position} and {count} are filled in")
+    running.add_argument("--with-concepts", action="store_true", help="let each item create or update concepts")
+    running.add_argument("--limit", type=int, help="stop after this many items (rerun to continue)")
+    running.add_argument("--background", action="store_true", help="run detached; check with series-status")
+    running.add_argument("--config", type=Path)
+    running.add_argument("--log", type=Path, help=argparse.SUPPRESS)
+    commands.add_parser("series-status", help="progress of the latest background series").add_argument("vault", type=Path)
     for name, text in (("run", "run the worker on a staged operation"), ("status", "show an operation's stage"),
                        ("revise", "rerun the worker once with the dry-run problems as feedback"),
                        ("undo", "restore files an applied operation changed")):
@@ -904,9 +1166,44 @@ def main():
             if captured:
                 result["capture"] = captured
         elif args.command == "capture":
-            result = capture(args.vault, args.url, args.config)
+            if args.url.startswith("raw/") and args.url.lower().endswith(".pdf"):
+                load_config(args.vault.resolve(), args.config)
+                result = capture_pdf(args.vault, args.url)
+            else:
+                result = capture(args.vault, args.url, args.config)
         elif args.command == "pending":
             result = {"pending": pending(args.vault)}
+        elif args.command == "series-status":
+            result = series_status(args.vault)
+        elif args.command == "series":
+            vault = args.vault.resolve()
+            inputs = list(args.input)
+            if args.glob:
+                if not args.glob.startswith("raw/") or ".." in args.glob:
+                    raise ValueError("--glob must stay under raw/")
+                inputs += sorted((p.relative_to(vault).as_posix() for p in vault.glob(args.glob)
+                                  if p.is_file() and p.suffix == ".md"), key=natural_key)
+            inputs = list(dict.fromkeys(inputs))
+            if not inputs:
+                raise ValueError("series needs --input or --glob")
+            if args.background:
+                config = load_config(vault, args.config)
+                log = Path(config["workdir"]) / f"series-{datetime.now().strftime('%Y%m%d-%H%M%S')}.jsonl"
+                log.parent.mkdir(parents=True, exist_ok=True)
+                command = [sys.executable, str(Path(__file__).resolve()), "series", str(vault), "--log", str(log)]
+                command += [f"--input={item}" for item in inputs]
+                command += [f"--task={args.task}"] if args.task else []
+                command += ["--with-concepts"] if args.with_concepts else []
+                command += [f"--limit={args.limit}"] if args.limit else []
+                command += [f"--config={args.config}"] if args.config else []
+                with open(log, "a") as stream:
+                    process = subprocess.Popen(command, cwd=vault, stdout=stream, stderr=subprocess.STDOUT,
+                                               stdin=subprocess.DEVNULL, start_new_session=True)
+                log.with_suffix(".pid").write_text(str(process.pid))
+                result = {"series": "started in background", "items": len(inputs), "log": str(log),
+                          "check": f"python3 {Path(__file__).resolve()} series-status ."}
+            else:
+                result = series(vault, inputs, args.task, args.config, not args.with_concepts, args.limit)
         elif args.command == "run":
             result = run(args.operation)
             if json.loads((args.operation / "manifest.json").read_text())["kind"] == "query":
@@ -918,8 +1215,11 @@ def main():
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, json.JSONDecodeError) as error:
         print(json.dumps({"error": str(error) if isinstance(error, (ValueError, RuntimeError)) else type(error).__name__}))
         return 2
-    print(json.dumps(result, indent=2, ensure_ascii=False))
-    failed = result.get("passed") is False or result.get("problems") or result.get("skipped_changed_since")
+    # A background series logs one JSON object per line, so series-status can read its final result.
+    background = args.command == "series" and getattr(args, "log", None)
+    print(json.dumps(result, ensure_ascii=False) if background else json.dumps(result, indent=2, ensure_ascii=False))
+    failed = (result.get("passed") is False or result.get("problems") or result.get("skipped_changed_since")
+              or result.get("status") == "stopped")
     return 1 if failed else 0
 
 

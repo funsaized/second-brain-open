@@ -136,14 +136,33 @@ class OperatorTests(unittest.TestCase):
         self.assertTrue(set(before.splitlines()) - {l for l in before.splitlines() if l.startswith("updated:")}
                         <= set(after.splitlines()))
         self.assertEqual(op.link_check.check(self.vault)["errors"], [])
-        for links, expected in (([["wiki/sources/nope.md", "- [[wiki/concepts/x|X]]"]], "not an existing"),
-                                ([["wiki/concepts/oven-airflow.md", "- [[wiki/concepts/x|X]]"]], "both rewritten")):
+        for links, expected in (([["wiki/sources/nope.md", "- [[wiki/concepts/x|X]]"]], "dropped link"),
+                                ([["wiki/concepts/oven-airflow.md", "- [[wiki/sources/trial-b|Trial B]]"]],
+                                 "merged link")):
             operation = self.staged()
             self.proposal(operation, files={"wiki/concepts/oven-airflow.md": CONCEPT})
             proposal = json.loads((operation / "proposal.json").read_text())
             proposal["links"] = links
             (operation / "proposal.json").write_text(json.dumps(proposal))
-            self.assertTrue(any(expected in p for p in op.apply(operation, dry_run=True)["problems"]))
+            self.assertTrue(any(expected in f for f in op.apply(operation, dry_run=True)["fixes"]))
+
+    def test_normalize_repairs_are_reported(self):
+        operation = self.staged()
+        manifest = json.loads((operation / "manifest.json").read_text())
+        body = ("See [[wiki/sources/trial-a|Trial A]] and [[wiki/sources/part-36|Part 36]] and ![[wiki/x]].\n"
+                "```\n[[wiki/sources/part-36|kept in code]]\n```\n")
+        proposal = {"files": {"wiki/concepts/new.md": body}, "links": [],
+                    "index": [["Concepts", "- [[wiki/concepts/new|New]] — n."], ["Sources", "- [[wiki/sources/gone|Gone]]"]],
+                    "log": "Ingested things.", "notes": ""}
+        fixed, fixes = op.normalize(manifest, proposal)
+        text = fixed["files"]["wiki/concepts/new.md"]
+        self.assertIn("[[wiki/sources/trial-a|Trial A]] and Part 36 and ![[wiki/x]]", text)
+        self.assertIn("[[wiki/sources/part-36|kept in code]]", text)
+        self.assertEqual(fixed["index"], [["Concepts", "- [[wiki/concepts/new|New]] — n."]])
+        self.assertTrue(fixed["log"].startswith("## 2026-09-28 — compile wiki/sources/trial-a.md — partial"))
+        self.assertEqual(len(fixes), 3)
+        completed = dict(proposal, log="## 2026-09-28 — x — completed\n- y")
+        self.assertTrue(op.normalize(manifest, completed)[0]["log"].startswith("## 2026-09-28 — x — partial"))
 
     def test_compile_by_topic_needs_no_inputs(self):
         operation = op.stage(self.vault, "compile", [], "Explain vent choice across the trials", self.config,
@@ -172,19 +191,26 @@ class OperatorTests(unittest.TestCase):
                                            "wiki/sources/a.md | [[wiki/concepts/x|X]]\n<<<LOG>>>")
         parsed = op.parse_proposal(both)
         self.assertEqual((len(parsed["index"]), len(parsed["links"])), (1, 1))
-        with self.assertRaisesRegex(ValueError, "LINKS lines"):
-            op.parse_proposal(text.replace("<<<LOG>>>", "<<<LINKS>>>\nwiki/sources/a.md | no link\n<<<LOG>>>"))
-        with self.assertRaisesRegex(ValueError, "INDEX lines"):
-            op.parse_proposal(text.replace("<<<LOG>>>", "<<<INDEX>>>\nNowhere | x\n<<<LOG>>>"))
+        skipped = op.parse_proposal(text.replace("<<<LOG>>>", "<<<LINKS>>>\nwiki/sources/a.md | no link\n"
+                                                              "<<<INDEX>>>\nNowhere | x\n<<<LOG>>>"))
+        self.assertEqual((skipped["links"], skipped["index"]), ([], []))
+        self.assertEqual(len(skipped["warnings"]), 2)
         closed = text.replace("\n<<<NOTES>>>", "\n<<<LOG>>>\n<<<NOTES>>>") + "\n<<<END NOTES>>>"
         self.assertEqual(op.parse_proposal(closed)["log"], RECORD)
         self.assertEqual(op.parse_proposal(closed)["notes"], "coverage")
         mismatched = text.replace("\n<<<NOTES>>>", "\n<<<END FILE>>>\n<<<NOTES>>>")
         self.assertEqual(op.parse_proposal(mismatched)["log"], RECORD)
-        for bad in ("stray text\n<<<NOTES>>>\nx", "<<<FILE wiki/a.md>>>\nx\n<<<END FILE>>>\n<<<NOTES>>>\nx",
-                    "<<<LOG>>>\nrecord only", "no markers", "<<<INDEX>>>\nConcepts | x\n<<<NOTES>>>\nx",
-                    "<<<LOG>>>\n## r\n<<<FILE x>>>\n<<<NOTES>>>\nx",
-                    "<<<FILE wiki/a.md>>>\n<<<LOG>>>\n<<<END FILE>>>\n<<<LOG>>>\nr\n<<<NOTES>>>\nx"):
+        # Formatting noise seen in live runs is tolerated.
+        noisy = ("Here is the proposal.\n```\n<<<FILE wiki/concepts/x.md>>>\nbody\n"   # preamble, fence, no END FILE
+                 "<<<INDEX>>>\n<<<INDEX>>>\n- Concepts | [[wiki/concepts/x|X]] — x.\n"   # repeated marker, bullet
+                 "<<<LOG>>>\n" + RECORD + "\n<<<END FILE>>>\n```")                    # wrong closer, no NOTES
+        parsed = op.parse_proposal(noisy)
+        self.assertEqual(parsed["files"], {"wiki/concepts/x.md": "body\n"})
+        self.assertEqual(parsed["index"], [["Concepts", "- [[wiki/concepts/x|X]] — x."]])
+        self.assertEqual((parsed["log"], parsed["notes"]), (RECORD, ""))
+        self.assertIn("duplicate FILE", " ".join(op.parse_proposal(
+            "<<<FILE wiki/a.md>>>\none\n<<<FILE wiki/a.md>>>\ntwo\n<<<NOTES>>>\nx")["warnings"]))
+        for bad in ("no markers at all", "<<<FILE >>>\nx\n<<<NOTES>>>\nx"):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 op.parse_proposal(bad)
 
@@ -217,7 +243,6 @@ class OperatorTests(unittest.TestCase):
             "instructions": ({"wiki/concepts/AGENTS.md": "x"}, RECORD, "not writable"),
             "traversal": ({"wiki/concepts/../../AGENTS.md": "x"}, RECORD, "not writable"),
             "cap": ({f"wiki/concepts/c{i}.md": CONCEPT for i in range(4)}, RECORD, "limit is 3"),
-            "status": ({"wiki/sources/trial-a.md": source}, RECORD.replace("partial", "completed"), "log record"),
             "two records": ({"wiki/sources/trial-a.md": source}, RECORD + "\n## 2026-09-28 — x — partial", "single"),
             "checker": ({"wiki/concepts/oven-airflow.md": CONCEPT}, RECORD, "not_reciprocal"),
             "index file": ({"wiki/index.md": "# Index\n"}, RECORD, "must not be rewritten"),
@@ -298,3 +323,89 @@ class OperatorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SeriesTests(unittest.TestCase):
+    """Series retry policy with a scripted worker in place of OpenCode."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        base = Path(self.tmp.name)
+        self.vault = base / "vault"
+        for path in FIXTURE.rglob("*"):
+            if path.is_file():
+                target = self.vault / path.relative_to(FIXTURE)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(path.read_bytes())
+        for n in (1, 2, 3):
+            (self.vault / f"raw/book-part-{n}.md").write_text(f"Invented part {n}.\n")
+        self.config = base / "operator.json"
+        self.config.write_text(json.dumps({"agent": "a", "model": "p/m", "opencode_version": "0",
+                                           "workdir": str(base / "ops")}))
+        self.replies, self.prompts = [], []
+        self.saved = (op.run, op.worker_prompt)
+
+        def fake_run(operation, feedback=None, format_only=False):
+            manifest = json.loads((operation / "manifest.json").read_text())
+            self.prompts.append((manifest["series"], feedback, format_only))
+            text = self.replies.pop(0)(manifest)
+            (operation / "response.md").write_text(text)
+            result = {"passed": True, "checks": {"run_completed": True}}
+            try:
+                (operation / "proposal.json").write_text(json.dumps(op.parse_proposal(text)))
+            except ValueError as error:
+                result.update(passed=False, proposal_error=str(error))
+            (operation / "run.json").write_text(json.dumps(result))
+            return result
+        op.run = fake_run
+
+    def tearDown(self):
+        op.run, op.worker_prompt = self.saved
+        self.tmp.cleanup()
+
+    @staticmethod
+    def good(manifest, extra=""):
+        n = manifest["inputs"][0].rsplit("-", 1)[1][:-3]
+        page = (f'---\ntitle: "Part {n}"\ntype: "source"\ncreated: "2026-09-28"\nupdated: "2026-09-28"\n'
+                f'aliases: []\ntags: []\nurl: null\nauthor: null\npublished: null\ncaptured: "2026-09-28"\n'
+                f'raw: "{manifest["inputs"][0]}"\n---\n\n# Part {n}\n\nInvented.{extra}\n')
+        return (f"<<<FILE wiki/sources/book-part-{n}.md>>>\n{page}<<<END FILE>>>\n<<<INDEX>>>\n"
+                f"Sources | - [[wiki/sources/book-part-{n}|Part {n}]] — part {n}.\n<<<LOG>>>\n"
+                f"## 2026-09-28 — ingest part {n} — partial\n<<<NOTES>>>\nok")
+
+    def test_series_applies_in_order_repairs_and_resumes(self):
+        self.replies = [
+            lambda m: self.good(m, " See [[wiki/sources/book-part-2|next part]]."),      # forward link: repaired
+            lambda m: "I will now write the proposal.",                               # no markers: format revise
+            lambda m: self.good(m),
+            lambda m: "<<<NOTES>>>\nfront matter only",                               # no change: continue
+        ]
+        inputs = [f"raw/book-part-{n}.md" for n in (1, 2, 3)]
+        lines = []
+        result = op.series(self.vault, inputs, "Ingest {input} ({position}/{count})", self.config, emit=lines.append)
+        self.assertEqual(result["status"], "completed", result)
+        self.assertEqual([line["status"] for line in lines], ["applied", "applied", "no change"])
+        self.assertIn("unlinked missing wiki/sources/book-part-2", " ".join(lines[0]["fixes"]))
+        self.assertEqual(self.prompts[1][0]["previous_source"], "wiki/sources/book-part-1.md")
+        self.assertTrue(self.prompts[2][2])  # the second item's retry was format-only
+        self.assertTrue(self.prompts[0][0]["sources_only"])
+        self.assertEqual(op.link_check.check(self.vault)["errors"], [])
+        self.replies = [lambda m: "<<<NOTES>>>\nstill nothing"]
+        again = op.series(self.vault, inputs, None, self.config, emit=lines.append)
+        self.assertEqual((again["skipped"], again["no change"]), (2, 1))  # resumes past ingested parts
+
+    def test_series_stops_after_bounded_retries(self):
+        self.replies = [lambda m: "no markers"] * 4
+        result = op.series(self.vault, ["raw/book-part-1.md"], None, self.config, emit=lambda line: None)
+        self.assertEqual((result["status"], result["stopped_at"]), ("stopped", "raw/book-part-1.md"))
+        self.assertEqual(len(self.prompts), 4)  # two operations, each with one format revision
+        self.assertFalse((Path(json.loads(self.config.read_text())["workdir"]) / "series.lock").exists())
+
+    def test_series_status_reads_background_log(self):
+        workdir = Path(json.loads(self.config.read_text())["workdir"])
+        workdir.mkdir(parents=True, exist_ok=True)
+        log = workdir / "series-20260928-000000.jsonl"
+        log.write_text(json.dumps({"input": "raw/book-part-1.md", "position": 1, "status": "applied"}) + "\n"
+                       + json.dumps({"status": "completed", "applied": 1, "no change": 0, "skipped": 0}) + "\n")
+        status = op.series_status(self.vault, self.config)
+        self.assertEqual((status["running"], status["applied"], status["result"]["status"]), (False, 1, "completed"))

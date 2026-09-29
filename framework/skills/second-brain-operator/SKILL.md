@@ -78,11 +78,37 @@ vault's `opencode.json`. Do not improvise the steps by hand.
    acceptance); never append acceptance yourself.
 
 A worker reply with only NOTES (a no-op repeat, or an input it could not read
-completely) is a valid result: report its reason and stop. When you are
-ingesting the parts of one document in sequence, record a NOTES-only part (for
-example front matter with nothing reusable) and continue with the next part.
-Stop the series only on a failed run, or on problems that remain after one
-`revise`.
+completely) is a valid result: report its reason and stop. For more than two
+items, use `series`, which applies this policy for you.
+
+## Ingest a long document or many captures
+
+Use `series` whenever more than two items need ingesting: the parts of a long
+PDF or web page, or everything pending. It runs each item as its own operation
+in order, with the retry policy built in:
+- a reply that cannot be parsed gets one format-only revision
+- a failed run gets one fresh operation
+- failed checks get one revision
+
+It applies passing items, records items with nothing to add, and stops only
+on a real failure. Never write your own loop around `stage`/`run`/`apply`.
+
+1. Capture first when needed. `capture` returns `parts`:
+   `python3 <cli> capture . <url>` or `python3 <cli> capture . raw/<file>.pdf`
+2. Start the series in the background:
+   ```sh
+   python3 <cli> series . --glob 'raw/<capture-stem>-part-*.md' --task "Ingest {input}, part {position} of {count} of <title>" --background
+   ```
+   Use `--input` (repeatable) instead of `--glob` for a list, such as the
+   output of `pending`.
+3. Check progress with `python3 <cli> series-status .`, waiting a few minutes
+   between checks (`sleep 180`), until `running` is false. Report `result`,
+   the counts, and any `stopped` reason.
+4. To resume after a stop or an interruption, run the same `series` command
+   again. Already-ingested items are skipped.
+
+A series writes source pages only and links each part to the previous one.
+After it completes, offer to compile the document's key concepts by topic.
 
 ## Catch up on new captures
 
@@ -93,9 +119,9 @@ python3 <cli> pending .
 ```
 
 This lists captures that no source page references yet, oldest first,
-including PDFs whose text has not been extracted. Ingest them one at a time with
-the steps above, as separate operations, up to 20 per request. Run `pending`
-again after each PDF, because its extracted parts then appear. Stop at the first failure you cannot resolve with one `revise`, and
+including PDFs whose text has not been extracted. Extract each pending PDF
+with `capture`, run `pending` again, then ingest the list with `series`
+(above). Stop at the first failure you cannot resolve with one `revise`, and
 report what was done and what remains.
 
 ## Answer a question
