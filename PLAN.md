@@ -1371,3 +1371,12 @@ The back-link repair now also covers concept and entity pages that link an
 existing source page the proposal does not rewrite.
 
 Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Declined plan items get one fresh attempt
+
+Chapter 8 was declined again: the worker judged a 42-line concept page
+"capped" and stopped. The prompt now says a capped read means continuing from
+the next offset, never stopping, and a plan item that declines without
+creating its `done_if` page gets one fresh operation before the series stops.
+
+Verification: 134 offline tests pass; `git diff --check` passes.

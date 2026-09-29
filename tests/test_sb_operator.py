@@ -578,8 +578,9 @@ class SeriesTests(unittest.TestCase):
         again = op.series(self.vault, [], None, self.config, emit=lines.append, plan=plan)
         self.assertEqual(again["skipped"], 1)
         plan["items"][0]["done_if"] = "wiki/sources/book-ch2.md"
-        self.replies = [lambda m: "<<<NOTES>>>\ncannot map the chapter"]
+        self.replies = [lambda m: "<<<NOTES>>>\ncannot map the chapter"] * 2
         declined = op.series(self.vault, [], None, self.config, emit=lines.append, plan=plan)
+        self.assertEqual(self.replies, [])  # declined twice: one fresh operation, then stop
         self.assertEqual(declined["status"], "stopped")  # a plan page that was not created is not a no-op
         self.assertIn("cannot map", declined["reason"])
         for bad in ({"items": []}, {"items": [{"kind": "query", "task": "t"}]},

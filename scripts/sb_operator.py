@@ -470,7 +470,8 @@ def worker_prompt(manifest, corpus):
             "be read at its listed path. The index, the contract and every input must be read completely: when one "
             "is too long for one read (the output says it was capped, or does not end with 'End of file'), read "
             "it in consecutive ranges with offset and limit until you have seen every line; the operator checks "
-            "this. Other files, such as wiki/log.md, may be read in part. Read wiki/index.md first. "
+            "this. Other files, such as wiki/log.md, may be read in part. A capped read is never a reason to stop: "
+            "continue from the next offset. Read wiki/index.md first. "
             + ("Search results are leads, not evidence: read a page completely before you rely on it or cite it. "
                if search else ""))
     if kind == "query":
@@ -1267,15 +1268,23 @@ def series(vault, inputs, task, config_path=None, sources_only=True, limit=None,
                     "sources_only": sources_only and entry["kind"] == "ingest" and plan is None,
                     "file_inputs_under": entry.get("file_inputs_under"),
                     "previous_source": raw_sources(vault).get(previous) if previous else None}
-            try:
-                line = series_step(vault, item, entry["task"].format(
-                    input=item, position=position, count=len(items)), config_path, info, emit,
-                    kind=entry["kind"], inputs=entry.get("inputs") or None)
-            except (ValueError, RuntimeError, subprocess.SubprocessError, KeyError, IndexError) as error:
-                line = {"input": item, "position": position, "status": "stopped", "reason": str(error)}
-            if line["status"] == "no change" and entry.get("done_if") and not (vault / entry["done_if"]).is_file():
+            declined = []
+            for attempt in (1, 2):
+                try:
+                    line = series_step(vault, item, entry["task"].format(
+                        input=item, position=position, count=len(items)), config_path, info, emit,
+                        kind=entry["kind"], inputs=entry.get("inputs") or None)
+                except (ValueError, RuntimeError, subprocess.SubprocessError, KeyError, IndexError) as error:
+                    line = {"input": item, "position": position, "status": "stopped", "reason": str(error)}
+                # A plan item that declines without creating its page gets one fresh operation.
+                if not (line["status"] == "no change" and entry.get("done_if")
+                        and not (vault / entry["done_if"]).is_file()):
+                    break
+                declined.append((line.get("notes") or "")[:300])
                 line = {**line, "status": "stopped",
-                        "reason": f"{entry['done_if']} was not created: " + (line.get("notes") or "")[:300]}
+                        "reason": f"{entry['done_if']} was not created: " + " | ".join(declined)}
+            if declined and line["status"] != "stopped":
+                line["retries"] = line.get("retries", []) + [f"declined: {note}" for note in declined]
             emit(line)
             if line["status"] == "stopped":
                 return {"status": "stopped", "stopped_at": item, "reason": line["reason"], **counts}
