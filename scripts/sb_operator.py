@@ -798,8 +798,9 @@ def check_proposal(manifest, proposal):
     touched = set(files) | {path for path, _ in links}
     if not touched:
         problems.append("proposal has no pages")
-    if len(touched) > config["max_pages"]:
-        problems.append(f"proposal changes {len(touched)} pages; the limit is {config['max_pages']}")
+    # The limit bounds pages to review; LINKS lines are one-line appends and do not count.
+    if len(files) > config["max_pages"]:
+        problems.append(f"proposal writes {len(files)} pages; the limit is {config['max_pages']}")
     for path, _ in links:
         if path in files:
             problems.append(f"{path} is both rewritten and link-patched: put the link in its FILE")

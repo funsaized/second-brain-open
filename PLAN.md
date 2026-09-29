@@ -1462,3 +1462,13 @@ check now covers only pages a proposal rewrites whole, and `revise` refuses
 when drift is the only problem, asking for a new stage.
 
 Verification: 139 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Page limit counts written pages
+
+The deployment's first synthesis (after a rerun with a 40-step budget for the
+reading it needed) wrote one page plus 25 LINKS back-links and was refused as
+26 pages over the limit of 20. Back-link lines are one-line appends, not pages
+to review, and the owner set no per-operation cap on notes, so `max_pages` now
+counts only pages a proposal writes whole.
+
+Verification: 140 offline tests pass; `git diff --check` passes.

@@ -58,7 +58,7 @@ found problems, or `undo` skipped changed files; `2` invalid input or setup.
 | `model` | Worker route as `provider/model`; must match that agent's route | required |
 | `opencode_version` | Installed OpenCode version you approved | required |
 | `workdir` | Where operations are staged; must be outside the vault | required |
-| `max_pages` | Most pages one proposal may change | `10` |
+| `max_pages` | Most pages one proposal may write whole (FILE); LINKS back-link lines don't count | `10` |
 | `steps` | Worker turn limit; searches and figure reads use turns too | `20` |
 | `timeout` | Seconds per worker run. Separately, a worker with no output after 120 s is treated as an OpenCode startup stall: it is killed and relaunched once, and a second stall fails the run with "OpenCode did not start" | `600` |
 | `auto_apply` | Whether the operator skill may apply a passing proposal without asking | `true` |
@@ -152,8 +152,8 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 
 `apply` refuses the whole proposal, writing nothing, when any of these fail:
 
-- **Pages:** at least one page changed (FILE or LINKS) and no more than
-  `max_pages` distinct pages.
+- **Pages:** at least one page changed (FILE or LINKS), and no more than
+  `max_pages` pages written whole with FILE.
 - **Paths:** only `wiki/{sources,concepts,entities,synthesis}/**.md`; never
   `wiki/index.md` or `wiki/log.md` as a page, `raw/`, instruction filenames or
   traversal.

@@ -232,6 +232,15 @@ class OperatorTests(unittest.TestCase):
             op.accept(self.vault, "full", "all", "none", match="Chapter 1", config_path=self.config)
         self.assertEqual(op.link_check.check(self.vault)["errors"], [])
 
+    def test_page_limit_counts_written_pages_not_links(self):
+        operation = self.staged()
+        manifest = json.loads((operation / "manifest.json").read_text())
+        links = [[f"wiki/sources/trial-{x}.md", "- [[wiki/concepts/oven-airflow|Oven airflow]] — cites"] for x in "ab"]
+        links += [["wiki/concepts/vent-choice.md", "- [[wiki/concepts/oven-airflow|Oven airflow]] — related"],
+                  ["wiki/entities/aster-desk-lab.md", "- [[wiki/concepts/oven-airflow|Oven airflow]] — related"]]
+        proposal = {"files": {"wiki/concepts/oven-airflow.md": CONCEPT}, "links": links, "index": [], "log": RECORD}
+        self.assertFalse([p for p in op.check_proposal(manifest, proposal) if "limit" in p])  # 1 page + 4 links, limit 3
+
     def test_links_patch_existing_pages_without_rewriting(self):
         page = '---\ntitle: "t"\nupdated: "2026-01-01"\n---\n\n# T\n\nBody.\n\n## Links\n\n- [[wiki/concepts/a|A]] — old.\n\n## Notes\n\nEnd.\n'
         patched = op.add_links(page, ["- [[wiki/concepts/b|B]] — new.", "- [[wiki/concepts/a|A]] — duplicate."], "2026-09-29")
