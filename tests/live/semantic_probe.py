@@ -16,8 +16,13 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+# Where live drivers stage trials; the owner may point it at an existing folder.
+TRIAL_ROOT = Path(os.environ.get("SB_TRIAL_ROOT") or Path(tempfile.gettempdir()) / "sb-trials")
+# The OpenCode release the recorded trials used; set SB_OPENCODE_VERSION to rerun on the installed one.
+OPENCODE_VERSION = os.environ.get("SB_OPENCODE_VERSION", "1.18.32")
 sys.path.insert(0, str(ROOT))
 from scripts.sb_runtime import decoded, inspect_config, prepare_environment, validate_scope  # noqa: E402
 
@@ -66,7 +71,7 @@ def main():
     args = parser.parse_args()
     if not args.live:
         parser.error("live provider use is opt-in; pass --live only after owner approval")
-    env = prepare_environment(args.agent, args.model)
+    env = prepare_environment(args.agent, args.model, OPENCODE_VERSION)
     fixture = ROOT / "tests/fixtures/contract"
     files = [Path(path) for path in ("raw/trial-a.md", "raw/trial-b.md", "wiki/sources/trial-a.md", "wiki/sources/trial-b.md")]
     validate_scope(fixture, files)

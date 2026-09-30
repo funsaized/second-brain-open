@@ -15,7 +15,7 @@ import subprocess
 import sys
 import tempfile
 
-from semantic_probe import ROOT, call_model, prepare_environment, semantic_checks
+from semantic_probe import OPENCODE_VERSION, ROOT, TRIAL_ROOT, call_model, prepare_environment, semantic_checks
 from runtime_read_probe import validate_scope
 
 sys.path.insert(0, str(ROOT))
@@ -89,7 +89,7 @@ def main():
     args = parser.parse_args()
     if not args.live:
         parser.error("requires --live and owner approval")
-    env = prepare_environment(args.agent, args.model)
+    env = prepare_environment(args.agent, args.model, OPENCODE_VERSION)
     fixture = ROOT / "tests/fixtures/contract"
     validate_scope(ROOT, [Path("framework/instructions/wiki-contract.md"),
                          *[Path(f"framework/templates/{kind}.md") for kind in ("source", "concept", "index", "log")],
@@ -99,7 +99,8 @@ def main():
                  for kind in ("source", "concept", "index", "log")}
     results = []
     observations = []
-    with tempfile.TemporaryDirectory(prefix="sb-ingest-", dir="/tmp/opencode") as temporary:
+    TRIAL_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="sb-ingest-", dir=TRIAL_ROOT) as temporary:
         root = Path(temporary)
         (root / "wiki").mkdir()
         (root / "raw").mkdir()

@@ -247,12 +247,16 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("export", type=Path)
     parser.add_argument("outdir", type=Path)
-    parser.add_argument("--min-words", type=int, default=150)
+    parser.add_argument("--min-words", type=int, default=None,
+                        help="skip shorter conversations (default: 150 with --all, 0 for chosen IDs)")
     parser.add_argument("--dry-run", action="store_true")
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument("--conversation-id", action="append", dest="ids")
     selection.add_argument("--all", action="store_true", help="explicit whole-export conversion, not ingestion")
     args = parser.parse_args(argv)
+    if args.min_words is None:
+        # A conversation chosen by ID is converted whatever its length; the filter is for --all triage.
+        args.min_words = 0 if args.ids else 150
     if args.min_words < 0:
         parser.error("--min-words must be nonnegative")
     counts = dict.fromkeys(("selected", "written", "would_write", "identical", "too_short",

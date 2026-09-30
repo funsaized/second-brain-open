@@ -396,6 +396,12 @@ class CliSelectionTests(unittest.TestCase):
             negative = run_cli(export, tmp / "neg", "--all", "--min-words", "-1")
             self.assertEqual(negative.returncode, 2)
 
+            # A conversation chosen by ID is kept whatever its length, unless the filter is given explicitly.
+            chosen = run_cli(export, tmp / "chosen", "--conversation-id", "s1")
+            self.assertEqual((chosen.returncode, counts(chosen.stdout)["written"]), (0, 1))
+            filtered = run_cli(export, tmp / "filtered", "--conversation-id", "s1", "--min-words", "4")
+            self.assertEqual(counts(filtered.stdout)["too_short"], 1)
+
     def test_explicit_selection_all_and_deduplication(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)

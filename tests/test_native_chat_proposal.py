@@ -8,13 +8,29 @@ import subprocess
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent / "live"))  # the live drivers under test
+import native_chat_proposal
 from native_chat_proposal import CHANGES, ROLES, native_run, parse_proposal, verify_agent, verify_skills
 
 
 class NativePreflightTests(unittest.TestCase):
+    def setUp(self):
+        # An invented route; the real one comes from SB_AGENT and SB_MODEL at run time.
+        patcher = mock.patch.multiple(native_chat_proposal, AGENT="example-agent", MODEL="example/model")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_live_route_comes_from_the_environment(self):
+        for agent, model in (("", "example/model"), ("example-agent", ""), ("bad agent", "example/model"),
+                             ("example-agent", "no-provider")):
+            with self.subTest(agent=agent, model=model), \
+                    mock.patch.multiple(native_chat_proposal, AGENT=agent, MODEL=model), \
+                    self.assertRaisesRegex(RuntimeError, "SB_AGENT and SB_MODEL"):
+                native_chat_proposal.route()
+        self.assertEqual(native_chat_proposal.route()[:2], ("example-agent", "example/model"))
+
     def test_edit_gates_require_default_deny_and_exact_asks(self):
         agent = {"name": "sb-ingestor", "mode": "primary", "prompt": "exact", "steps": 6,
-                 "model": {"providerID": "openai", "modelID": "gpt-6-luna"},
+                 "model": {"providerID": "example", "modelID": "model"},
                  "permission": [{"permission": "*", "pattern": "*", "action": "deny"},
                                 {"permission": "edit", "pattern": "wiki/log.md", "action": "ask"}]}
         verify_agent(agent, "sb-ingestor", "exact", set(), edits={"wiki/log.md"})
@@ -40,7 +56,7 @@ class NativePreflightTests(unittest.TestCase):
 
     def test_missing_changed_or_overgranted_role_fails(self):
         agent = {"name": "sb-ingestor", "mode": "primary", "prompt": "exact prompt", "steps": 6,
-                 "model": {"providerID": "openai", "modelID": "gpt-6-luna"},
+                 "model": {"providerID": "example", "modelID": "model"},
                  "permission": [{"permission": "*", "pattern": "*", "action": "deny"}]}
         verify_agent(agent, "sb-ingestor", "exact prompt", set())
         for field, value in (("name", "build"), ("prompt", "changed"), ("model", {}),

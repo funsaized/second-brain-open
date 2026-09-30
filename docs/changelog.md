@@ -497,3 +497,23 @@ Verification: 141 offline tests pass; `git diff --check` passes.
 
 Verification: 144 offline tests pass; `git diff --check` passes.
 
+
+## 2026-09-30 — Owner identifiers out of the public repo; chat selection; closures
+
+- **Identifiers (D6).** The frozen live drivers take the owner's primary agent
+  and route from `SB_AGENT` and `SB_MODEL` and refuse to run without them, the
+  trial folder from `SB_TRIAL_ROOT` (default: a folder in the system temp
+  directory), and the OpenCode release from `SB_OPENCODE_VERSION` (default: the
+  recorded 1.18.32). Docs, records and tests name "the owner's primary agent"
+  and "approved route" instead. Checked locally: without the settings the
+  drivers refuse; with the owner's values the full no-model preflight (staged
+  corpus, profile, route, version and permission checks) passes. Older commits
+  still contain the identifiers.
+- **Chat selection (G1).** A conversation chosen with `--conversation-id` is
+  converted whatever its length unless `--min-words` is given; the 150-word
+  default applies to `--all`.
+- **Closed:** B4 (practice documented in guarantees and limits), F4 (retired
+  caveats listed under "Closed without further work" in STATUS.md); B3 and E3
+  declined by the owner.
+
+Verification: 147 offline tests pass; `git diff --check` passes.

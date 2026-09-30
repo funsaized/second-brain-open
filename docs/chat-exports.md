@@ -31,8 +31,9 @@ python3 scripts/chat_export_to_md.py /path/to/export.json /path/to/staging \
 ```
 
 Repeat `--conversation-id` to convert several. `--all` converts everything,
-for your own local triage. Conversations under 150 words are skipped; change
-that with `--min-words N` (`0` keeps everything).
+for your own local triage. With `--all`, conversations under 150 words are
+skipped; a conversation you chose by ID is always converted. Set `--min-words N`
+to apply your own threshold either way.
 
 The command prints counts only, such as
 `selected=1 written=1 would_write=0 identical=0 too_short=0 unsupported=0 omitted_payloads=0 failed=0`.

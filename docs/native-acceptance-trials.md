@@ -2,7 +2,7 @@
 
 Status, 2026-09-25: the requested technical gaps are resolved for these bounded
 cases. OpenCode reports `1.18.32`; the approved live route remains
-`openai/gpt-6-luna`. No new provider, private source, personal-vault installation,
+the owner's approved route. No new provider, private source, personal-vault installation,
 global framework installation or blanket permission grant was introduced.
 
 ## Owner scope and waivers
@@ -69,13 +69,13 @@ was inspected or frozen.
 ```sh
 python3 -m unittest discover -s tests -p 'test_native_*.py' -v
 # Fresh disposable trial from the previously reviewed synthetic proposal:
-python3 tests/live/native_acceptance_trials.py --source-base /tmp/opencode/sb-native-r8-9l3wjmjg --live
+python3 tests/live/native_acceptance_trials.py --source-base $SB_TRIAL_ROOT/sb-native-r8-<corpus> --live
 ```
 
-The successful trial is `/tmp/opencode/sb-native-r8-3n3di8qg`; the original selected
-corpus is `/tmp/opencode/sb-native-r8-9l3wjmjg`. Results, manifests, receipt IDs,
+The successful trial is `$SB_TRIAL_ROOT/sb-native-r8-<trial>`; the original selected
+corpus is `$SB_TRIAL_ROOT/sb-native-r8-<corpus>`. Results, manifests, receipt IDs,
 hashes and generated responses remain local, not committed transcripts. The
-failed `/tmp/opencode/sb-native-r8-u472giw9` is preserved separately.
+failed `$SB_TRIAL_ROOT/sb-native-r8-<failed trial>` is preserved separately.
 
 `--resume-trial` is deliberately limited to a reviewed one-edit interruption with
 the labeled human intervention and exactly three pending patches. It refuses
@@ -122,7 +122,7 @@ captures. The route was the previously approved one.
 | CLI ingest, Trial C | Worker passed every run check. The first proposal omitted the entity back-link; the dry run refused it (`not_reciprocal`), `revise` fixed it, and it applied cleanly: four pages plus the log, checker clean | The first attempt also exposed a directory-listing denial and a log-marker parsing bug; both were fixed before the recorded run |
 | CLI undo | Restored all five changed files; later human-edit protection is covered offline | — |
 | CLI query | Researcher cited seven pages it read, kept the disagreement and named what was not covered | Raw captures were not staged |
-| Primary agent (`dingus`) with the operator skill, one plain-language request, Trial D | Staged, ran the worker, dry-ran, applied and reported, with no human step: five pages plus the log, checker clean, receipt `post_check_clean` | Needed an `external_directory` allow for the CLI and workdir in the vault's `opencode.json`. Earlier attempts stopped on an unapproved prompt: once for the CLI path, once while searching for an uninstalled contract. The skill now forbids that search. |
+| Primary agent with the operator skill, one plain-language request, Trial D | Staged, ran the worker, dry-ran, applied and reported, with no human step: five pages plus the log, checker clean, receipt `post_check_clean` | Needed an `external_directory` allow for the CLI and workdir in the vault's `opencode.json`. Earlier attempts stopped on an unapproved prompt: once for the CLI path, once while searching for an uninstalled contract. The skill now forbids that search. |
 
 | URL capture only, three public pages (2026-09-29) | Main content kept: a GitHub gist article, a blog post with code blocks, a catalog page. 74–190 lines each, navigation and comments dropped, under a second each | A blog without `<article>` kept its site header and sponsor line |
 | Primary agent, one request with a URL (2026-09-29) | `stage --url` captured the gist with no model, then the worker ran, dry run, apply. The result: a source page with the URL, capture date and raw path, plus a new concept page citing the source by section and noting its lack of evaluation evidence. Checker clean, logged `partial` | An earlier design (a webfetch-only worker) was dropped: OpenCode's webfetch converts the whole page and truncated it at 32 KB of 143 KB |
@@ -191,8 +191,8 @@ Owner content acceptance was not delegated by the edit authorization.
 
 ### Optional live semantic rehearsal
 
-The owner approved the existing `dingus` primary agent, whose inspected routing
-was `openai/gpt-6-luna`, for synthetic provider calls. The observed four-turn run:
+The owner approved the existing primary agent, whose inspected route matched
+the approved provider/model, for synthetic provider calls. The observed four-turn run:
 
 1. Proposed and staged trial A: two content pages, two reciprocal edges.
 2. Proposed and staged conflicting trial B: three content pages, four reciprocal

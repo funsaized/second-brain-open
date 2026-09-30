@@ -19,12 +19,21 @@ import sys
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tests/, for the shared fixtures
-from semantic_probe import ROOT, decoded, prepare_environment
+from semantic_probe import OPENCODE_VERSION, ROOT, TRIAL_ROOT, decoded, prepare_environment
 from runtime_read_probe import validate_scope
 from test_chat_handoff import ARTIFACT_NAME, ARTIFACT_SHA256, EXPORT_SHA256, SELECTED, fixture
 from test_chat_export_to_md import run_cli
 
-MODEL = "openai/gpt-6-luna"
+# The owner-approved primary agent and provider/model come from the environment, never the code.
+AGENT = os.environ.get("SB_AGENT", "")
+MODEL = os.environ.get("SB_MODEL", "")
+
+
+def route():
+    """The approved agent, route and OpenCode release; the agent and route are required before any live run."""
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", AGENT) or not re.fullmatch(r"[^/\s]+/[^/\s]+", MODEL):
+        raise RuntimeError("Set SB_AGENT and SB_MODEL (provider/model) to the owner-approved route")
+    return AGENT, MODEL, OPENCODE_VERSION
 ROLES = {"sb-ingestor": "second-brain-ingest", "sb-researcher": "second-brain-query"}
 CHANGES = {"wiki/sources/lantern-chat.md", "wiki/concepts/lantern-preferences.md",
            "wiki/index.md", "wiki/log.md"}
@@ -60,7 +69,8 @@ def debug(env, cwd, *args):
         return decoded(output.read().decode(), "native inspection")
 
 
-def verify_agent(agent, role, prompt, allowed, edits=(), model=MODEL, steps=6):
+def verify_agent(agent, role, prompt, allowed, edits=(), model=None, steps=6):
+    model = model or MODEL
     provider, _, model_id = model.partition("/")
     if (agent.get("name") != role or agent.get("mode") != "primary"
             or agent.get("prompt", "").strip() != prompt
@@ -163,7 +173,7 @@ def prepare(base):
     for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
         (profile / name).write_bytes((ROOT / name).read_bytes())
     # Reuse the reviewed authentication/profile guard; this makes no model call.
-    env = prepare_environment("dingus", MODEL)
+    env = prepare_environment(*route())
     # `run` builds its SDK directory from PWD, unlike debug's process.cwd().
     # Keep both aligned; cwd alone silently runs the session in the parent repo.
     env["PWD"] = str(corpus)
@@ -185,7 +195,7 @@ def prepare(base):
     runtime_data = Path(env.get("XDG_DATA_HOME", str(Path.home() / ".local/share"))) / "opencode"
     output_gate = ("external_directory", str(runtime_data / "tool-output/*"))
     expected = {"share": "disabled", "snapshot": False, "formatter": False, "lsp": False,
-                "model": MODEL, "small_model": MODEL, "enabled_providers": ["openai"]}
+                "model": MODEL, "small_model": MODEL, "enabled_providers": [MODEL.partition("/")[0]]}
     checks = {k: config.get(k) == v for k, v in expected.items()}
     checks.update(instructions_absent=not config.get("instructions"),
                   # 1.18.32 retains plugin declarations in merged config but
@@ -345,7 +355,8 @@ def main():
     args = parser.parse_args()
     if not args.live:
         parser.error("requires explicit --live and owner approval")
-    base = Path(tempfile.mkdtemp(prefix="sb-native-r8-", dir="/tmp/opencode"))
+    TRIAL_ROOT.mkdir(parents=True, exist_ok=True)
+    base = Path(tempfile.mkdtemp(prefix="sb-native-r8-", dir=TRIAL_ROOT))
     try:
         summary = run(base)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:

@@ -19,7 +19,7 @@ import tempfile
 import time
 import urllib.request
 
-from native_chat_proposal import (ARTIFACT_NAME, ARTIFACT_SHA256, CHANGES, MODEL,
+from native_chat_proposal import (ARTIFACT_NAME, ARTIFACT_SHA256, CHANGES, MODEL, TRIAL_ROOT, route,
                                  ROLES, ROOT, TODAY, debug, digest, verify_agent, verify_skills)
 from runtime_read_probe import validate_scope
 from semantic_probe import prepare_environment
@@ -126,7 +126,8 @@ def approve_packet(base):
                      "- Verification: exact-patch one-time approvals; raw and preimages checked by operator. Post-apply checker and query pending.\n"
                      "- Gaps: unknown change/message dates; unsupported generated battery claim; owner content acceptance pending.\n")
         approved[name] = {"before": old, "after": text, "patchText": patch_for(path, old, text)}
-    with tempfile.TemporaryDirectory(prefix="sb-r8-review-", dir="/tmp/opencode") as temporary:
+    TRIAL_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="sb-r8-review-", dir=TRIAL_ROOT) as temporary:
         review = Path(temporary)
         (review / "raw").mkdir()
         (review / "raw" / ARTIFACT_NAME).write_bytes((corpus / "raw" / ARTIFACT_NAME).read_bytes())
@@ -170,7 +171,7 @@ def configure(base, editing):
             target.chmod(0o600)
             target.write_bytes((ROOT / "framework" / name).read_bytes())
             target.chmod(0o400)
-    env = prepare_environment("dingus", MODEL)
+    env = prepare_environment(*route())
     env.update(PWD=str(corpus), OPENCODE_CONFIG_DIR=str(profile))
     config = json.loads(env["OPENCODE_CONFIG_CONTENT"])
     config["compaction"] = {"auto": False}
@@ -192,7 +193,7 @@ def configure(base, editing):
     if not any(p.get("worktree") == str(corpus) for p in debug(env, corpus, "scrap")):
         raise RuntimeError("Handoff native worktree mismatch")
     if (effective.get("model") != MODEL or effective.get("small_model") != MODEL
-            or effective.get("instructions") or effective.get("enabled_providers") != ["openai"]
+            or effective.get("instructions") or effective.get("enabled_providers") != [MODEL.partition("/")[0]]
             or effective.get("skills", {}).get("paths") or effective.get("skills", {}).get("urls")
             or any(m.get("enabled") is not False for m in effective.get("mcp", {}).values())):
         raise RuntimeError("Unreviewed native handoff profile")
@@ -289,7 +290,7 @@ class NativeServer:
                 raise RuntimeError("Continuation belongs to a different corpus")
             prior = {m["info"]["id"] for m in self.api("GET", f"/session/{session}/message")}
         self.api("POST", f"/session/{session}/prompt_async", {
-            "agent": role, "model": {"providerID": "openai", "modelID": "gpt-6-luna"},
+            "agent": role, "model": dict(zip(("providerID", "modelID"), MODEL.split("/", 1))),
             "parts": [{"type": "text", "text": prompt}],
         })
         used, answered, receipts = set(), set(), []
@@ -380,7 +381,7 @@ def main():
     mode.add_argument("--live-repeat-only", action="store_true")
     args = parser.parse_args()
     base = args.base
-    if base.parent != Path("/tmp/opencode") or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", base.name):
+    if base.parent != TRIAL_ROOT or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", base.name):
         parser.error("requires owner-authorized generated synthetic staging")
     if args.live_query_only or args.live_repeat_only:
         query(base, repeat=args.live_repeat_only)

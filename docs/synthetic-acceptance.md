@@ -158,7 +158,7 @@ This is a diagnosis to investigate, not proof of a runtime permission failure.
 No wiki patch was applied, no native edit grant was accepted, and no researcher
 query was run. The recorded successful read gate is not full injection resistance
 under edit authorization. Some early failed staging was discarded; later failed
-responses are retained only in generated `/tmp/opencode/sb-native-r8-*` directories
+responses are retained only in generated `$SB_TRIAL_ROOT/sb-native-r8-*` directories
 and ordinary OpenCode session history, never in this repository. A local review-only
 extraction of the malformed response is not an ingest or native-role edit.
 
@@ -244,7 +244,7 @@ refers to the artifact's conversation-created field, not the separately recorded
 September 25 capture date. The draft should name that distinction explicitly
 before being treated as accepted content.
 
-Local stage: `/tmp/opencode/sb-native-r8-9l3wjmjg`. It retains proposal,
+Local stage: `$SB_TRIAL_ROOT/sb-native-r8-<corpus>`. It retains proposal,
 operator-validated patch/preimages, latest apply refusal and query/evidence
 artifacts. None are committed transcripts or public fixtures. Inspect actual
 state before a subsequent attempt.
@@ -252,9 +252,9 @@ state before a subsequent attempt.
 ```sh
 python3 -m unittest discover -s tests -p 'test_native_chat_*.py' -v
 # Authorized four-path synthetic attempt, not blanket auto-approval:
-python3 tests/live/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-approve-four-files
+python3 tests/live/native_chat_handoff.py --base $SB_TRIAL_ROOT/sb-native-r8-<corpus> --live-approve-four-files
 # Independent read-only query discloses absent wiki content:
-python3 tests/live/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-query-only
+python3 tests/live/native_chat_handoff.py --base $SB_TRIAL_ROOT/sb-native-r8-<corpus> --live-query-only
 ```
 
 Seven narrow native-driver tests and all 70 offline checks pass; `git diff --check`
@@ -312,8 +312,8 @@ the primary locator. “Later” for blue means transcript order, not a known da
 ```sh
 # Do not replay --live-approve-four-files on this now-applied stage: its old
 # preimages no longer match. Read-only repeat assessment is a separate action.
-python3 tests/live/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-repeat-only
-python3 tests/live/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-query-only
+python3 tests/live/native_chat_handoff.py --base $SB_TRIAL_ROOT/sb-native-r8-<corpus> --live-repeat-only
+python3 tests/live/native_chat_handoff.py --base $SB_TRIAL_ROOT/sb-native-r8-<corpus> --live-query-only
 ```
 
 Eight narrow driver tests and all 71 offline checks pass; `git diff --check` passes.
@@ -345,13 +345,13 @@ in a personal vault. No owner content decision is recorded yet.
 
 ### Approved scope as originally proposed
 
-The approved live helper uses `dingus` in ordinary owner authentication/profile
+The approved live helper uses the owner's primary agent in ordinary owner authentication/profile
 context. It neither installs the two named roles nor loads their skills. Repeating
 that rehearsal cannot prove native-role acceptance. The inert framework cannot
 be activated in this checkout or the owner's global configuration.
 
 Approved extension: a temporary named-role live profile overlay for
-`sb-ingestor` / `sb-researcher`, using only the existing `openai/gpt-6-luna` route
+`sb-ingestor` / `sb-researcher`, using only the owner's existing approved route
 (including auxiliary routing), existing native owner authentication and ordinary
 local session retention, up to six model calls / 24,000 output tokens total.
 It would expose only the invented selected artifact and public contract/templates

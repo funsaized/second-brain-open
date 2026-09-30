@@ -312,7 +312,8 @@ specification.
 
 ### Options, output and exit status
 
-`--min-words N` defaults to 150; nonnegative thresholds count only retained text
+`--min-words N` defaults to 150 with `--all` and to 0 with `--conversation-id`,
+so a chosen conversation is never dropped silently; nonnegative thresholds count only retained text
 using whitespace splitting, not role labels or metadata. Exactly N words passes.
 Short filtering is **not** privacy review. `--dry-run` validates and checks
 existing output bytes but creates no directories or files.

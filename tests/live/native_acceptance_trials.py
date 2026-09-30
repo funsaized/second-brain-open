@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 import tempfile
 
-from native_chat_proposal import prepare
+from native_chat_proposal import TRIAL_ROOT, prepare
 from native_chat_handoff import (ARTIFACT_NAME, ARTIFACT_SHA256, CHANGES, ROLES, TODAY,
     NativeServer, apply_prompt, approve_packet, check_pages, configure, digest,
     listed_patch_paths, patch_for, query, store_patches, validate_scope, write_local)
@@ -184,7 +184,8 @@ def no_write_trial(base, injection=False):
 
 def trials(source):
     validate_scope(source, [Path("proposal.json"), Path("summary.json")])
-    base = Path(tempfile.mkdtemp(prefix="sb-native-r8-", dir="/tmp/opencode"))
+    TRIAL_ROOT.mkdir(parents=True, exist_ok=True)
+    base = Path(tempfile.mkdtemp(prefix="sb-native-r8-", dir=TRIAL_ROOT))
     write_local(base / "trial-status.json", json.dumps({"status": "started", "source_packet": str(source)}))
     print(json.dumps({"trial_stage": str(base), "status": "started"}), flush=True)
     prepare(base)
@@ -340,11 +341,11 @@ def main():
     mode.add_argument("--assess-only", type=Path)
     args = parser.parse_args()
     source = args.source_base
-    if not args.live or source.parent != Path("/tmp/opencode") or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", source.name):
+    if not args.live or source.parent != TRIAL_ROOT or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", source.name):
         parser.error("requires explicit live approval and existing synthetic packet staging")
     if args.assess_only:
         base = args.assess_only
-        if base.parent != Path("/tmp/opencode") or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", base.name):
+        if base.parent != TRIAL_ROOT or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", base.name):
             parser.error("assessment must name the completed synthetic trial stage")
         validate_scope(base, [Path("trial-status.json"), Path("validated-patch.json")])
         evidence = json.loads((base / "trial-status.json").read_text())
@@ -357,13 +358,13 @@ def main():
         print(json.dumps({"assessment": "passed", "trial_stage": str(base)}, indent=2))
         return
     if args.verification_only:
-        if args.verification_only.parent != Path("/tmp/opencode") or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", args.verification_only.name):
+        if args.verification_only.parent != TRIAL_ROOT or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", args.verification_only.name):
             parser.error("verification must name the completed synthetic trial stage")
         append_verification(source, args.verification_only)
         print(json.dumps({"native_verification_append": "passed", "trial_stage": str(args.verification_only)}))
         return
     if args.resume_trial:
-        if args.resume_trial.parent != Path("/tmp/opencode") or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", args.resume_trial.name):
+        if args.resume_trial.parent != TRIAL_ROOT or not re.fullmatch(r"sb-native-r8-[a-z0-9_]+", args.resume_trial.name):
             parser.error("resume must name the generated synthetic trial stage")
         base, _ = resume_trial(args.resume_trial)
     else:

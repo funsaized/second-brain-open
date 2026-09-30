@@ -47,16 +47,23 @@ change's result is recorded in its dated [changelog](docs/changelog.md) entry.
 1. **P4/R5 project round trip.** Wiki context into a project and durable
    findings back, demonstrated with a real project when one needs it (backlog
    F5).
-2. **Native evidence gaps.** Contradiction handling has driver-applied live
-   evidence; ambiguous or broken links have checker evidence. Native variants
-   are not claimed.
-3. **Withheld: `/sb-ingest` and `/sb-ask`.** Command preprocessing exposed
+2. **Withheld: `/sb-ingest` and `/sb-ask`.** Command preprocessing exposed
    denied content and evaluated shell-like arguments, so the wrappers are not
    distributed. Use the operator.
-4. **Waived, not passed:** missing-skill and nonexistent-agent negative
-   scenarios.
-5. **Deferred by need:** optional tracks T1–T5 (see the
+3. **Deferred by need:** optional tracks T1–T5 (see the
    [planning history](docs/archive/planning-history.md)), extra agents, skills
    or wrappers, scheduling and publication.
-6. **Owner-local:** deployment records, backup policy and restore proof,
+4. **Owner-local:** deployment records, backup policy and restore proof,
    content acceptance.
+
+## Closed without further work
+
+- **Native variants for contradiction and ambiguous-link handling.** They keep
+  their driver-applied and checker evidence; the operator's checks and repairs
+  now cover these cases in daily use.
+- **Missing-skill and nonexistent-agent negative scenarios.** Waived; the
+  operator verifies the role and skill with `opencode debug` before every run,
+  and the roles probe passes on 1.18.33.
+- **The bootstrap metadata-audit caveat.** It concerned the first add-only
+  install; later installs are per-file clean upgrades with backups.
+- **Install planner (B3) and offline CI (E3).** Declined by the owner.

@@ -73,9 +73,9 @@ real human concurrency. The native interruption tests are separate evidence.
 
 ```sh
 # Use an approved temporary location outside the checkout and any vault.
-# This environment's pre-existing /tmp/opencode was used for the observed run:
-TMPDIR=/tmp/opencode python3 -m unittest discover -s tests -p 'test_r6_backup_restore.py' -v
-TMPDIR=/tmp/opencode python3 -m unittest discover -s tests -v
+# The observed run set TMPDIR to an existing local temporary folder:
+TMPDIR=/path/to/tmp python3 -m unittest discover -s tests -p 'test_r6_backup_restore.py' -v
+TMPDIR=/path/to/tmp python3 -m unittest discover -s tests -v
 git diff --check
 ```
 

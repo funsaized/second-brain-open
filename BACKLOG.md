@@ -222,8 +222,8 @@ Deployment facts (sanitized):
 | A5 | ✅ Ingest one non-meta source tied to actual goals — a textbook and a book on the deployment | Verify | P1 | S | Yes |
 | B1 | ✅ Ship an operator launcher (manifest → overlay → verify → run) — `sb_operator.py` | Implement | P0 | M | — |
 | B2 | ✅ Make "propose → operator apply" the primary write path — agent as operator | Simplify | P0 | M | Yes |
-| B3 | Install/upgrade planner | Implement | P1 | M | Yes |
-| B4 | Reconcile the isolation requirement with practice — narrowed by the staged-copy corpus check | Decide | P1 | S | Yes |
+| B3 | ✖ Install/upgrade planner — won't do (owner, 2026-09-30) | Implement | P1 | M | Yes |
+| B4 | ✅ Reconcile the isolation requirement with practice — closed: permission confinement documented in guarantees and limits | Decide | P1 | S | Yes |
 | B5 | ✅ Scoped search inside a confined corpus — grep/glob in the staged copy | Decide | P2 | M | Yes |
 | C1 | ✅ Residue, index-completeness and reciprocity checks | Implement | P0 | S | — |
 | C2 | ✅ Stop permanent exit 1 on legacy controls — deployment cleanup awaits owner | Improve | P0 | S | — |
@@ -235,16 +235,16 @@ Deployment facts (sanitized):
 | D3 | ✅ Cut hedging; move evidence narrative out of how-tos — guarantees-and-limits page, chat-export how-to | Simplify | P1 | M | — |
 | D4 | ✅ Prompts: one rule, one place — worker instructions about 42% shorter, synthetic checks pass | Simplify | P1 | M | — |
 | D5 | ✅ Obsidian link-format guidance — settings, hand-editing guide; only new problems block | Improve | P1 | S | — |
-| D6 | Generalize owner-specific identifiers | Simplify | P2 | S | — |
+| D6 | ✅ Generalize owner-specific identifiers — `SB_AGENT`, `SB_MODEL`, `SB_TRIAL_ROOT`, `SB_OPENCODE_VERSION` | Simplify | P2 | S | — |
 | E1 | ✅ Separate the live harness from unit tests — `tests/live/`, probes fixed | Simplify | P1 | S | — |
 | E2 | ✅ Freeze scenario-specific driver modes — labelled frozen in `tests/live/README.md` | Simplify | P2 | S | — |
-| E3 | Offline CI | Implement | P2 | S | Yes |
+| E3 | ✖ Offline CI — won't do (owner, 2026-09-30) | Implement | P2 | S | Yes |
 | F1 | ✅ Re-verify runtime behavior on OpenCode 1.18.33 — closed by owner | Verify | P0 | S | — |
 | F2 | ✅ Confirm a deployment recovery point — closed by owner | Verify | P0 | S | Yes |
 | F3 | Report the two OpenCode safety issues upstream | Decide | P2 | S | Yes |
-| F4 | Retire caveats that will not be acted on | Simplify | P2 | S | — |
+| F4 | ✅ Retire caveats that will not be acted on — moved to a closed list in STATUS.md | Simplify | P2 | S | — |
 | F5 | Decide how to do the P4 project round trip | Decide | P1 | S | Yes |
-| G1 | Explicit chat selection vs `--min-words` | Improve | P2 | S | — |
+| G1 | ✅ Explicit chat selection vs `--min-words` — chosen IDs default to no filter | Improve | P2 | S | — |
 
 Sizes are rough: S is under a day and M is one to three days.
 
@@ -652,7 +652,7 @@ just say to run the suite.
 
 **Problem.** About 370 uses of "not" across roughly 16k words. Most paragraphs
 end by listing what something isn't, which buries the instructions. Evidence
-history also sits inside how-to guides: the `dingus` live rehearsal and the
+history also sits inside how-to guides: the owner-agent live rehearsal and the
 bootstrap record are in `docs/manual-loop.md`.
 
 **Proposal.** Write one *Guarantees and limits* reference page. How-to guides
@@ -696,7 +696,7 @@ option is to let the checker accept unique basenames with a warning.
 ### D6. Generalize owner-specific identifiers — P2
 
 **Problem.** Public code and docs contain one owner's primary-agent name, model
-route and `/tmp/opencode/...` trial directories:
+route and local trial directories:
 
 - `tests/native_chat_proposal.py:26,164,346`
 - `docs/native-acceptance-trials.md:5,72-78`
