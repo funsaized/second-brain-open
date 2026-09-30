@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from runtime_read_probe import validate_scope
+from scripts.sb_runtime import validate_scope
 
 
 def sha256(path):

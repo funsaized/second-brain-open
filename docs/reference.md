@@ -140,6 +140,9 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 - A LINKS entry for a page that is also rewritten is merged into the rewrite.
 - A wikilink to a page that doesn't exist becomes its plain label. Code blocks
   are left alone.
+- An embedded image under `raw/` that does not exist becomes its caption
+  followed by "(image not rendered)"; a doubled `raw/raw/` is corrected when
+  the fixed path exists.
 - INDEX and LINKS entries that point at missing pages are dropped.
 - Every source ↔ concept/entity link the proposal adds, in a page or a LINKS
   line, gets its missing back-link: inside the page when the proposal writes
@@ -166,8 +169,11 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
   log record is appended, INDEX entries merged and LINKS lines patched against
   the vault's current files, so another operation applied in between doesn't
   block it. `revise` refuses when drift is the only problem: stage again.
-- **Checker:** the managed checker reports no errors or unsupported forms on a
-  copy of the wiki with the proposal applied.
+- **Checker:** the proposal adds no checker errors or unsupported forms, on a
+  copy of the wiki with the proposal applied. Problems the vault already has,
+  for example from a hand edit, are counted as `existing` in the dry-run's
+  checker summary but never block an operation; the same rule applies to the
+  post-apply check and to `accept`.
 
 ### Web capture
 
@@ -267,13 +273,19 @@ OpenCode session without the operator gives them no file access.
   Reserved `AGENTS.md`, `CLAUDE.md` and `CONTEXT.md` instruction files are excluded;
   links to them are unsupported, not knowledge edges.
 - Validates the contract's flat JSON-valued frontmatter, not arbitrary YAML.
-  Source `raw` paths are format-checked but never opened. A valid root without
-  `wiki/` is an empty corpus, not an invalid directory.
+  A valid root without `wiki/` is an empty corpus, not an invalid directory.
+- Checks raw evidence exists, with `lstat` only, never opening it:
+  `missing_raw` when a source page's `raw` is not a regular file, and
+  `missing_evidence` when a local Markdown link or image, or an Obsidian embed
+  such as `![[raw/assets/x.png]]`, points into `raw/` at a file that is not
+  there. Other local Markdown links (`[text](../concepts/x.md)`) are reported
+  as unsupported `markdown_link`; link pages with wikilinks.
 - Resolves exact extensionless vault-relative wikilinks, with optional labels
   and spaces. Repeated links are deduplicated; self/control edges are not content
   edges. Controls are still checked, but are not counted as knowledge pages.
-- Reports missing/malformed/ambiguous targets, and unsupported embeds, bare
-  basenames, aliases or out-of-scope forms. It does not guess a unique basename.
+- Reports missing/malformed/ambiguous targets, and unsupported embeds (other
+  than of `raw/` files), bare basenames, aliases or out-of-scope forms. It does
+  not guess a unique basename.
 - Reports contract errors: `placeholder` for leftover `{{...}}` text in metadata
   or in the body outside code (HTML comments included); `not_indexed` for a
   content page that `wiki/index.md` does not link, when the index exists; and

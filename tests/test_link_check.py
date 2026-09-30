@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "scripts/link_check.py"
 
 
-def page(root, name, body="", **changes):
+def page(root, name, body="", raw_file=True, **changes):
     kind = {"sources": "source", "concepts": "concept", "entities": "entity", "synthesis": "synthesis"}
     category = name.split("/")[1]
     kind = {"wiki/index.md": "index", "wiki/log.md": "log"}.get(name, kind.get(category))
@@ -29,6 +29,11 @@ def page(root, name, body="", **changes):
     if kind == "entity":
         fields["kind"] = "unknown"
     fields.update(changes)
+    raw = fields.get("raw")
+    if (raw_file and kind == "source" and isinstance(raw, str) and raw.startswith("raw/")
+            and link_check.canonical_parts(raw) and Path(raw).suffix):
+        (root / raw).parent.mkdir(parents=True, exist_ok=True)
+        (root / raw).touch()
     path = root / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("---\n" + "".join(f"{k}: {json.dumps(v)}\n" for k, v in fields.items())
@@ -37,6 +42,37 @@ def page(root, name, body="", **changes):
 
 
 class LinkCheckTests(unittest.TestCase):
+    def test_raw_evidence_must_exist_and_markdown_links_are_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "raw/assets/cap").mkdir(parents=True)
+            (root / "raw/assets/cap/page-01.png").write_bytes(b"x")
+            page(root, "wiki/sources/kept.md", "Figure ![Figure 1](../../raw/assets/cap/page-01.png) and "
+                 "[capture](../../raw/item.txt), [spaced](../../raw/assets/cap/page%2001.png).\n"
+                 "```\n![in code](../../raw/nope.png)\n```\n[web](https://example.com) [anchor](#top)\n")
+            page(root, "wiki/sources/gone.md", "See ![Figure 2](../../raw/assets/cap/page-02.png) and "
+                 "[a note](../concepts/c.md).\n", raw="raw/deleted.md", raw_file=False)
+            (root / "raw/linked.md").symlink_to(root / "raw/item.txt")
+            page(root, "wiki/sources/linked.md", raw="raw/linked.md", raw_file=False)
+            report = link_check.check(root)
+            found = sorted((d["page"].rsplit("/", 1)[1], d["kind"], d["target"]) for d in report["errors"] + report["unsupported"]
+                           if d["kind"] in ("missing_raw", "missing_evidence", "markdown_link"))
+            self.assertEqual(found, [
+                ("gone.md", "markdown_link", "../concepts/c.md"),
+                ("gone.md", "missing_evidence", "../../raw/assets/cap/page-02.png"),
+                ("gone.md", "missing_raw", "raw/deleted.md"),
+                ("kept.md", "missing_evidence", "../../raw/assets/cap/page%2001.png"),
+                ("linked.md", "missing_raw", "raw/linked.md"),   # a symlink is not a regular file
+            ])
+            self.assertIn(("gone.md", "markdown_link"), [(d["page"].rsplit("/", 1)[1], d["kind"]) for d in report["unsupported"]])
+            page(root, "wiki/concepts/pasted.md", "![[raw/assets/cap/page-01.png]] ![[raw/assets/cap/gone.png|300]] ![[wiki/concepts/x]]\n")
+            report = link_check.check(root)
+            pasted = sorted((d["kind"], d["target"]) for d in report["errors"] + report["unsupported"] if d["page"].endswith("pasted.md"))
+            self.assertEqual(pasted, [("embed", "![[wiki/concepts/x]]"), ("missing_evidence", "raw/assets/cap/gone.png"),
+                                      ("not_indexed", "wiki/index.md")] if (root / "wiki/index.md").exists() else
+                                     [("embed", "![[wiki/concepts/x]]"), ("missing_evidence", "raw/assets/cap/gone.png")])
+
+
     def test_contract_fixture_clean_and_controls_separate(self):
         report = link_check.check(ROOT / "tests/fixtures/contract")
         self.assertEqual((report["errors"], report["unsupported"], report["unchecked"]), ([], [], []))

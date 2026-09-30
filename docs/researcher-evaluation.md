@@ -5,7 +5,7 @@ managed wiki: whether it follows the index, reads what it cites, finds the
 pages you expect and declines questions the wiki cannot answer. Run it before
 and after a change, such as adding concept pages, and compare the scores.
 
-`tests/researcher_eval.py` makes live provider calls. It needs OpenCode, an
+`tests/live/researcher_eval.py` makes live provider calls. It needs OpenCode, an
 approved provider route and the framework roles. The model-free tools do not
 depend on it.
 
@@ -44,7 +44,7 @@ question files for a private wiki out of this repository.
 ## 2. Run the evaluation
 
 ```sh
-python3 tests/researcher_eval.py --live \
+python3 tests/live/researcher_eval.py --live \
   --vault /path/to/vault --questions /path/to/questions.json \
   --agent APPROVED_PRIMARY --model PROVIDER/MODEL --opencode-version X.Y.Z
 ```

@@ -473,3 +473,27 @@ Verification: 140 offline tests pass; `git diff --check` passes.
 
 Verification: 141 offline tests pass; `git diff --check` passes.
 
+## 2026-09-30 — Evidence links, hand editing and the live harness
+
+- **Raw evidence is checked (C3).** The checker confirms with `lstat`, never
+  opening a file, that each source's `raw` exists (`missing_raw`) and that local
+  Markdown links, images and Obsidian embeds into `raw/` resolve
+  (`missing_evidence`); other local Markdown links are unsupported
+  (`markdown_link`). `normalize` turns an embedded image that does not exist
+  into its caption and fixes a doubled `raw/raw/`.
+- **Hand editing (D5).** `apply`, its post-apply check and `accept` now refuse
+  only checker problems a proposal adds; problems already in the vault are
+  counted as `existing`. Installation step 4 gives the Obsidian settings (absolute
+  paths, wikilinks, attachments under `raw/`, frontmatter in source mode) and the
+  operator guide a hand-editing section. Embeds of `raw/` files count as evidence.
+- **Live harness (E1, E2).** The nine live drivers and probes moved to
+  `tests/live/` with a README labelling them opt-in evidence and the native-trial
+  drivers frozen. The probes close stdin for every subprocess, which was the
+  cause of their "intermittent" timeouts, and the sandbox mounts `scripts/` and
+  `tests/` under `/src`, which fixes the roles probe. Read 16/16, roles 25/25 and
+  search 8/8 on OpenCode 1.18.33.
+- **Deployment findings.** Three part notes have broken figure links, reported
+  by the checker for the owner to fix.
+
+Verification: 144 offline tests pass; `git diff --check` passes.
+

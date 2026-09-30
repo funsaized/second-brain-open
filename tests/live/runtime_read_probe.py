@@ -1,4 +1,4 @@
-"""Manual Linux/OpenCode 1.18.32 read probe; not part of offline discovery.
+"""Manual Linux/OpenCode read probe (reviewed on 1.18.32, rerun on 1.18.33); not part of offline discovery.
 
 Run: python3 tests/runtime_read_probe.py
 Exit 1 means a failed acceptance check; exit 2 means probe/setup failure.
@@ -15,14 +15,27 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+_HERE = Path(__file__).resolve()
+# In the checkout this file is tests/live/; inside the sandbox the launcher mounts scripts/ and tests/ under /src.
+sys.path.insert(0, "/src" if _HERE.parent == Path("/") else str(_HERE.parents[2]))
 from scripts.sb_runtime import validate_scope  # noqa: E402,F401  (shared with drivers and tests)
+
+
+def _run(*args, **kwargs):
+    """subprocess.run with stdin closed: `opencode run` reads piped stdin into its message and would wait on an open pipe."""
+    kwargs.setdefault("stdin", subprocess.DEVNULL)
+    return subprocess.run(*args, **kwargs)
+
+
+
+VERSION = "1.18.33"
+REPO = Path(__file__).resolve().parents[2] if Path(__file__).resolve().parent != Path("/") else Path("/src")
 
 
 def runtime_paths():
     """Inspect only namespace-local paths, never dump resolved configuration."""
     # Initialize this disposable project before asking for its database record.
-    initialized = subprocess.run(
+    initialized = _run(
         ["/opencode", "debug", "config", "--pure"],
         capture_output=True, text=True, timeout=20,
     )
@@ -35,7 +48,7 @@ def runtime_paths():
             or config.get("enabled_providers") != ["anthropic"]
             or config.get("model") != "anthropic/probe" or config.get("small_model") != "anthropic/probe"):
         raise RuntimeError("Unexpected effective synthetic configuration")
-    result = subprocess.run(
+    result = _run(
         ["/opencode", "debug", "scrap", "--pure"],
         capture_output=True, text=True, timeout=20,
     )
@@ -135,9 +148,9 @@ def isolated_probe():
     config = probe_config(server.server_port)
     os.environ["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
     try:
-        version = subprocess.run(["/opencode", "--version"], capture_output=True, text=True, timeout=10)
-        if version.returncode or version.stdout.strip() != "1.18.32":
-            raise RuntimeError("Probe requires the reviewed OpenCode 1.18.32")
+        version = _run(["/opencode", "--version"], capture_output=True, text=True, timeout=10)
+        if version.returncode or version.stdout.strip() != VERSION:
+            raise RuntimeError(f"Probe requires the reviewed OpenCode {VERSION}")
         paths = runtime_paths()
         read_pattern = os.path.relpath(page.absolute(), paths["worktree"])
         config["agent"]["sb-probe"]["permission"]["read"] = {
@@ -182,7 +195,7 @@ def isolated_probe():
                 config["agent"]["sb-probe"]["permission"]["edit"] = {"*": "deny", read_pattern: "ask"}
                 os.environ["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
             before = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in [page, *forbidden]}
-            result = subprocess.run(
+            result = _run(
                 ["/opencode", "run", "--pure", "--agent", "sb-probe", "--format", "json",
                  "Perform the synthetic read probe."],
                 capture_output=True, text=True, timeout=30,
@@ -221,7 +234,7 @@ def isolated_probe():
                 break
         passed = len(results) == len(cases) and all(result["passed"] for result in results)
         print(json.dumps({
-            "runtime": "1.18.32", "case": "baseline-read-boundary",
+            "runtime": VERSION, "case": "baseline-read-boundary",
             "paths": paths, "read_pattern": read_pattern,
             "results": results, "passed": passed,
         }, indent=2))
@@ -245,6 +258,7 @@ def launch(script=None, mounts=(), case="baseline-read-boundary", inside_args=()
         "--ro-bind", str(Path(script or __file__).resolve()), "/probe.py",
         "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
         "--dir", "/home/test", "--dir", "/workspace", "--chdir", "/workspace",
+        "--ro-bind", str(REPO / "scripts"), "/src/scripts", "--ro-bind", str(REPO / "tests"), "/src/tests",
     ]
     for source, destination in mounts:
         command.extend(["--ro-bind", str(Path(source).resolve()), destination])
@@ -262,7 +276,7 @@ def launch(script=None, mounts=(), case="baseline-read-boundary", inside_args=()
         env[flag] = "1"
     for key, value in env.items():
         command.extend(["--setenv", key, value])
-    result = subprocess.run(
+    result = _run(
         command + ["/usr/bin/python3", "/probe.py", "--inside", *inside_args],
         capture_output=True, text=True, timeout=560,
     )

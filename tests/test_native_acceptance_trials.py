@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent / "live"))  # the live drivers under test
 from native_acceptance_trials import CHANGES, HUMAN_NOTE, ROLES, protected_inputs, reconcile
 from native_chat_handoff import NativeServer, patch_for, validate_permission
 

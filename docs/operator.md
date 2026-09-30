@@ -229,6 +229,32 @@ the operation's `response.md`.
 - **"OpenCode did not start."** The worker produced no output within 120
   seconds twice. The operator already relaunched it once; try again later.
 
+## Edit notes by hand
+
+You can edit any page in Obsidian or a text editor; the operator and your
+edits share the wiki. With Obsidian [set up for hand editing](installation.md#4-set-up-obsidian-for-hand-editing):
+
+- **Links:** insert them with Obsidian's link picker, which writes
+  `[[wiki/folder/page|Label]]`. A source ↔ concept or entity link needs its
+  back-link on the other page.
+- **Frontmatter:** keep values JSON-quoted and set `updated` to today's date
+  when you change a page. Edit it in source mode.
+- **New pages:** start from a template in `templates/second-brain/`, and add an
+  entry for the page to `wiki/index.md`.
+- **Images:** paste or drop them into a folder under `raw/`, or link existing
+  files there; the checker confirms they exist.
+- **Check your work:** run the checker from the vault root. It lists each
+  problem with its page and line.
+
+  ```sh
+  python3 "$(dirname "$CLI")/link_check.py" .
+  ```
+
+A problem you leave in a page never blocks the operator: `apply` refuses only
+problems a proposal adds, and its dry run counts the ones already there as
+`existing`. The log records operator operations, so hand edits need no log
+record. `undo` never overwrites a page you edited after an operation.
+
 ## Undo an operation
 
 ```sh

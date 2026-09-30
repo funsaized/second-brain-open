@@ -6,8 +6,11 @@ resolve_links(pages) returns unique directed node edges, link diagnostics.
 The two functions can also be used by read-only statistics consumers.
 contract_checks() adds placeholder residue, index coverage and source <->
 concept/entity reciprocity; check() reports all of them as errors.
+evidence_checks() confirms that each source's raw target and each local
+Markdown link or image into raw/ exists, by lstat only; raw files are never
+opened. Other local Markdown links are reported as unsupported.
 Run locally as the owner on an approved, frozen corpus. Path checks do not lock
-against concurrent replacement. Raw references are format-checked, never opened.
+against concurrent replacement.
 Unclosed fenced code suppresses the remaining body; anchors are not verified.
 """
 
@@ -16,9 +19,11 @@ from datetime import date
 import json
 import os
 from pathlib import Path
+import posixpath
 import re
 import stat
 import sys
+import urllib.parse
 
 
 FOLDERS = {"sources": "source", "concepts": "concept", "entities": "entity", "synthesis": "synthesis"}
@@ -33,6 +38,8 @@ FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 INLINE = re.compile(r"(`+)(?!`)[^`\n]*?\1(?!`)")
 ISO = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
 PLACEHOLDER = re.compile(r"\{\{[^{}\n]*\}\}")
+MDLINK = re.compile(r"!?\[[^\]\n]*\]\(<?([^)\s>]+)>?(?:\s+\"[^\"\n]*\")?\)")
+SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")
 RECIPROCAL = {("source", "concept"), ("source", "entity"), ("concept", "source"), ("entity", "source")}
 
 
@@ -205,7 +212,7 @@ def body_lines(body):
 def resolve_links(pages, *, include_controls=True):
     """Resolve canonical links; statistics report control references as excluded."""
     edges, issues, _ = _resolve(pages, include_controls)
-    return edges, issues
+    return edges, [d for d in issues if d["kind"] != "raw_embed"]
 
 
 def _resolve(pages, include_controls):
@@ -226,7 +233,12 @@ def _resolve(pages, include_controls):
                     issues.append(diagnostic(page, "malformed", token, **detail))
                     continue
                 if token.startswith("!"):
-                    issues.append(diagnostic(page, "embed", token, **detail))
+                    # An Obsidian embed of a raw/ file (a pasted image) is evidence, checked by check().
+                    target = token[3:-2].split("|", 1)[0]
+                    if target.startswith("raw/") and canonical_parts(target) and Path(target).suffix:
+                        issues.append(diagnostic(page, "raw_embed", target, **detail))
+                    else:
+                        issues.append(diagnostic(page, "embed", token, **detail))
                     continue
                 inner = token[2:-2]
                 parts = inner.split("|")
@@ -295,12 +307,49 @@ def contract_checks(pages, edges, references):
     return sorted(issues, key=lambda d: (d["page"], d.get("line", 0), d["kind"], d["target"]))
 
 
-def check(vault):
+def evidence_target(vault, relative):
+    """True when a vault-relative raw/ path is an existing regular file; checked with lstat, never opened."""
+    try:
+        return stat.S_ISREG(os.lstat(Path(vault) / relative).st_mode)
+    except OSError:
+        return False
+
+
+def evidence_checks(vault, pages):
+    """Raw evidence must exist: source `raw` fields and local Markdown links into raw/."""
+    issues = []
+    for page, content in pages.items():
+        raw = content["metadata"].get("raw")
+        if (page.startswith("wiki/sources/") and isinstance(raw, str) and raw.startswith("raw/")
+                and canonical_parts(raw) and not evidence_target(vault, raw)):
+            issues.append(diagnostic(page, "missing_raw", raw))
+        for line, text in body_lines(content["body"]):
+            for match in MDLINK.finditer(text):
+                link = match.group(1)
+                if SCHEME.match(link) or link.startswith("#"):
+                    continue
+                target = posixpath.normpath(posixpath.join(posixpath.dirname(page),
+                                                           urllib.parse.unquote(link.split("#", 1)[0])))
+                if target.startswith("raw/") and canonical_parts(target):
+                    if not evidence_target(vault, target):
+                        issues.append(diagnostic(page, "missing_evidence", link, line=line))
+                else:
+                    issues.append(diagnostic(page, "markdown_link", link, line=line))
+    return issues
+
+
+def check(vault, evidence_root=None):
+    """evidence_root: where raw/ lives when `vault` is a wiki-only copy."""
     pages, metadata_issues = collect(vault)
     edges, issues, references = _resolve(pages, True)
+    evidence = evidence_checks(evidence_root or vault, pages)
     errors = metadata_issues + [d for d in issues if d["kind"] in ("missing", "malformed", "ambiguous")]
     errors += contract_checks(pages, edges, references)
+    errors += [d for d in evidence if d["kind"] != "markdown_link"]
+    errors += [dict(d, kind="missing_evidence") for d in issues
+               if d["kind"] == "raw_embed" and not evidence_target(evidence_root or vault, d["target"])]
     unsupported = [d for d in issues if d["kind"] in ("embed", "bare_or_alias", "unsupported_target")]
+    unsupported += [d for d in evidence if d["kind"] == "markdown_link"]
     return {"pages": len(pages) - sum(p in pages for p in ("wiki/index.md", "wiki/log.md")),
             "controls": [p for p in ("wiki/index.md", "wiki/log.md") if p in pages],
             "links": sorted(edges), "errors": errors, "unsupported": unsupported,

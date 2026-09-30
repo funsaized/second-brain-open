@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent / "live"))  # the live drivers under test
 from ingest_rehearsal import CONCEPT, apply_proposal
 from semantic_probe import ROOT, call_model, semantic_checks
 

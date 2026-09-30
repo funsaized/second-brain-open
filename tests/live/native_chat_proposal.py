@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # tests/, for the shared fixtures
 from semantic_probe import ROOT, decoded, prepare_environment
 from runtime_read_probe import validate_scope
 from test_chat_handoff import ARTIFACT_NAME, ARTIFACT_SHA256, EXPORT_SHA256, SELECTED, fixture

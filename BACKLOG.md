@@ -111,6 +111,12 @@
 - **Next candidates:** E3 offline CI (owner decision), F5 project round trip
   with a real project, and watching the 83 KB full index that queries and
   compile-by-topic still read.
+- **C3, D5, E1, E2 delivered (2026-09-30):** evidence links checked; hand
+  editing supported (Obsidian settings, and operations refuse only the
+  problems they add); live harness in `tests/live/` with all three runtime
+  probes passing on OpenCode 1.18.33 (F1 now actually re-verified). The probe
+  "stalls" were an unclosed stdin, not OpenCode. Deployment: three part notes
+  have broken figure links for the owner to fix.
 - **D3 and D4 delivered (2026-09-30):** worker instructions about 42% shorter,
   a guarantees-and-limits page, the chat-export guide rewritten as steps.
   Synthetic ingest, compile and query pass with the new prompts; the
@@ -221,17 +227,17 @@ Deployment facts (sanitized):
 | B5 | ✅ Scoped search inside a confined corpus — grep/glob in the staged copy | Decide | P2 | M | Yes |
 | C1 | ✅ Residue, index-completeness and reciprocity checks | Implement | P0 | S | — |
 | C2 | ✅ Stop permanent exit 1 on legacy controls — deployment cleanup awaits owner | Improve | P0 | S | — |
-| C3 | Validate raw evidence links; report Markdown links | Improve | P1 | S | — |
+| C3 | ✅ Validate raw evidence links; report Markdown links — `missing_raw`, `missing_evidence`, `markdown_link` | Improve | P1 | S | — |
 | C4 | ✅ Stats that tell a mirror from a knowledge graph — knowledge-layer ratio, links by type | Improve | P1 | S | — |
 | C5 | Advisory log-record linter | Improve | P2 | S | — |
 | D1 | ✅ Split PLAN.md — STATUS.md, changelog, decisions, planning history | Simplify | P1 | M | — |
 | D2 | ✅ One place for test counts and status — dated changelog entries only | Simplify | P1 | S | — |
 | D3 | ✅ Cut hedging; move evidence narrative out of how-tos — guarantees-and-limits page, chat-export how-to | Simplify | P1 | M | — |
 | D4 | ✅ Prompts: one rule, one place — worker instructions about 42% shorter, synthetic checks pass | Simplify | P1 | M | — |
-| D5 | Obsidian link-format guidance | Improve | P1 | S | — |
+| D5 | ✅ Obsidian link-format guidance — settings, hand-editing guide; only new problems block | Improve | P1 | S | — |
 | D6 | Generalize owner-specific identifiers | Simplify | P2 | S | — |
-| E1 | Separate the live harness from unit tests | Simplify | P1 | S | — |
-| E2 | Freeze scenario-specific driver modes | Simplify | P2 | S | — |
+| E1 | ✅ Separate the live harness from unit tests — `tests/live/`, probes fixed | Simplify | P1 | S | — |
+| E2 | ✅ Freeze scenario-specific driver modes — labelled frozen in `tests/live/README.md` | Simplify | P2 | S | — |
 | E3 | Offline CI | Implement | P2 | S | Yes |
 | F1 | ✅ Re-verify runtime behavior on OpenCode 1.18.33 — closed by owner | Verify | P0 | S | — |
 | F2 | ✅ Confirm a deployment recovery point — closed by owner | Verify | P0 | S | Yes |

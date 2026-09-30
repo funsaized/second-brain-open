@@ -69,7 +69,7 @@ was inspected or frozen.
 ```sh
 python3 -m unittest discover -s tests -p 'test_native_*.py' -v
 # Fresh disposable trial from the previously reviewed synthetic proposal:
-python3 tests/native_acceptance_trials.py --source-base /tmp/opencode/sb-native-r8-9l3wjmjg --live
+python3 tests/live/native_acceptance_trials.py --source-base /tmp/opencode/sb-native-r8-9l3wjmjg --live
 ```
 
 The successful trial is `/tmp/opencode/sb-native-r8-3n3di8qg`; the original selected
@@ -133,7 +133,7 @@ captures. The route was the previously approved one.
 | Deployment: 90-part textbook, parts 1–35 before the series command (2026-09-29) | 34 parts applied; clean checker (159 pages, 460 links). Stops came from formatting drift (4 of 35 replies), a page both rewritten and link-patched, and a persistent forward link to the next part | Led to the tolerant parser, format-only `revise`, mechanical repairs, series-aware prompts and the `series` command |
 | Primary agent, one request, invented 36-page PDF in 4 parts, background `series` (2026-09-29) | 4/4 parts applied in order with no retries, each linked to the previous part. Rerunning skipped all 4. Checker clean | The background log's multi-line final summary made `series-status` fail to parse, and the agent honestly declined to claim completion. Both fixed: compact final line, tolerant status parsing |
 | Deployment: textbook series stalled at part 47 (2026-09-29) | Deterministic stop: `wiki/index.md` had grown to 51.6 KB (171 entries), above OpenCode's roughly 50 KB read cap, so no worker could read it in one pass. After the chunked-read change, part 47's run passed on the live deployment: the index was read in ranges and fully covered, and the dry run was clean (172 pages, 504 links) | The index will keep growing. Chunked reads handle any size, but every operation reads the whole index, so cost rises with it (backlog H2) |
-| Search boundary probe, `tests/runtime_search_probe.py` (2026-09-29): a role with exact reads plus grep and glob, one forced tool call per case through a local fake provider inside Bubblewrap | 8/8 cases passed in 6 of 6 timed repeats (about 18 s each). Grep inside the worktree completed; grep and glob with a path outside it, a `..` traversal or the home directory were denied by `external_directory`; a symlink to an outside file was not followed; an ungranted read and bash were refused. Grep also returned an ungranted worktree file and a hidden `.obsidian/data.json` | Search permission follows the pattern, not the files, so the staged copy must hold only readable files (now enforced by `run`), and the primary agent gets no blanket grep at the vault root. 2 of 11 earlier invocations hit the 30 s per-call limit, cause not identified; the limit is now 60 s |
+| Search boundary probe, `tests/live/runtime_search_probe.py` (2026-09-29): a role with exact reads plus grep and glob, one forced tool call per case through a local fake provider inside Bubblewrap | 8/8 cases passed in 6 of 6 timed repeats (about 18 s each). Grep inside the worktree completed; grep and glob with a path outside it, a `..` traversal or the home directory were denied by `external_directory`; a symlink to an outside file was not followed; an ungranted read and bash were refused. Grep also returned an ungranted worktree file and a hidden `.obsidian/data.json` | Search permission follows the pattern, not the files, so the staged copy must hold only readable files (now enforced by `run`), and the primary agent gets no blanket grep at the vault root. 2 of 11 earlier invocations hit the 30 s per-call limit, cause not identified; the limit is now 60 s |
 | Worker permission verification with `search` on and off (2026-09-29) | `configure_worker` verified the effective ingest and query roles through `opencode debug` in all four combinations: grep and glob allowed only with `search`, every other grant unchanged | Debug inspection only, no model call |
 | Synthetic ingest of Trial B with search (2026-09-29) | Passed every run check, including `searches_in_scope`; the worker searched twice and read the overlapping concept, entity and source pages; one proposed page update, dry run clean (5 pages, 18 links) | 340 s for a small fixture. The first `run` invocation printed an error that was not captured; the second passed |
 | Synthetic query with search (2026-09-29) | Passed every run check in 36 s with one search; cited three pages it read and abstained on the cause the wiki does not record | Raw captures were not staged |
@@ -142,6 +142,8 @@ captures. The route was the previously approved one.
 | Rewritten worker prompts, D4 (2026-09-30, synthetic fixture vault plus one invented capture, OpenCode 1.18.33, 40 steps) | Worker instructions cut from about 4,560 to 2,650 words per ingest. Ingest of the invented Trial C passed first time (78.5 s, two searches) and applied a source page plus concept, entity, index and log updates. Compile by topic passed its run (33.5 s); the dry run caught a dropped link on the rewritten synthesis, and one `revise` fixed it before applying. Query passed first time (24.5 s), citing Trial C and abstaining on the unresolved cause. Checker clean: 6 pages, 24 links | The first `revise` exposed a bug: a relative operation path left OpenCode's profile directory relative to the staged copy, so the worker couldn't find its skill. Operation paths are now resolved; the operator skill always passed absolute paths |
 | Search boundary probe rerun (2026-09-30) | 8/8 cases passed in a traced rerun, about 1.7 s each | The plain invocation hit its 60 s per-call limit twice in a row: an occasional `opencode run` stall even with a fake provider, as in H1. The probe does not retry; the operator relaunches stalled workers |
 | Researcher evaluation after the rewrite (2026-09-30, deployment, same 10 private questions, 12 steps) | Index-only 9/10; with search 8/10. Every answer that failed a check still cited only pages it read and cited the expected pages. The misses: one failed tool call in each mode (`tools_ok`) and one correct abstention the scorer missed ("does not answer", now accepted) | Before the rewrite: 9/10 and 8/10 with two real search-mode misses (grep hits cited unread, index skipped). No answer-quality regression; the question set still predates the textbook |
+| Runtime probes rerun after the move to `tests/live/` (2026-09-30, OpenCode 1.18.33, fake provider, Bubblewrap) | Read probe 16/16, roles probe 25/25, search probe 8/8 | The earlier "intermittent" probe timeouts had one cause: the probes launched `opencode run` without closing stdin, and it reads piped stdin into its message, so an open pipe made it wait. Every probe subprocess now gets `stdin=DEVNULL`, as the operator's `run_role` always did. The roles probe had also been unable to import its helper inside the sandbox since an earlier refactor; the launcher now mounts `scripts/` and `tests/` under `/src`. This re-verifies the 1.18.32 runtime findings on 1.18.33 |
+| Evidence checks on the deployment (2026-09-30, read-only) | Every source page's `raw` target exists; 425 of 428 local Markdown evidence links resolve | Three textbook part notes have broken figure links: two embed page images that were never rendered, one has a doubled `raw/raw/`. The checker reports them; they no longer block operations, which now refuse only problems they add |
 | Deployment index, compact staged copy (2026-09-29, measured in memory) | 57.5 KB and 183 entries become 32.0 KB with every entry's title and path kept, back under the single-read cap | Ingest workers only; compile and query workers still read the full index |
 
 Worker evidence: designated skill loaded, only complete in-scope reads, and
@@ -156,7 +158,7 @@ These records described the manual, operator-by-hand procedure that the
 ### Remaining proof and installation gates (2026-09-25)
 
 See the [dated acceptance matrix and selected-conversation packet](synthetic-acceptance.md).
-The focused `python3 tests/runtime_roles_probe.py --missing-only` currently exits
+The focused `python3 tests/live/runtime_roles_probe.py --missing-only` currently exits
 **1**: a nonexistent role still causes fake-provider requests (CLI exit 0), while
 both missing designated skills error. Do not rely on `--agent` or exit status
 alone to fail closed. Verify the exact primary prompt, skill and effective scoped
@@ -166,7 +168,7 @@ The owner subsequently waived missing-role/skill scenarios as acceptance blocker
 and will ensure they exist. Retain inexpensive preflight checks; do not describe
 the waived runtime behavior as fixed or passing.
 
-The native proposal helper, `python3 tests/native_chat_proposal.py --live`, now
+The native proposal helper, `python3 tests/live/native_chat_proposal.py --live`, now
 produces a valid framed-Markdown proposal. Effective-config inspection belongs to
 the operator, not the model before its initial permitted manifest read.
 Keep `PWD`, process cwd and `run --dir`
@@ -211,8 +213,8 @@ and unchanged inputs. It does not automate human factual acceptance of every sen
 The live helpers are opt-in and require an explicitly approved primary and route:
 
 ```sh
-python3 tests/semantic_probe.py --live --agent APPROVED_AGENT --model PROVIDER/MODEL
-python3 tests/ingest_rehearsal.py --live --agent APPROVED_AGENT --model PROVIDER/MODEL
+python3 tests/live/semantic_probe.py --live --agent APPROVED_AGENT --model PROVIDER/MODEL
+python3 tests/live/ingest_rehearsal.py --live --agent APPROVED_AGENT --model PROVIDER/MODEL
 ```
 
 These Linux-only helpers use the owner's existing authentication and normal

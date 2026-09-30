@@ -16,17 +16,24 @@ from pathlib import Path
 import subprocess
 import sys
 
-sys.path.insert(0, "/src/tests" if sys.argv[1:] == ["--inside"] else str(Path(__file__).resolve().parent))
+sys.path.insert(0, "/src/tests/live" if sys.argv[1:] == ["--inside"] else str(Path(__file__).resolve().parent))
 from runtime_read_probe import launch, probe_config, runtime_paths, start_provider  # noqa: E402
 
 VERSION = "1.18.33"
 CASE = "search-boundary"
 
 
+def _run(*args, **kwargs):
+    """subprocess.run with stdin closed: `opencode run` reads piped stdin into its message and would wait on an open pipe."""
+    kwargs.setdefault("stdin", subprocess.DEVNULL)
+    return subprocess.run(*args, **kwargs)
+
+
+
 def isolated_probe():
     if os.environ.get("SB_P0_ISOLATED") != "1" or Path.cwd() != Path("/workspace"):
         raise SystemExit("Refusing fixture creation outside the probe namespace")
-    subprocess.run(["git", "init", "--quiet", "."], check=True, capture_output=True)
+    _run(["git", "init", "--quiet", "."], check=True, capture_output=True)
     approved, index = Path("wiki/sources/a.md"), Path("wiki/index.md")
     approved.parent.mkdir(parents=True)
     index.write_text("# Index\n\n- [[wiki/sources/a|A]]\n")
@@ -47,7 +54,7 @@ def isolated_probe():
     config = probe_config(server.server_port)
     os.environ["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
     try:
-        version = subprocess.run(["/opencode", "--version"], capture_output=True, text=True, timeout=10)
+        version = _run(["/opencode", "--version"], capture_output=True, text=True, timeout=10)
         if version.returncode or version.stdout.strip() != VERSION:
             raise RuntimeError(f"Probe requires the reviewed OpenCode {VERSION}")
         paths = runtime_paths()
@@ -71,7 +78,7 @@ def isolated_probe():
             requests.clear()
             files = [approved, index, Path("unlisted.md"), *outside]
             before = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
-            result = subprocess.run(["/opencode", "run", "--pure", "--agent", "sb-probe", "--format", "json",
+            result = _run(["/opencode", "run", "--pure", "--agent", "sb-probe", "--format", "json",
                                      "Perform the synthetic search probe."],
                                     capture_output=True, text=True, timeout=60)
             calls = []
@@ -116,8 +123,7 @@ def isolated_probe():
 if __name__ == "__main__":
     try:
         sys.exit(isolated_probe() if sys.argv[1:] == ["--inside"] else
-                 launch(__file__, mounts=[(Path(__file__).resolve().parents[1] / name, f"/src/{name}")
-                                          for name in ("tests", "scripts")], case=CASE))
+                 launch(__file__, case=CASE))
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
         print(json.dumps({"case": CASE, "setup_error": type(error).__name__,
                           "reason": str(error) if isinstance(error, RuntimeError) else "Runtime output withheld"}))

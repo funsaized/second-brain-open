@@ -23,7 +23,7 @@ The new runtime command is deliberately narrow; it does not rerun the 25-case
 matrix or unsafe wrapper characterizations:
 
 ```sh
-python3 tests/runtime_roles_probe.py --missing-only
+python3 tests/live/runtime_roles_probe.py --missing-only
 ```
 
 Observed OpenCode 1.18.32, approved frozen namespace/profile, local fake provider,
@@ -126,7 +126,7 @@ separate; no new provider, credentials or edit grants were authorized implicitly
 
 ### Actual native attempts (2026-09-25)
 
-`tests/native_chat_proposal.py` installs the two unchanged roles/skills and license
+`tests/live/native_chat_proposal.py` installs the two unchanged roles/skills and license
 notices into a disposable profile outside this checkout, using existing native
 authentication. It verifies selected prompts/routes, effective scoped permissions,
 designated skill locations and the native project worktree before inference.
@@ -172,7 +172,7 @@ claimed as a new successful live run. All 66 offline tests and `git diff --check
 
 ```sh
 # Only under the approved synthetic scope; currently no accepted proposal claimed:
-python3 tests/native_chat_proposal.py --live
+python3 tests/live/native_chat_proposal.py --live
 python3 -m unittest discover -s tests -p 'test_native_chat_proposal.py' -v
 ```
 
@@ -252,9 +252,9 @@ state before a subsequent attempt.
 ```sh
 python3 -m unittest discover -s tests -p 'test_native_chat_*.py' -v
 # Authorized four-path synthetic attempt, not blanket auto-approval:
-python3 tests/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-approve-four-files
+python3 tests/live/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-approve-four-files
 # Independent read-only query discloses absent wiki content:
-python3 tests/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-query-only
+python3 tests/live/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-query-only
 ```
 
 Seven narrow native-driver tests and all 70 offline checks pass; `git diff --check`
@@ -312,8 +312,8 @@ the primary locator. “Later” for blue means transcript order, not a known da
 ```sh
 # Do not replay --live-approve-four-files on this now-applied stage: its old
 # preimages no longer match. Read-only repeat assessment is a separate action.
-python3 tests/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-repeat-only
-python3 tests/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-query-only
+python3 tests/live/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-repeat-only
+python3 tests/live/native_chat_handoff.py --base /tmp/opencode/sb-native-r8-9l3wjmjg --live-query-only
 ```
 
 Eight narrow driver tests and all 71 offline checks pass; `git diff --check` passes.

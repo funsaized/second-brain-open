@@ -315,6 +315,22 @@ class OperatorTests(unittest.TestCase):
         self.assertIn("[[wiki/sources/trial-b|", patched["files"]["wiki/concepts/oven-airflow.md"])
         self.assertIn("added the back-link wiki/concepts/oven-airflow -> wiki/sources/trial-b", fixes)
 
+    def test_normalize_repairs_missing_images(self):
+        operation = self.staged("ingest", ["raw/trial-b.md"], "Ingest trial B")
+        manifest = json.loads((operation / "manifest.json").read_text())
+        (self.vault / "raw/assets/cap").mkdir(parents=True)
+        (self.vault / "raw/assets/cap/page-01.png").write_bytes(b"x")
+        body = ("![Figure 1, page 1](../../raw/assets/cap/page-01.png)\n![Figure 2, page 2](../../raw/assets/cap/page-02.png)\n"
+                "![Figure 3](../../raw/raw/assets/cap/page-01.png)\n![web](https://example.com/x.png)\n")
+        fixed, fixes = op.normalize(manifest, {"files": {"wiki/sources/new.md": body}, "links": [], "index": [],
+                                               "log": RECORD, "notes": ""})
+        text = fixed["files"]["wiki/sources/new.md"]
+        self.assertIn("![Figure 1, page 1](../../raw/assets/cap/page-01.png)", text)
+        self.assertIn("Figure 2, page 2 (image not rendered)", text)
+        self.assertIn("![Figure 3](../../raw/assets/cap/page-01.png)", text)
+        self.assertIn("![web](https://example.com/x.png)", text)
+        self.assertEqual(sum("image" in f for f in fixes), 2)
+
     def test_compile_by_topic_needs_no_inputs(self):
         operation = op.stage(self.vault, "compile", [], "Explain vent choice across the trials", self.config,
                              today="2026-09-28")
@@ -409,6 +425,27 @@ class OperatorTests(unittest.TestCase):
                 self.assertTrue(any(expected in p for p in result["problems"]), result["problems"])
                 self.assertFalse((operation / "receipt.json").exists())
                 self.assertFalse((self.vault / "wiki/concepts/oven-airflow.md").exists())
+
+    def test_only_problems_a_proposal_adds_block_it(self):
+        # A hand edit leaves a problem in the vault: an unrelated operation still applies.
+        source = self.vault / "wiki/sources/trial-b.md"
+        source.write_text(source.read_text() + "\nSee [[vent choice]] and ![fig](../../raw/assets/missing.png).\n")
+        existing = op.link_check.check(self.vault)
+        self.assertTrue(existing["errors"] and existing["unsupported"])
+        operation = self.staged()
+        self.proposal(operation)
+        result = op.apply(operation)
+        self.assertTrue(result.get("applied"), result["problems"])
+        self.assertEqual(result["checker"]["existing"], 2)
+        self.assertTrue(json.loads((operation / "receipt.json").read_text())["post_check_clean"])
+        # A proposal that adds its own broken evidence link is refused (images are repaired instead).
+        operation = self.staged()
+        concept = CONCEPT.replace("# Oven airflow", "# Airflow two").replace("Oven airflow", "Airflow two")
+        self.proposal(operation, {"wiki/concepts/airflow-two.md": concept + "See [the capture](../../raw/missing.md).\n"},
+                      index=[["Concepts", "- [[wiki/concepts/airflow-two|Airflow two]] — two."]])
+        problems = op.apply(operation, dry_run=True)["problems"]
+        self.assertTrue(any("missing_evidence wiki/concepts/airflow-two.md" in p for p in problems), problems)
+        self.assertFalse(any("trial-b" in p for p in problems), problems)
 
     def test_drift_blocks_apply_and_undo_preserves_later_edits(self):
         operation = self.staged()
@@ -661,6 +698,7 @@ class SeriesTests(unittest.TestCase):
                     "Sources | - [[wiki/sources/book-part-1|Part 1]] — worker's own line.\n<<<LINKS>>>\n"
                     "wiki/sources/book-part-1.md | - [[wiki/sources/book-ch1|Chapter 1]] — its chapter\n"
                     "<<<LOG>>>\n## 2026-09-29 — compile chapter 1 — partial\n<<<NOTES>>>\nok")
+        (self.vault / "raw/book.pdf").write_bytes(b"%PDF-1.4 invented")
         plan_file = Path(self.tmp.name) / "plan.json"
         plan_file.write_text(json.dumps({"theme": "Invented book", "items": [
             {"kind": "compile", "inputs": ["wiki/sources/book-part-1.md", "wiki/sources/book-part-2.md"],

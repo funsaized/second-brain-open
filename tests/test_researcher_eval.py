@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "live"))  # the live drivers under test
 import researcher_eval as ev
 
 
@@ -150,7 +151,7 @@ class ResearcherEvalTests(unittest.TestCase):
                 ev.stage(vault, base)
 
     def test_cli_requires_live_before_any_runtime_call(self):
-        result = subprocess.run([sys.executable, str(ROOT / "tests/researcher_eval.py"), "--vault", str(FIXTURE),
+        result = subprocess.run([sys.executable, str(ROOT / "tests/live/researcher_eval.py"), "--vault", str(FIXTURE),
                                  "--questions", str(QUESTIONS), "--agent", "a", "--model", "p/m",
                                  "--opencode-version", "0"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)

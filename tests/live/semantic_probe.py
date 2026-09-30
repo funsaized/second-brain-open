@@ -17,7 +17,7 @@ import re
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from scripts.sb_runtime import decoded, inspect_config, prepare_environment, validate_scope  # noqa: E402
 

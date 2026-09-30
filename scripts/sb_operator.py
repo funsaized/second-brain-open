@@ -27,10 +27,12 @@ framework/operator.example.json). Standard library only; Linux for `run`.
 """
 
 import argparse
+from collections import Counter
 from datetime import date, datetime, timezone
 import hashlib
 import json
 import os
+import posixpath
 from pathlib import Path
 import re
 import secrets
@@ -911,6 +913,7 @@ def add_links(text, entries, today):
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).rstrip("\n") + "\n"
 
 
+IMAGE = re.compile(r"!\[([^\]\n]*)\]\(<?([^)\s>]+)>?\)")
 WIKILINK = re.compile(r"(?<!!)\[\[([^\]|#]+)(#[^\]|]*)?(?:\|([^\]]+))?\]\]")
 
 
@@ -950,6 +953,20 @@ def normalize(manifest, proposal):
                     fixes.append(f"unlinked missing {target} in {path}")
                     return match.group(3) or target.rsplit("/", 1)[-1]
                 line = WIKILINK.sub(unlink, line)
+
+                def unembed(match):
+                    alt, link = match.group(1), match.group(2)
+                    if re.match(r"[A-Za-z][A-Za-z0-9+.-]*:|#", link):
+                        return match.group(0)
+                    target = posixpath.normpath(posixpath.join(posixpath.dirname(path), urllib.parse.unquote(link)))
+                    if not target.startswith("raw/") or link_check.evidence_target(manifest["vault"], target):
+                        return match.group(0)
+                    if "raw/raw/" in target and link_check.evidence_target(manifest["vault"], target.replace("raw/raw/", "raw/", 1)):
+                        fixes.append(f"corrected doubled raw/ in an image link in {path}")
+                        return match.group(0).replace("raw/raw/", "raw/", 1)
+                    fixes.append(f"replaced missing image {target} with its caption in {path}")
+                    return f"{alt or 'Figure'} (image not rendered)"
+                line = IMAGE.sub(unembed, line)
             out.append(line)
         files[path] = "\n".join(out)
     links = []
@@ -1056,9 +1073,31 @@ def changes_for(manifest, proposal):
     return changes
 
 
+def problem_keys(report):
+    """Checker problems as a multiset, without line numbers, which shift when a page is edited."""
+    return Counter((d["kind"], d["page"], d.get("target") or d.get("detail", "")) for d in report["errors"] + report["unsupported"])
+
+
+def new_problems(before, after):
+    """Problems in `after` beyond those already in `before`, so existing issues (a hand edit, an older
+    page) are reported but never block an operation that doesn't add to them."""
+    extra = problem_keys(after) - problem_keys(before)
+    found = []
+    for d in after["errors"] + after["unsupported"]:
+        key = (d["kind"], d["page"], d.get("target") or d.get("detail", ""))
+        if extra[key]:
+            extra[key] -= 1
+            found.append(d)
+    return found
+
+
 def candidate_check(manifest, proposal):
-    """Run the managed checker on a copy of the vault's wiki with the proposal applied."""
+    """Run the managed checker on a copy of the vault's wiki with the proposal applied.
+
+    Only problems the proposal adds count; problems the vault already has are reported as `existing`.
+    """
     vault = Path(manifest["vault"])
+    before = link_check.check(vault)
     with tempfile.TemporaryDirectory(prefix="sb-candidate-") as tmp:
         root = Path(tmp)
         for key in manifest["wiki_preimages"]:
@@ -1067,9 +1106,9 @@ def candidate_check(manifest, proposal):
         for path, body in changes_for(manifest, proposal).items():
             (root / path).parent.mkdir(parents=True, exist_ok=True)
             (root / path).write_text(body)
-        report = link_check.check(root)
-    return {"errors": report["errors"] + report["unsupported"], "unchecked": len(report["unchecked"]),
-            "pages": report["pages"], "links": len(report["links"])}
+        report = link_check.check(root, evidence_root=vault)
+    return {"errors": new_problems(before, report), "existing": sum(problem_keys(before).values()),
+            "unchecked": len(report["unchecked"]), "pages": report["pages"], "links": len(report["links"])}
 
 
 def atomic_write(path, text):
@@ -1105,9 +1144,10 @@ def apply(op, dry_run=False):
                                  for item in proposal.get("index", [])],
                "links_added": [f"{path} -> {first_link(entry)}" for path, entry in proposal.get("links", [])],
                "log_record": (proposal["log"] or "").splitlines()[0] if proposal["log"] else None,
-               "checker": checker and {k: checker[k] for k in ("pages", "links", "unchecked")}}
+               "checker": checker and {k: checker[k] for k in ("pages", "links", "unchecked", "existing")}}
     if problems or dry_run:
         return summary
+    before_check = link_check.check(vault)
     backup = op / "backup"
     backup.mkdir(mode=0o700)
     changes = changes_for(manifest, proposal)
@@ -1121,8 +1161,7 @@ def apply(op, dry_run=False):
         atomic_write(target, text)
         receipt.append({"path": path, "before": before, "after": file_hash(target)})
         write_json(op / "receipt.json", {"files": receipt, "complete": False})
-    after = link_check.check(vault)
-    ok = not (after["errors"] or after["unsupported"])
+    ok = not new_problems(before_check, link_check.check(vault))
     write_json(op / "receipt.json", {"files": receipt, "complete": True, "post_check_clean": ok})
     if not ok:
         undo(op)
@@ -1201,9 +1240,9 @@ def accept(vault, level, sample, defects, match=None, config_path=None, dry_run=
     backup = Path(config["workdir"]) / f"accept-{datetime.now():%Y%m%d-%H%M%S}-log.md"
     backup.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(log, backup)
+    before_check = link_check.check(vault)
     atomic_write(log, text.rstrip("\n") + "\n\n" + record + "\n")
-    after = link_check.check(vault)
-    if after["errors"] or after["unsupported"]:
+    if new_problems(before_check, link_check.check(vault)):
         atomic_write(log, text)
         raise ValueError("the checker failed after appending; the log was restored")
     return {**summary, "backup": str(backup)}

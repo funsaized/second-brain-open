@@ -12,12 +12,20 @@ import shutil
 import subprocess
 import sys
 
-from runtime_read_probe import launch, probe_config, runtime_paths, start_provider, validate_scope
+sys.path.insert(0, "/src/tests/live" if "--inside" in sys.argv[1:] else str(Path(__file__).resolve().parent))
+from runtime_read_probe import VERSION, launch, probe_config, runtime_paths, start_provider, validate_scope
+
+
+def _run(*args, **kwargs):
+    """subprocess.run with stdin closed: `opencode run` reads piped stdin into its message and would wait on an open pipe."""
+    kwargs.setdefault("stdin", subprocess.DEVNULL)
+    return subprocess.run(*args, **kwargs)
+
 
 
 def run_role(role, requests, arguments=None):
     requests.clear()
-    return subprocess.run(
+    return _run(
         ["/opencode", "run", "--pure", *(["--agent", role] if role else []), "--format", "json",
          *(arguments or ["Perform the approved synthetic tool probe; do not use other roles."])],
         capture_output=True, text=True, timeout=30,
@@ -71,9 +79,9 @@ def isolated_probe(missing_only=False):
     os.environ["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
     results = []
     try:
-        version = subprocess.run(["/opencode", "--version"], capture_output=True, text=True, timeout=10)
-        if version.returncode or version.stdout.strip() != "1.18.32":
-            raise RuntimeError("Probe requires the reviewed OpenCode 1.18.32")
+        version = _run(["/opencode", "--version"], capture_output=True, text=True, timeout=10)
+        if version.returncode or version.stdout.strip() != VERSION:
+            raise RuntimeError(f"Probe requires the reviewed OpenCode {VERSION}")
         paths = runtime_paths()
         relative = lambda path: os.path.relpath(path, paths["worktree"])
         for role, skill in roles.items():
@@ -88,7 +96,7 @@ def isolated_probe(missing_only=False):
                     "*": "deny", relative(Path("wiki/index.md").absolute()): "ask",
                 }
         os.environ["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
-        effective = subprocess.run(["/opencode", "debug", "config", "--pure"],
+        effective = _run(["/opencode", "debug", "config", "--pure"],
                                    capture_output=True, text=True, timeout=30)
         if effective.returncode:
             raise RuntimeError("Effective candidate configuration failed")
@@ -225,9 +233,8 @@ if __name__ == "__main__":
     try:
         if "--inside" in sys.argv[1:]:
             sys.exit(isolated_probe(missing_only="--missing-only" in sys.argv[1:]))
-        root = Path(__file__).resolve().parents[1]
+        root = Path(__file__).resolve().parents[2]
         sys.exit(launch(__file__, [(root / "framework", "/framework"),
-                                  (root / "tests/runtime_read_probe.py", "/runtime_read_probe.py"),
                                   (root / "LICENSE", "/notices/LICENSE"),
                                   (root / "THIRD_PARTY_NOTICES.md", "/notices/THIRD_PARTY_NOTICES.md")],
                         case="named-role-boundary",

@@ -38,7 +38,7 @@ change's result is recorded in its dated [changelog](docs/changelog.md) entry.
 | Evidence class | What it establishes | Where |
 |---|---|---|
 | Offline suite | Static, CLI and guard behaviour on invented fixtures | `tests/` |
-| Runtime probes | OpenCode loading, read and search boundaries with a fake provider, by version | `tests/runtime_*_probe.py`, [trials](docs/native-acceptance-trials.md) |
+| Runtime probes | OpenCode loading, read and search boundaries with a fake provider, by version | `tests/live/runtime_*_probe.py`, [trials](docs/native-acceptance-trials.md) |
 | Live synthetic runs | Worker behaviour on invented vaults, by date and OpenCode version | [Trials](docs/native-acceptance-trials.md), [synthetic acceptance](docs/synthetic-acceptance.md) |
 | Owner acceptance | Whether a deployment's content is accepted | That deployment's `wiki/log.md`, never this repository |
 

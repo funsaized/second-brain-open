@@ -18,7 +18,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts import link_check
-from runtime_read_probe import validate_scope
+from scripts.sb_runtime import validate_scope
 
 
 FIXTURE = ROOT / "tests/fixtures/contract"

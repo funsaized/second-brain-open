@@ -148,7 +148,28 @@ python3 /path/to/second-brain-open/scripts/link_check.py /path/to/vault
 
 It should exit 0.
 
-## 4. Verify
+## 4. Set up Obsidian for hand editing
+
+If you edit notes in Obsidian, make its links match the contract. In
+**Settings → Files and links**:
+
+- **New link format:** *Absolute path in vault*. Links then read
+  `[[wiki/concepts/page|Label]]`, the only form the checker accepts. With the
+  default, *shortest path*, Obsidian writes bare `[[page]]` links, which the
+  checker reports as unsupported.
+- **Use [[Wikilinks]]:** on.
+- **Automatically update internal links:** on, so renaming a page keeps links
+  exact.
+- **Default location for new attachments:** a folder under `raw/`, such as
+  `raw/assets/pasted`. A pasted image is then embedded as
+  `![[raw/assets/pasted/image.png]]`, which the checker accepts as evidence.
+
+Edit a page's frontmatter as text, in source mode, rather than in the
+Properties panel. The panel rewrites values without the JSON quotes the
+contract requires (`updated: 2026-09-30` instead of `updated: "2026-09-30"`).
+The [operator guide](operator.md#edit-notes-by-hand) covers the rest.
+
+## 5. Verify
 
 Restart OpenCode so it discovers the new roles and skills. Then ask your primary
 agent a question:

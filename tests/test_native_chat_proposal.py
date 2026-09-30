@@ -6,6 +6,8 @@ import unittest
 from unittest import mock
 import subprocess
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent / "live"))  # the live drivers under test
 from native_chat_proposal import CHANGES, ROLES, native_run, parse_proposal, verify_agent, verify_skills
 
 

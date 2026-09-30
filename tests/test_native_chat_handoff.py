@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent / "live"))  # the live drivers under test
 from native_chat_handoff import ARTIFACT_NAME, CHANGES, digest, patch_for, query, validate_permission, write_local
 
 
