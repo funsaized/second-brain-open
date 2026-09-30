@@ -18,15 +18,17 @@ community plugins are not required.
 |---|---|---|
 | Turn a source into knowledge | Hand the operator a web page or PDF URL, or a file in `raw/`. It captures the main content, or a PDF's page-marked text, with OCR for scans and rendered figures the worker reads, with provenance. A sandboxed worker then proposes source, concept and entity pages with claim-level locators. The operator checks and applies them, with undo. | [Ingest a web page](docs/operator.md#ingest-a-web-page) |
 | Catch up on captures | Clip pages into `raw/` all week, then ask the operator to ingest everything new, oldest first. | [Catch up](docs/operator.md#catch-up-on-everything-new) |
-| Build concept pages | Compile concept, entity or synthesis pages from source notes you already have, with links in both directions. | [Compile concepts](docs/operator.md#build-concept-pages-from-existing-notes) |
-| Ask a question of the wiki | A read-only worker follows the index to the relevant pages, cites them and names what the wiki does not cover. | [Ask a question](docs/operator.md#ask-a-question) |
+| Read a book as a book | Ingest a long document part by part in a resumable background series, then compile one chapter page per chapter, with its concepts, from the part notes. | [Long documents](docs/operator.md#organize-a-long-document-by-chapter) |
+| Build concept and synthesis pages | Compile concept, entity or synthesis pages from notes you already have; workers find them through the index and search. Links run in both directions. | [Compile concepts](docs/operator.md#build-concept-pages-from-existing-notes) |
+| Ask a question of the wiki | A read-only worker follows the index, or searches, to the relevant pages, cites only pages it actually read and names what the wiki does not cover. | [Ask a question](docs/operator.md#ask-a-question) |
 | Bring in selected chat history | Local conversion of supported Claude, simple-message and ChatGPT branch exports, with versioned files and omission reporting. No model calls during conversion. | [Convert and review exports](docs/chat-exports.md) |
 | Check a managed wiki | Metadata and canonical-link validation, leftover template placeholders, pages missing from the index and one-way source links. | [Checker reference](docs/reference.md#link-checker) |
 | Measure answer quality | Live evaluation of the researcher on a staged copy of your wiki. | [Evaluate the researcher](docs/researcher-evaluation.md) |
 | Understand the wiki's structure | Reproducible page/link counts, components, orphans, stale concepts and date diagnostics. | [Calculate statistics](docs/vault-stats.md) |
 
 Every change updates the index and appends a log record. Operations stay
-`partial` until you record a sampled or full review.
+`partial` until you tell the operator your sampled or full review, and it
+records your acceptance.
 
 ## Start here
 

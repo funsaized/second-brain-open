@@ -123,10 +123,12 @@ source. That is the owner's review.
 The ingestor reads an approved source and proposes complete pages. The
 operator's checks catch metadata and link problems, leftover template
 placeholders, pages missing from the index and one-way source links. When a
-proposal fails them, the worker gets one chance to revise.
+proposal fails them, the worker gets one chance to revise. Purely mechanical
+gaps, such as a missing back-link, the operator repairs itself and reports.
 
 The researcher reads pages and evidence, then answers with citations and
-coverage limits. It writes no files, including the log. Saving an answer
+coverage limits. The operator rejects an answer that cites a page the
+researcher never opened. It writes no files, including the log. Saving an answer
 requires a separate compile operation.
 
 Editorial review asks whether a note is faithful, sufficiently detailed and

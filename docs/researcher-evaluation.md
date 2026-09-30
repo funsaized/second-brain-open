@@ -64,6 +64,9 @@ The harness:
 
 Each question takes about a minute. `--steps` (default 8) limits the
 researcher's turns and `--timeout` (default 300 seconds) stops a stuck run.
+`--search` also grants grep and glob on the staged copy, as the operator does
+by default; run with and without it to compare index-only and search-enabled
+retrieval. The operator's own query runs also enforce `citations_read`.
 
 ## 3. Read the scores
 

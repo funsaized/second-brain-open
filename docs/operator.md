@@ -106,6 +106,25 @@ python3 "$CLI" series . --glob 'raw/2026-09-29-book-part-*.md' --background
 python3 "$CLI" series-status .
 ```
 
+## Organize a long document by chapter
+
+Parts follow read limits, not the book's structure. Once every part is
+ingested, compile one chapter page per chapter from its part notes with a
+plan: a JSON list of compile operations, one per chapter, naming that
+chapter's part notes and the chapter page to create (`done_if`). Each chapter
+page points at the original document, gives the chapter's argument and a map of
+its sections to the part notes, and comes with one to three concept pages. The
+part notes stay as page-level evidence, link up to their chapter, and have
+their index entries filed under a "capture parts" theme (`file_inputs_under`).
+
+```sh
+python3 "$CLI" series . --plan plan.json --background
+```
+
+The plan format is in the [reference](reference.md#operator-cli). A chapter whose
+page is not created gets one fresh attempt; a second failure stops the series,
+and rerunning the plan skips chapters already done.
+
 ## Ingest a file you saved
 
 Save the source into `raw/` (clipped article, extracted PDF text, a converted
@@ -114,7 +133,8 @@ chat) and name it:
 > Use the second-brain-operator skill to ingest raw/2026-10-01-article.md as a
 > learning reference.
 
-A large source may need more pages than `max_pages` allows. The worker then
+A large source may need more pages than `max_pages` allows. The limit counts
+pages written whole; back-link lines on existing notes don't count. The worker
 proposes the most important pages and lists the rest as follow-up operations.
 
 ## Catch up on everything new
@@ -135,19 +155,36 @@ Describe the concept; the worker finds the relevant notes itself:
 > Use the second-brain-operator skill to create a concept around the structure
 > of the wiki filesystem and how it plays into usage.
 
-The worker reads the index, picks the most relevant notes (usually three to
-eight), reads them in full, and writes the concept page. Every claim links to
-the note that supports it, and each note gets a link back to the concept. The
-operator merges the new index entry; nothing is fetched from the web. To choose
-the notes yourself, name them: "…from wiki/sources/a.md and wiki/sources/b.md".
+The worker reads the index and searches the wiki's pages, picks the most
+relevant notes (usually three to eight), reads them in full, and writes the
+concept page. Every claim links to the note that supports it, and each note
+gets a link back to the concept; the operator adds any back-link the worker
+missed. The operator merges the new index entry; nothing is fetched from the
+web. To choose the notes yourself, name them: "…from wiki/sources/a.md and
+wiki/sources/b.md".
+
+A **synthesis page** compares or combines several concepts and sources. Ask for
+one the same way, naming the concepts it should draw on:
+
+> Use the second-brain-operator skill to compile a synthesis on consistency
+> versus availability from the concepts on replication, transactions and
+> coordination, with a "where they disagree" section. Save it under
+> wiki/synthesis/.
+
+A synthesis reads widely; the default worker budget (`steps`, 40) is sized for
+it.
 
 ## Ask a question
 
 > Use the second-brain-operator skill to answer: how should the log differ from
 > the index?
 
-The answer cites the pages it read and ends with `Read:` and `Not covered:`. Asking
-writes nothing. To keep an answer, ask for a compile operation.
+The researcher starts from the index and searches the wiki's pages when the
+index doesn't point to an answer. The answer cites the pages it read and ends
+with `Read:` and `Not covered:`. The operator checks that every cited page was
+actually opened, not just seen in a search result; if not, it gives the
+researcher one retry. Asking writes nothing. To keep an answer, ask for a
+compile operation.
 
 ## Run the steps yourself
 
@@ -180,8 +217,16 @@ the operation's `response.md`.
   the problems and its previous reply, and returns a corrected proposal. Check
   it with `apply --dry-run` again. The operator skill does this for you. If the
   problems remain, stage a new operation with a narrower task.
-- **A vault file changed since staging.** `apply` refuses rather than
-  overwrite your edit. Stage the operation again.
+- **A page changed since staging.** `apply` refuses rather than overwrite a
+  page it would rewrite whole, whether you or another operation changed it.
+  Stage the operation again; `revise` can't fix this. Changes to the log, the
+  index or pages it only adds back-links to don't block it.
+- **A query cited pages it didn't read** (`citations_read`). Run `revise
+  OPERATION` once; the researcher reads those pages or drops the claims.
+- **The worker ran out of turns.** Its reply explains what it couldn't finish.
+  Raise `steps` in the operator config, or narrow the task, and stage again.
+- **"OpenCode did not start."** The worker produced no output within 120
+  seconds twice. The operator already relaunched it once; try again later.
 
 ## Undo an operation
 
@@ -196,11 +241,23 @@ any file you edited after the operation and names it under
 ## Record your review
 
 Applied operations are logged as `partial`. After you review the changes,
-append an acceptance record to `wiki/log.md` in the form the
-[log template](../framework/templates/log.md) shows. Use `sampled` for a
-reviewed sample or `full` for every page; see
+tell your primary agent what you reviewed and your verdict:
+
+> I accept the synthesis and the networking concept at sampled level; defects:
+> none.
+
+It records that with `accept`, which appends one acceptance record naming every
+operation still waiting, with your level, sample and defects. From a terminal:
+
+```sh
+python3 "$CLI" accept . --level sampled --sample "the synthesis and two concepts" --defects none --dry-run
+python3 "$CLI" accept . --level sampled --sample "the synthesis and two concepts" --defects none
+```
+
+Use `sampled` for a reviewed sample or `full` for every page; `technical`
+records that checks pass but keeps the operations partial. See
 [Owner acceptance](../framework/instructions/wiki-contract.md#owner-acceptance).
-The operator never records acceptance for you.
+The operator records acceptance only when you state it.
 
 ## Related
 
