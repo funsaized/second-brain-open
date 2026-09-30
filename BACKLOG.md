@@ -108,9 +108,13 @@
   type in `vault_stats.py`). Marked done: A1, A4, A5.
 - **Deployment, measured:** knowledge layer 33 pages per 229 sources (0.14);
   640 of 1,068 links are still `source->source`.
-- **Next candidates:** E3 offline CI (owner decision), D3/D4 prose and prompt
-  simplification, F5 project round trip with a real project, and watching the
-  83 KB full index that queries and compile-by-topic still read.
+- **Next candidates:** E3 offline CI (owner decision), F5 project round trip
+  with a real project, and watching the 83 KB full index that queries and
+  compile-by-topic still read.
+- **D3 and D4 delivered (2026-09-30):** worker instructions about 42% shorter,
+  a guarantees-and-limits page, the chat-export guide rewritten as steps.
+  Synthetic ingest, compile and query pass with the new prompts; the
+  deployment evaluation shows no answer-quality regression.
 
 ## How the review was done
 
@@ -222,8 +226,8 @@ Deployment facts (sanitized):
 | C5 | Advisory log-record linter | Improve | P2 | S | — |
 | D1 | ✅ Split PLAN.md — STATUS.md, changelog, decisions, planning history | Simplify | P1 | M | — |
 | D2 | ✅ One place for test counts and status — dated changelog entries only | Simplify | P1 | S | — |
-| D3 | Cut hedging; move evidence narrative out of how-tos | Simplify | P1 | M | — |
-| D4 | Prompts: one rule, one place, no operator-only content | Simplify | P1 | M | — |
+| D3 | ✅ Cut hedging; move evidence narrative out of how-tos — guarantees-and-limits page, chat-export how-to | Simplify | P1 | M | — |
+| D4 | ✅ Prompts: one rule, one place — worker instructions about 42% shorter, synthetic checks pass | Simplify | P1 | M | — |
 | D5 | Obsidian link-format guidance | Improve | P1 | S | — |
 | D6 | Generalize owner-specific identifiers | Simplify | P2 | S | — |
 | E1 | Separate the live harness from unit tests | Simplify | P1 | S | — |

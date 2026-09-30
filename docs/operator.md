@@ -7,7 +7,8 @@ assumes the framework and operator are installed; if not, start with
 
 Most of the time you ask your primary agent in plain language, and it runs the
 operator for you through the `second-brain-operator` skill. You can run the same
-steps yourself with the CLI.
+steps yourself with the CLI. What the operator's checks do and don't establish
+is in [guarantees and limits](guarantees-and-limits.md).
 
 ## Ingest a web page
 

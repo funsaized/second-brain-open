@@ -1,6 +1,7 @@
 """Offline operator checks on invented vaults; `run` is covered by its event verifier only."""
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -513,6 +514,19 @@ class OperatorTests(unittest.TestCase):
         ingest = self.staged("ingest", ["raw/trial-b.md"], "Ingest trial B")
         imanifest = json.loads((ingest / "manifest.json").read_text())
         self.assertNotIn("citations_read", op.verify_events(imanifest, ingest / "corpus", [text], 0, {}, {})[1]["checks"])
+
+    def test_operation_paths_resolve_before_use(self):
+        operation = self.staged()
+        seen = {}
+        saved = op.configure_worker
+        op.configure_worker = lambda corpus, profile, *rest: seen.update(corpus=corpus, profile=profile) or (_ for _ in ()).throw(RuntimeError("stop"))
+        try:
+            relative = Path(os.path.relpath(operation, Path.cwd()))
+            with self.assertRaisesRegex(RuntimeError, "stop"):
+                op.run(relative)
+        finally:
+            op.configure_worker = saved
+        self.assertTrue(seen["profile"].is_absolute() and seen["corpus"].is_absolute())
 
     def test_revise_only_for_a_failing_unapplied_proposal(self):
         query = op.stage(self.vault, "query", [], "What did Trial A find?", self.config)

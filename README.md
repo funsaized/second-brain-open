@@ -60,14 +60,17 @@ directly. These Python standard-library tools need neither OpenCode nor Obsidian
 
 ### Reference
 
+- [Guarantees and limits](docs/guarantees-and-limits.md): what the checks,
+  permissions and evidence establish, and where they stop.
 - [Operator CLI, config, checks and worker roles](docs/reference.md).
-- [Link checker syntax, exit codes and limits](docs/reference.md#link-checker).
+- [Link checker syntax, exit codes and limits](docs/reference.md#link-checker),
+  and the [chat export converter's specification](docs/reference.md#chat-export-converter).
 - [Managed-wiki contract](framework/instructions/wiki-contract.md): types,
-  metadata, evidence, links, [content preservation](framework/instructions/wiki-contract.md#content-preservation)
+  metadata, evidence, links, [content preservation](framework/instructions/wiki-contract.md#content)
   and [owner acceptance](framework/instructions/wiki-contract.md#owner-acceptance).
 - [Page and project templates](framework/templates/).
 - [Statistics definitions](docs/vault-stats.md#what-is-counted) and
-  [supported export shapes](docs/chat-exports.md#supported-synthetic-shapes-and-fidelity).
+  [supported export shapes](docs/reference.md#supported-shapes-and-fidelity).
 
 ### Explanation
 

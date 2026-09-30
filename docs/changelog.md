@@ -447,3 +447,29 @@ Verification: 140 offline tests pass; `git diff --check` passes.
 
 Verification: 140 offline tests pass; `git diff --check` passes.
 
+## 2026-09-30 — One rule, one place; guarantees and limits
+
+- **Prompts (D4).** The contract now holds content rules only; its file-safety
+  and approval-workflow text moved to the operator, which enforces them. The
+  ingest and query skills hold the procedure without restating the contract,
+  the agent files bind the role and stop conditions, and the operator's
+  generated prompt keeps read mechanics, operation facts and the reply format
+  while dropping rules the skill owns. Worker instructions per ingest fell from
+  about 4,560 to 2,650 words (the four worker files from 3,920 to 2,102).
+- **Docs (D3).** New `docs/guarantees-and-limits.md` states once what checks,
+  permissions and evidence establish. The chat-export guide is now a
+  step-by-step how-to (1,662 to 429 words), with the converter specification
+  moved unchanged to `docs/reference.md`. The statistics guide and
+  `how-it-works.md` link the new page instead of repeating caveats.
+- **Fixes.** Operation paths resolve before use (a relative path broke
+  `revise`); the evaluation scorer accepts "does not answer" and "found no"
+  abstentions; a duplicated closing sentence in the reference was removed.
+- **Installed** on the deployment: both agent files, both worker skills, the
+  contract and the notices, each a clean upgrade with a local backup.
+- **Checks.** Synthetic ingest, compile (one revise) and query passed; search
+  probe 8/8 in a traced rerun; deployment evaluation 9/10 index-only and 8/10
+  with search, with no answer-quality regressions. Details in the trials
+  document.
+
+Verification: 141 offline tests pass; `git diff --check` passes.
+

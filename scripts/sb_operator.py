@@ -471,45 +471,29 @@ def worker_prompt(manifest, corpus):
             "is too long for one read (the output says it was capped, or does not end with 'End of file'), read "
             "it in consecutive ranges with offset and limit until you have seen every line; the operator checks "
             "this. Other files, such as wiki/log.md, may be read in part. A capped read is never a reason to stop: "
-            "continue from the next offset. Read wiki/index.md first. "
-            + ("Search results are leads, not evidence: read a page completely before you rely on it or cite it. "
-               if search else ""))
+            "continue from the next offset. Read wiki/index.md first. ")
     if kind == "query":
         return head + (
-            f"Question: {manifest['task']} Answer only from pages you actually read. Put exact vault-relative "
-            "page paths such as wiki/sources/name.md beside each claim, with section locators. "
-            + ("When the index does not point to the answer, search the staged pages with grep before concluding "
-               "the wiki does not cover it. " if search else "")
-            + "If the wiki does not answer, say so. End with a line starting 'Read:' and a line starting 'Not covered:'.")
+            f"Question: {manifest['task']} Answer as your skill says, citing exact page paths such as "
+            "wiki/sources/name.md, and end with a line starting 'Read:' and a line starting 'Not covered:'.")
     inputs = ", ".join(manifest["inputs"])
     source = ("This is an ingest: the input is an approved raw capture; use its path as the source page's raw "
               "field. When the capture has frontmatter, take the source page's url and any non-null author and "
               "published from it, and the date part of its captured timestamp as captured (otherwise "
               f"{manifest['date']}). When author or published is null there but the document itself states it, "
               "such as a paper's author list or dated byline, use that; otherwise leave it null. "
-              "For a PDF capture, cite its '## Page N' headings as locators and follow the skill's PDF rules. "
               + "".join(f"{name} is part {info['part']} of a longer document"
                         + (f" (pages {info['page_range']})" if info.get("page_range") else "")
-                        + ": text cut off at its end continues in the next part, so this is not a truncated read; "
-                          "ingest what these pages contain and note the continuation. "
+                        + ": its end continues in the next part, which is not a truncated read. "
                         for name, info in manifest.get("input_parts", {}).items())
               + (f"Rendered figure pages you can open with the read tool: {', '.join(manifest['figures'])}. "
-                 "Look at each figure the text relies on and follow the skill's figure rules. "
                  if manifest.get("figures") else "")
               if kind == "ingest" else
-              ("This is a compile: the inputs are existing source notes; build concept, entity or synthesis pages "
-               "from them and add the reciprocal links on those source notes. " if manifest["inputs"] else
-               "This is a compile by topic: choose the existing pages most relevant to the task from the index"
-               + (" and by searching the staged pages" if search else "") + ", "
-               "usually three to eight source notes plus any concept pages on the topic, read those completely, "
-               "and build concept, entity or synthesis pages from them with reciprocal links on the notes you "
-               "draw from. You do not need to read every related page; name the ones you left out in NOTES. "))
+              ("This is a compile from the named inputs. " if manifest["inputs"] else
+               "This is a compile by topic: you choose the pages to draw on. "))
     reading = (f"Read these inputs completely before proposing: {inputs}. " if manifest["inputs"] else "")
     if manifest.get("compact_index"):
         reading += "wiki/index.md is a compact catalog here: titles and paths, no descriptions. "
-    if search and kind == "ingest":
-        reading += ("Before writing, search the staged pages for the input's main concepts and entities, so you "
-                    "update or link existing pages instead of creating duplicates. ")
     series = manifest.get("series")
     if series:
         reading += (f"This is item {series['position']} of {series['count']} in an ordered series. "
@@ -531,9 +515,7 @@ def worker_prompt(manifest, corpus):
         f"{', '.join(f'templates/{name}.md' for name in TEMPLATES)}, the inputs and the manifest. "
         "Open candidate pages from the index as needed. "
         f"Today is {manifest['date']}. Propose at most {config['max_pages']} new or changed pages under "
-        "wiki/sources, wiki/concepts, wiki/entities or wiki/synthesis. When you update an existing page with a FILE, "
-        "return all of its existing content and links plus your additions; to only add links to an existing page, "
-        "use LINKS instead. Never propose wiki/index.md, wiki/log.md, "
+        "wiki/sources, wiki/concepts, wiki/entities or wiki/synthesis. Never propose wiki/index.md, wiki/log.md, "
         "raw/ or any other path as a FILE: give index changes as INDEX entries, which the operator merges. "
         "Reply with no outer code fence, in this format:\n<<<FILE path>>>\ncomplete Markdown with final newline\n"
         "<<<END FILE>>>\n(one block per page)\n<<<INDEX>>>\none line per new or changed catalog entry, as "
@@ -700,7 +682,7 @@ def verify_events(manifest, corpus, events, returncode, before, after, required=
 
 
 def run(op, feedback=None, format_only=False):
-    op = Path(op)
+    op = Path(op).resolve()
     manifest = json.loads((op / "manifest.json").read_text())
     if (op / "run.json").exists() and feedback is None:
         raise ValueError("operation already ran; use revise or stage a new one")
@@ -752,7 +734,7 @@ MAX_REVISIONS = 2
 
 def revise(op):
     """Rerun the worker with feedback: parse errors (format only) or dry-run problems; at most twice."""
-    op = Path(op)
+    op = Path(op).resolve()
     manifest = json.loads((op / "manifest.json").read_text())
     if (op / "receipt.json").exists():
         raise ValueError("revise needs an unapplied ingest or compile operation")
@@ -1101,7 +1083,7 @@ def atomic_write(path, text):
 
 
 def apply(op, dry_run=False):
-    op = Path(op)
+    op = Path(op).resolve()
     manifest = json.loads((op / "manifest.json").read_text())
     if manifest["kind"] == "query":
         raise ValueError("query operations write nothing")
@@ -1151,7 +1133,7 @@ def apply(op, dry_run=False):
 
 
 def undo(op):
-    op = Path(op)
+    op = Path(op).resolve()
     manifest = json.loads((op / "manifest.json").read_text())
     receipt = json.loads((op / "receipt.json").read_text())
     vault, restored, skipped = Path(manifest["vault"]), [], []
@@ -1416,7 +1398,7 @@ def series_status(vault, config_path=None):
 
 
 def status(op):
-    op = Path(op)
+    op = Path(op).resolve()
     manifest = json.loads((op / "manifest.json").read_text())
     stages = [name for name in ("run.json", "proposal.json", "receipt.json", "undo.json") if (op / name).exists()]
     result = {"operation": manifest["id"], "kind": manifest["kind"], "task": manifest["task"],

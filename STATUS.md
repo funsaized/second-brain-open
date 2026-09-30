@@ -3,7 +3,8 @@
 > Current state of the public machinery, updated 2026-09-30. How it got here is
 > in the [changelog](docs/changelog.md); what is planned in [PLAN.md](PLAN.md);
 > proposals in [BACKLOG.md](BACKLOG.md); decisions in
-> [docs/decisions.md](docs/decisions.md). A deployment's own results stay in
+> [docs/decisions.md](docs/decisions.md); what the machinery guarantees in
+> [guarantees and limits](docs/guarantees-and-limits.md). A deployment's own results stay in
 > that deployment's records, not here.
 
 ## Delivered

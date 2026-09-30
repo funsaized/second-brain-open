@@ -1,8 +1,10 @@
 # Calculate managed-wiki statistics
 
-`scripts/vault_stats.py` is the required P2A core port. It uses Python's standard
-library and the link checker's scanner/resolver. No installation, model call,
-Obsidian plugin, graph database or agent shell grant is needed.
+Use `scripts/vault_stats.py` to measure your wiki's shape: how many pages of
+each type, how they link, how much of it is a knowledge layer rather than a
+mirror of sources, and which concepts are stale. It uses Python's standard
+library and the link checker's scanner, reads only, and needs no model,
+Obsidian plugin or graph database.
 
 ## Run the synthetic example
 
@@ -104,39 +106,32 @@ includes definitions and scope. A representative subset is:
 Empty corpora have zero counts and null means/rates. A real directory with no
 `wiki/` is a valid empty corpus; a missing, non-directory or unsafe root is not.
 
-## Diagnostics and limits
+## Diagnostics and exit status
 
-Exit **0** means a report was produced, **not** that the wiki is healthy. Broken,
-malformed, ambiguous and unsupported links and metadata issues remain in
-`diagnostics` without becoming edges. Fragment file links can be edges, but
-heading/block validity remains `anchor_unchecked`. Run `scripts/link_check.py`
-separately when a validation exit status is needed.
+- **Exit 0:** a report was produced. Broken, malformed, ambiguous or
+  unsupported links and metadata stay in `diagnostics` and never become edges.
+  Heading and block anchors are reported `anchor_unchecked`. For a pass/fail
+  validation, run `scripts/link_check.py`.
+- **Exit 2:** an invalid root or `--as-of`, an unsafe path (symlinks,
+  hardlinks, non-regular files, or `.obsidian`, `.opencode` or `.git` inside
+  the content folders) or a read failure. No partial report is printed.
 
-Exit **2** means invalid root/as-of, unsafe adopted paths, or a read failure;
-no partial JSON report is emitted. The shared scanner refuses symlinked roots,
-ancestors and adopted entries, hardlinks and non-regular files. Protected
-`.obsidian`, `.opencode` and `.git` entries inside content trees cause refusal.
-Excluded files are not inspected merely because a content page mentions them.
+The tool parses the [managed subset](reference.md#link-checker) of metadata and
+links; fenced code and frontmatter never count as links. It writes nothing: no
+repairs, index or log updates, or metrics note. What the numbers can and can't
+tell you is in [guarantees and limits](guarantees-and-limits.md#checks-establish-structure-not-truth).
 
-This is the [managed subset](reference.md#link-checker), not a general
-YAML/Markdown/Obsidian parser. Leading generated metadata and ordinary fenced
-code/simple inline spans are excluded from graph links. Shared parser diagnostics
-mark unusable fields so a duplicate valid-looking date cannot count as fresh.
-Freeze the approved corpus while running: path checks are not a lock against
-concurrent replacement. High degree or low orphan rate proves neither accurate
-claims nor useful knowledge. No repair, index/log update or metrics note is made.
+## Run it on your vault
 
-## Run on a real corpus only after local approval
+Pause other edits, run it from this checkout, and read the report locally:
 
-R7B remains an owner checkpoint: approve the managed scope, pause concurrent
-edits, run locally, then review the report locally. Paths in reports can be
-private; never paste a real report or private-derived fixture into this public
-checkout or its transcripts. This slice tested synthetic data only.
+```sh
+python3 scripts/vault_stats.py /path/to/vault --as-of 2026-09-30
+```
 
-If a dated private snapshot is useful, approve its destination separately,
-outside the managed wiki; do not redirect output over a note, index or log.
-Record the corpus identity/revision privately along with as-of and definitions.
-The CLI writes stdout only and does not choose or create a snapshot destination.
+Reports contain your page paths, so keep them out of this public repository.
+The CLI prints to stdout only; to keep a dated snapshot, redirect it to a
+private file outside the wiki, with the as-of date and definitions version.
 
 ## Comparing with upstream or older snapshots
 
@@ -146,6 +141,7 @@ counted repeated mentions and self-links, and called occurrence-count `E/N`
 generic “average degree.” It supplied neither components nor staleness, despite
 its skills requesting them. This port omits the unrequested word-count metric.
 
-Do not treat the transition as a trend change in knowledge quality. Compare only
-matching corpus scope, metric definitions/version and as-of policy. The new JSON
-report records `schema_version`, `scope`, `definitions` and `as_of` for this reason.
+Compare reports only when their scope, definitions version and as-of policy
+match; the JSON report records `schema_version`, `scope`, `definitions` and
+`as_of` for exactly this. Definitions v2 added the knowledge layer and links by
+type; every other v1 metric is unchanged.

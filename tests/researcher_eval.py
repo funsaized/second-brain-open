@@ -41,7 +41,7 @@ INSTALLED = {
 ABSTAIN = re.compile(
     r"not covered|not (?:recorded|stated|established|found|mentioned|addressed|specified|documented|identified)"
     r"|no (?:evidence|information|record|source|page)|unknown|(?:cannot|can[’']t) (?:answer|determine|confirm)"
-    r"|does(?: not|n't) (?:say|state|cover|mention|address|specify|name|identify|record)", re.I)
+    r"|does(?: not|n't) (?:answer|say|state|cover|mention|address|specify|name|identify|record)|found no ", re.I)
 SECTION = {"read": re.compile(r"(?im)^[#>*\s-]*\**read\**\s*(?::|$)"),
            "not_covered": re.compile(r"(?im)^[#>*\s-]*\**not covered\**\s*(?::|$)")}
 

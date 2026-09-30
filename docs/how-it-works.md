@@ -54,7 +54,7 @@ or full code block. A comparison should retain the benefits as well as the costs
 There is no universal claim count or required length. The model drafts according
 to the agreed purpose; a coverage review makes consequential omissions visible.
 
-The [content-preservation contract](../framework/instructions/wiki-contract.md#content-preservation)
+The [content-preservation contract](../framework/instructions/wiki-contract.md#content)
 defines that rule. It does not make the model an infallible editor or turn copied
 code into tested software.
 
@@ -101,7 +101,7 @@ influence what a worker proposes, but a proposal only reaches the vault after
 
 - the paths are allowed pages
 - the page count is within the limit
-- no target changed since staging
+- no page it rewrites whole changed since staging
 - the log gains exactly one `partial` record, index entries are merged and
   back-links are appended, never rewritten by the model
 - no updated page loses its existing links
@@ -142,10 +142,10 @@ This checkout contains reusable machinery and invented fixtures. The private
 vault contains the owner's captures, notes and project material. Installation
 is a one-way copy of framework files, not synchronization between the two.
 
-Native permissions restrict tools, but they are not filesystem isolation. The
-staged copy refuses symlinks and hardlinks. Provider exposure, authentication
-and local session retention still need your approval, even with sharing
-disabled. Slash-command wrappers are withheld because OpenCode's command
+Workers are confined by permissions within the staged copy, which refuses
+symlinks and hardlinks; see [guarantees and limits](guarantees-and-limits.md)
+for where that confinement stops. Provider exposure, authentication and local
+session retention still need your approval, even with sharing disabled. Slash-command wrappers are withheld because OpenCode's command
 preprocessing expands `@file` and shell text before role permissions apply.
 
 ## Related documentation
