@@ -201,6 +201,7 @@ class OperatorTests(unittest.TestCase):
         self.assertIn("directory listings are not available", op.worker_prompt(manifest, corpus))
         manifest["config"]["search"] = True
         self.assertIn("grep and glob", op.worker_prompt(manifest, corpus))
+        self.assertIn("operation.md (the operation manifest, optional", op.worker_prompt(manifest, corpus))
 
     def test_run_refuses_a_corpus_with_ungranted_files(self):
         operation = self.staged()
@@ -291,6 +292,20 @@ class OperatorTests(unittest.TestCase):
         self.assertIn("added the back-link wiki/sources/trial-a -> wiki/concepts/new", fixes)
         completed = dict(proposal, log="## 2026-09-28 — x — completed\n- y")
         self.assertTrue(op.normalize(manifest, completed)[0]["log"].startswith("## 2026-09-28 — x — partial"))
+
+    def test_normalize_turns_markdown_page_links_into_wikilinks(self):
+        operation = self.staged()
+        manifest = json.loads((operation / "manifest.json").read_text())
+        body = ("After [Trial A](wiki/sources/trial-a), [again](../sources/trial-a.md), [gone](wiki/sources/gone), "
+                "[web](https://example.com), [anchor](#x) and ![fig](../../raw/assets/a.png).\n"
+                "```\n[code](wiki/sources/trial-a)\n```\n")
+        proposal = {"files": {"wiki/concepts/new.md": body}, "links": [], "index": [], "log": RECORD, "notes": ""}
+        fixed, fixes = op.normalize(manifest, proposal)
+        text = fixed["files"]["wiki/concepts/new.md"]
+        self.assertIn("After [[wiki/sources/trial-a|Trial A]], [[wiki/sources/trial-a|again]], gone, "
+                      "[web](https://example.com), [anchor](#x)", text)
+        self.assertIn("[code](wiki/sources/trial-a)", text)
+        self.assertEqual(sum("into a wikilink" in f for f in fixes), 3)
 
     def test_normalize_adds_missing_concept_back_links(self):
         operation = self.staged("ingest", ["raw/trial-b.md"], "Ingest trial B")

@@ -514,7 +514,7 @@ def worker_prompt(manifest, corpus):
         f"Task: {manifest['task']} {reading}Readable files, by exact relative path"
         + (" (find them with the index, grep or glob)" if search else " only (directory listings are not available)")
         + ": every page the index links, wiki/log.md, "
-        f"{', '.join(f'templates/{name}.md' for name in TEMPLATES)}, the inputs and the manifest. "
+        f"{', '.join(f'templates/{name}.md' for name in TEMPLATES)}, the inputs and operation.md (the operation manifest, optional; there is no other manifest). "
         "Open candidate pages from the index as needed. "
         f"Today is {manifest['date']}. Propose at most {config['max_pages']} new or changed pages under "
         "wiki/sources, wiki/concepts, wiki/entities or wiki/synthesis. Never propose wiki/index.md, wiki/log.md, "
@@ -914,6 +914,7 @@ def add_links(text, entries, today):
 
 
 IMAGE = re.compile(r"!\[([^\]\n]*)\]\(<?([^)\s>]+)>?\)")
+PAGELINK = re.compile(r"(?<![!\[])\[([^\]\n]*)\]\(<?(?![A-Za-z][A-Za-z0-9+.-]*:|#)([^)\s>]+)>?\)")
 WIKILINK = re.compile(r"(?<!!)\[\[([^\]|#]+)(#[^\]|]*)?(?:\|([^\]]+))?\]\]")
 
 
@@ -946,6 +947,17 @@ def normalize(manifest, proposal):
             if marker and (fence is None or marker.group(1)[0] == fence[0]):
                 fence = None if fence else marker.group(1)
             elif fence is None:
+                def wikify(match):
+                    text, link = match.group(1), urllib.parse.unquote(match.group(2).split("#", 1)[0])
+                    link = link[:-3] if link.endswith(".md") else link
+                    for target in (posixpath.normpath(link),
+                                   posixpath.normpath(posixpath.join(posixpath.dirname(path), link))):
+                        if target.startswith("wiki/"):
+                            fixes.append(f"converted Markdown link to {target} into a wikilink in {path}")
+                            return f"[[{target}|{text}]]" if text else f"[[{target}]]"
+                    return match.group(0)
+                line = PAGELINK.sub(wikify, line)
+
                 def unlink(match):
                     target = match.group(1).strip()
                     if not missing(target):

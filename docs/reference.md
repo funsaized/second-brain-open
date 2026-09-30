@@ -138,6 +138,8 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 `apply` repairs these mechanically and lists every repair under `fixes`:
 
 - A LINKS entry for a page that is also rewritten is merged into the rewrite.
+- A Markdown link to a wiki page, such as `[Title](wiki/sources/x)` or
+  `[Title](../sources/x.md)`, becomes `[[wiki/sources/x|Title]]`.
 - A wikilink to a page that doesn't exist becomes its plain label. Code blocks
   are left alone.
 - An embedded image under `raw/` that does not exist becomes its caption

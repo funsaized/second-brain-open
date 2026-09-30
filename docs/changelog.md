@@ -529,3 +529,21 @@ out of scope, so both are drafted as ordinary bug reports for the owner to
 review and post; the drafts are kept outside this repository. The operator is
 unaffected: it verifies the role with `opencode debug` before each run and never
 uses command wrappers.
+
+## 2026-09-30 — Two series stoppages fixed
+
+A live source-page series stopped twice on predictable worker slips.
+
+- **Manifest path.** The worker prompt listed "the manifest" as readable
+  without a path; a worker guessed `raw/manifest.json`, was denied, and
+  returned no change. The prompt now names `operation.md` and marks it
+  optional.
+- **Markdown page links.** A worker linked the previous series item as
+  `[Title](wiki/sources/x)`; the checker rejects Markdown links to pages, and
+  the retry repeated the mistake. `apply` now converts such links into
+  wikilinks before checking and reports each under `fixes`.
+
+Verification: 146 offline tests pass; a dry-run apply of the failed live
+proposal passes with the one conversion reported. The worker's other slip,
+inferring a domain ID from the series position, is a task-wording issue and
+is not changed here.
