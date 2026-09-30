@@ -10,7 +10,8 @@ licenses; neither project's MIT license grants rights to that content.
 
 | Downstream file | Pinned upstream source | Use / changes |
 |---|---|---|
-| `PLAN.md` | Paths enumerated in its Upstream Inventory and Research Coverage | Research synthesis and proposed adaptations; not an installed catalog |
+| `PLAN.md` | Upstream guide paths cited by its phases and runbooks | Objective, requirements, phases and runbooks for the adaptation; not an installed catalog |
+| `docs/archive/planning-history.md` | Paths enumerated in its Upstream Inventory and Research Coverage (moved from `PLAN.md`) | Research synthesis and disposition record; not an installed catalog |
 | `README.md` | `vault-template/README.md`, root `README.md` | User-facing capability overview and Diataxis documentation navigation; installation is linked separately |
 | `docs/installation.md` | `vault-template/README.md`, root `README.md`; the earlier downstream README | Per-file install/upgrade of the framework and operator config; no automatic installer |
 | `docs/how-it-works.md` | `vault-template/CLAUDE.md`, `vault-template/projects/README.md`, knowledge templates via the ported contract | Explains evidence, knowledge types, projects and review boundaries without changing runtime permissions |

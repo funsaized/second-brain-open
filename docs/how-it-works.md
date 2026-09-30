@@ -155,4 +155,4 @@ preprocessing expands `@file` and shell text before role permissions apply.
 - [Ingest, compile and ask with the operator](operator.md).
 - [Reference: CLI, checks and roles](reference.md).
 - [Look up the managed-wiki contract](../framework/instructions/wiki-contract.md).
-- [Inspect public delivery status and evidence limits](../PLAN.md#current-delivery-status).
+- [Inspect public delivery status and evidence limits](../STATUS.md).

@@ -43,9 +43,11 @@ includes definitions and scope. A representative subset is:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "as_of": "2026-09-24",
   "pages": 4,
+  "knowledge_layer": {"pages": 3, "sources": 1, "ratio": 3.0},
+  "links_by_type": {"concept->concept": 1, "concept->source": 1, "source->concept": 1},
   "resolved_links": 3,
   "average_out_degree": 0.75,
   "average_total_degree": 1.5,
@@ -71,6 +73,14 @@ includes definitions and scope. A representative subset is:
   concept, entity or synthesis totals. Missing, invalid or ambiguous types count
   as `unknown`, not a type guessed from the folder or body. A recognized type
   filed in the wrong folder keeps its declared count and a mismatch diagnostic.
+- **Knowledge layer:** pages declared concept, entity or synthesis, against
+  pages declared source; the ratio is their quotient (null with no sources). A
+  wiki that only mirrors its sources has a ratio near zero however many links it
+  has, so the human report shows this line and the next first.
+- **Links by type:** the same unique edges, counted by the declared types of
+  their two ends (`source->concept`, `source->source`, …; `unknown` included).
+  Mostly `source->source` means navigation carried over from the sources rather
+  than connected knowledge. The counts sum to the edge total.
 - **Edges:** unique directed non-self links between content nodes. Use the
   checker's canonical extensionless wikilinks, with optional display labels and
   spaces. Controls cannot provide inbound links or connect components. References

@@ -250,5 +250,5 @@ of source/provider exposure and exact grants. Its earlier live authentication
 approval covered synthetic checks, not arbitrary private-source exposure. This
 historical record is not an instruction to repeat a completed local operation.
 
-For the current public delivery summary, see [PLAN.md](../PLAN.md#current-delivery-status).
+For the current public delivery summary, see [STATUS.md](../STATUS.md).
 Private operation status belongs in local records, not this historical account.

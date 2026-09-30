@@ -69,7 +69,8 @@
   confinement for workers; OS isolation remains probe-only.
 - **Primary-agent permissions.** Installation step 2 and
   `framework/vault-opencode.example.json` define the operator agent's vault
-  permissions. The deployment still has only the `external_directory` allow.
+  permissions, including denying it the worker skills; installed on the
+  deployment.
 - **Done since:** installed on the deployment; the textbook finished and was
   reorganized into 21 chapter pages plus back matter with 30 concepts (A1 for
   the textbook, A4 per-chapter notes); A2 rerun: 9/10 index-only (effectively
@@ -96,7 +97,20 @@
   2. ✅ Synthesis links: two follow-up compiles added the missing concepts and
      chapters 12 and 15–18; it now links all six concepts, and those concept
      and chapter pages link back. Content and existing links were kept.
-  3. Owner acceptance of the synthesis and the networking-stack concept.
+  3. ✅ Owner acceptance of the synthesis and the networking-stack concept:
+     recorded (`sampled`, no defects).
+
+## Status update (2026-09-30)
+
+- **Delivered:** D1 (PLAN.md split into `STATUS.md`, `docs/changelog.md`,
+  `docs/decisions.md` and `docs/archive/planning-history.md`), D2 (test counts
+  only in dated changelog entries) and C4 (knowledge-layer ratio and links by
+  type in `vault_stats.py`). Marked done: A1, A4, A5.
+- **Deployment, measured:** knowledge layer 33 pages per 229 sources (0.14);
+  640 of 1,068 links are still `source->source`.
+- **Next candidates:** E3 offline CI (owner decision), D3/D4 prose and prompt
+  simplification, F5 project round trip with a real project, and watching the
+  83 KB full index that queries and compile-by-topic still read.
 
 ## How the review was done
 
@@ -191,11 +205,11 @@ Deployment facts (sanitized):
 
 | ID | Title | Type | Pri | Size | Owner decision |
 |---|---|---|---|---|---|
-| A1 | Compile a first concept layer from existing sources | Implement | P0 | M | — |
+| A1 | ✅ Compile a first concept layer from existing sources — 31 concepts, 1 synthesis on the deployment | Implement | P0 | M | — |
 | A2 | ✅ Evaluate the researcher on the real wiki | Verify | P0 | S | — |
 | A3 | ✅ Define owner acceptance that can finish — deployment record awaits owner | Decide | P0 | S | Yes |
-| A4 | Collection captures — decided: no cap, logical notes; themes delivered, per-chapter notes pending | Decide | P1 | S | Yes |
-| A5 | Ingest one non-meta source tied to actual goals | Verify | P1 | S | Yes |
+| A4 | ✅ Collection captures — no cap, logical notes: themes and chapter pages via `series --plan` | Decide | P1 | S | Yes |
+| A5 | ✅ Ingest one non-meta source tied to actual goals — a textbook and a book on the deployment | Verify | P1 | S | Yes |
 | B1 | ✅ Ship an operator launcher (manifest → overlay → verify → run) — `sb_operator.py` | Implement | P0 | M | — |
 | B2 | ✅ Make "propose → operator apply" the primary write path — agent as operator | Simplify | P0 | M | Yes |
 | B3 | Install/upgrade planner | Implement | P1 | M | Yes |
@@ -204,10 +218,10 @@ Deployment facts (sanitized):
 | C1 | ✅ Residue, index-completeness and reciprocity checks | Implement | P0 | S | — |
 | C2 | ✅ Stop permanent exit 1 on legacy controls — deployment cleanup awaits owner | Improve | P0 | S | — |
 | C3 | Validate raw evidence links; report Markdown links | Improve | P1 | S | — |
-| C4 | Stats that tell a mirror from a knowledge graph | Improve | P1 | S | — |
+| C4 | ✅ Stats that tell a mirror from a knowledge graph — knowledge-layer ratio, links by type | Improve | P1 | S | — |
 | C5 | Advisory log-record linter | Improve | P2 | S | — |
-| D1 | Split PLAN.md | Simplify | P1 | M | — |
-| D2 | One place for test counts and status | Simplify | P1 | S | — |
+| D1 | ✅ Split PLAN.md — STATUS.md, changelog, decisions, planning history | Simplify | P1 | M | — |
+| D2 | ✅ One place for test counts and status — dated changelog entries only | Simplify | P1 | S | — |
 | D3 | Cut hedging; move evidence narrative out of how-tos | Simplify | P1 | M | — |
 | D4 | Prompts: one rule, one place, no operator-only content | Simplify | P1 | M | — |
 | D5 | Obsidian link-format guidance | Improve | P1 | S | — |

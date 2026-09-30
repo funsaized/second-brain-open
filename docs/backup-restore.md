@@ -7,8 +7,8 @@ R6C restore-proof gates for P3 installation.
 Later scoped owner amendment: initial backup was waived for a specifically
 approved 14-file, add-only greenfield machinery bootstrap. That copy is not a
 private restore pass, a blanket overwrite authorization or a decision about
-ongoing backup policy once valuable content accumulates. See PLAN.md's current
-implementation record; all other private-source/tool/provider decisions remain separate.
+ongoing backup policy once valuable content accumulates. See the
+[changelog](changelog.md) and [decisions](decisions.md); all other private-source/tool/provider decisions remain separate.
 
 The implementation is deliberately test-only:
 `tests/test_r6_backup_restore.py`. It accepts no vault/source/destination CLI

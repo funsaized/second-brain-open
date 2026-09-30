@@ -101,14 +101,16 @@ python3 -m unittest discover -s tests
 git diff --check
 ```
 
-The offline suite currently has **139 passing tests**. It uses synthetic fixtures
-and does not make model calls. Live native trials require separate opt-in setup
+The offline suite uses synthetic fixtures and makes no model calls; each
+change's result is recorded in the [changelog](docs/changelog.md). Live native trials require separate opt-in setup
 and approvals; they are not part of this command.
 
 For implementation status and evidence, rather than user instructions, see:
 
-- [Current delivery status and remaining work](PLAN.md#current-delivery-status).
+- [Current status and remaining work](STATUS.md).
 - [Review backlog of proposals](BACKLOG.md).
+- [Changelog of dated results](docs/changelog.md) and [decisions](docs/decisions.md).
+- [The plan: phases, requirements and runbooks](PLAN.md).
 - [Native trial results, operator runs, failures and waivers](docs/native-acceptance-trials.md).
 - [Selected-conversation acceptance packet](docs/synthetic-acceptance.md).
 - [Synthetic backup and restore rehearsal](docs/backup-restore.md).

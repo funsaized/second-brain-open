@@ -20,6 +20,8 @@ else:
 DEFINITIONS = {
     "pages": "N: Markdown files in the adopted content folders, including malformed pages; controls/instructions excluded.",
     "by_type": "Recognized leading-frontmatter type; absent, invalid or ambiguous types are unknown. Folder mismatches remain diagnostics.",
+    "knowledge_layer": "Pages declared concept, entity or synthesis (K) against pages declared source (S); ratio=K/S, null when S=0. Tells a knowledge graph from a mirror of its sources.",
+    "links_by_type": "Unique directed edges counted by declared type pair 'from->to', unknown included; pairs with no edges are omitted.",
     "resolved_links": "E: unique directed non-self edges between canonical in-scope page paths; no basename or alias guessing.",
     "average_out_degree": "E/N; null when N=0.",
     "average_total_degree": "2E/N; null when N=0.",
@@ -52,12 +54,14 @@ def report(vault, as_of):
         if issue.get("unusable_field") in ("type", "updated"):
             ambiguous[issue["page"]].add(issue["unusable_field"])
 
+    kinds = {}
     for path, page in pages.items():
         fields = page["metadata"]
         kind = fields.get("type")
         if not isinstance(kind, str) or kind not in by_type or "type" in ambiguous[path]:
             kind = "unknown"
         by_type[kind] += 1
+        kinds[path] = kind
         updated = fields.get("updated")
         parsed = None
         if "updated" in ambiguous[path]:
@@ -102,13 +106,18 @@ def report(vault, as_of):
         largest = max(largest, size)
 
     nodes, links = len(pages), len(edges)
+    knowledge = by_type["concept"] + by_type["entity"] + by_type["synthesis"]
+    pairs = {}
+    for source, target in edges:
+        key = f"{kinds[source]}->{kinds[target]}"
+        pairs[key] = pairs.get(key, 0) + 1
     orphan_count = sum(count == 0 for count in inbound.values())
     ranked = sorted((path for path in pages if inbound[path]), key=lambda path: (-inbound[path], path))[:10]
     diagnostics = sorted(metadata_issues + link_issues, key=lambda item: (
         item["page"], item.get("line", 0), item["kind"], item.get("target", ""), item.get("detail", ""),
     ))
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "as_of": as_of.isoformat(),
         "scope": {"folders": sorted(f"wiki/{folder}" for folder in link_check.FOLDERS),
                   "excluded_controls": list(link_check.CONTROLS),
@@ -117,6 +126,9 @@ def report(vault, as_of):
         "definitions": DEFINITIONS.copy(),
         "pages": nodes,
         "by_type": by_type,
+        "knowledge_layer": {"pages": knowledge, "sources": by_type["source"],
+                            "ratio": knowledge / by_type["source"] if by_type["source"] else None},
+        "links_by_type": dict(sorted(pairs.items())),
         "resolved_links": links,
         "average_out_degree": links / nodes if nodes else None,
         "average_total_degree": 2 * links / nodes if nodes else None,
@@ -137,6 +149,11 @@ def human_report(result):
     print(f"Managed wiki statistics (definitions v{result['schema_version']}, as of {result['as_of']})")
     print("Scope: " + ", ".join(result["scope"]["folders"]))
     print(f"Pages: {result['pages']}; types: " + ", ".join(f"{key}={value}" for key, value in result["by_type"].items()))
+    layer = result["knowledge_layer"]
+    ratio = "n/a" if layer["ratio"] is None else f"{layer['ratio']:.2f}"
+    print(f"Knowledge layer: {layer['pages']} concept/entity/synthesis pages per {layer['sources']} sources "
+          f"(ratio {ratio})")
+    print("Links by type: " + (", ".join(f"{key}={value}" for key, value in result["links_by_type"].items()) or "none"))
     print(f"Unique directed links: {result['resolved_links']}")
     for key, label in (("average_out_degree", "Average out-degree E/N"),
                        ("average_total_degree", "Average total directed degree 2E/N")):

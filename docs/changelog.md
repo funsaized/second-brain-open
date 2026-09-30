@@ -1,0 +1,449 @@
+# Changelog
+
+> Dated results of each change, oldest first, moved from PLAN.md on
+> 2026-09-30. Each entry records what changed and how it was verified; test
+> counts appear only here, as of their date. Current state is in
+> [STATUS.md](../STATUS.md).
+
+## 2026-09-28 — Content-preservation policy follow-up
+
+Implemented purpose-sensitive learning/reference content rules in the contract,
+ingest skill, source template and manual request example. Source bodies support
+complete Markdown, with retained/summarized/omitted coverage review in proposals;
+no new metadata fields, page types, permissions or automated publication paths.
+The adaptation map records these changes.
+
+Verification: the focused contract suite passed 5 tests, and the offline
+distribution suite passed 83 tests. The additional wholly invented template
+case preserves a tree, code example and comparison table without introducing
+metadata or concept-link requirements. `git diff --check` passed. These are
+static/offline results, not proof of model selection quality or runtime adoption.
+
+## 2026-09-28 — User documentation entry point
+
+Reframed the README around the shipped manual source-to-wiki-to-answer capability
+and the reader's next task. Diataxis navigation separates a model-free tutorial,
+installation/operation how-tos, contract/tool reference and workflow explanation.
+Installation details moved out of the overview; development evidence stays linked
+as evidence, not mislabeled as a tutorial or private deployment certification.
+
+The tutorial uses only the existing invented contract fixture. Its read-only
+checker example reports five knowledge pages, two controls and 18 links without
+diagnostics. Statistics on that same fixture at `2026-09-24` report one component,
+zero inbound orphans and zero stale concepts out of one eligible concept. No
+provider calls, private fixtures, runtime configuration or vault writes are needed.
+
+Verification: all 83 offline tests pass. The documented tutorial commands produce
+the expected results and preserve all fixture bytes and paths. Local documentation
+links and referenced headings were checked. No native/model trials were rerun.
+
+## 2026-09-28 — Review backlog: checker contract checks, acceptance, evaluation
+
+Owner direction closed backlog items F1 (re-verify on OpenCode 1.18.33) and F2
+(deployment recovery point) without further checks; native evidence stays dated
+to 1.18.32 unless a run names another version.
+
+- **C1:** `scripts/link_check.py` reports `placeholder`, `not_indexed` and
+  `not_reciprocal` errors, which the contract already required but only the
+  fixture tests checked. The contract fixture stays clean.
+- **A3:** the contract, log template and ingest skill define `technical`,
+  `sampled` and `full` owner acceptance. `completed` requires `sampled` or
+  `full`, recorded as a new log record.
+- **A2:** `tests/researcher_eval.py` stages a wiki copy without vault
+  instructions, verifies exact read grants, asks each question in its own native
+  run and scores index-first reads, cited-and-read pages, expected pages/terms,
+  sections, abstention and zero writes. `docs/researcher-evaluation.md` explains
+  it. A live run on the invented fixture passed 3/3 on OpenCode 1.18.33 through
+  the previously approved route.
+- **C2:** the fix is to bring a deployment's control pages up to the contract,
+  not a legacy exception in the checker. Deployment edits are owner-local.
+
+Verification: 93 offline tests pass; `git diff --check` passes. The helper
+changes keep the earlier drivers' defaults (OpenCode 1.18.32, six steps).
+
+## 2026-09-28 — Operator: autonomous ingest run by OpenCode
+
+The owner chose "agent as operator": the primary agent runs the worker roles
+through an operator skill and CLI. The workers stay deny-by-default and
+proposal-only.
+
+- **CLI:** `scripts/sb_operator.py` stages a copy outside the vault, runs the
+  worker with exact read grants, and gives it one `revise` with the dry-run
+  problems. `apply` writes only allowed `wiki/` pages and one `partial` log
+  record, after drift and checker validation, with backups for `undo`.
+- **Shared runtime:** helpers moved from the test drivers into
+  `scripts/sb_runtime.py`.
+- **Prompts:** the ingest skill gains a compile operation and a framed
+  proposal format. The worker roles lose the per-edit approval text.
+- **Docs:** follow Diataxis. `docs/operator.md` (how-to) and `docs/reference.md`
+  (reference) replace `docs/manual-loop.md`, whose evidence sections moved to
+  `docs/native-acceptance-trials.md`. Installation, how-it-works and the README
+  are rewritten for the operator model.
+- **Evidence:** live synthetic runs on OpenCode 1.18.33 are recorded in the
+  trials doc, including a fully autonomous ingest by the primary agent from one
+  request.
+- **Unattended use:** needs an `external_directory` allow for the CLI and
+  workdir in the vault's `opencode.json`.
+
+Verification: 102 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — URL capture and catch-up ingest
+
+The operator now takes a URL.
+
+- **Capture.** `sb_operator.py capture` (and `stage ... --url`) fetches the page
+  with the standard library, keeps its main content as Markdown with
+  provenance frontmatter, and refuses fragments, overlong pages and non-text
+  types. No model reads the page before the sandboxed ingest worker.
+- **Rejected alternative.** A webfetch-only worker was tried and dropped:
+  OpenCode's webfetch converts the whole page, navigation and comments
+  included, and truncated a real gist at 32 KB of 143 KB.
+- **Catch-up.** `pending` lists captures without a source page, oldest first,
+  and the operator skill ingests them one operation at a time, up to 20 per
+  request.
+- **Calibration.** The ingest skill adopts upstream's link-before-done rule and
+  its one-to-three-concepts guidance.
+
+A live run on OpenCode 1.18.33 had the primary agent ingest a public URL
+end-to-end in a synthetic vault; see `docs/native-acceptance-trials.md`.
+Verification: 109 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — PDF capture
+
+- **Capture.** A PDF by URL, or dropped into `raw/`, keeps its original and
+  gains page-marked Markdown from Poppler: reading order first, `-layout` as a
+  fallback, and `ocrmypdf` for scans. A quality check refuses interleaved or
+  garbled text. Long documents split on page boundaries into parts that are
+  ingested in order.
+- **Metadata.** A PDF's creation date is recorded as `pdf_created`, never as
+  the publication date.
+- **Ingest skill.** Gains upstream-derived paper rules (question, method,
+  results with numbers, limitations) and OCR verification caveats.
+- **Live run.** The primary agent ingested arXiv 1706.03762 from its URL
+  alone; see the trials doc.
+
+Verification: 114 offline tests pass, including an OCR run on a generated
+scan; `git diff --check` passes.
+
+## 2026-09-29 — Figures and reliable parts
+
+- **Figures.** PDF capture renders every page with a figure caption (up to 12)
+  to `raw/assets/<capture>/`, links it under the page text and stages the
+  images for the worker. A vision check confirmed the worker model reads
+  images through OpenCode's read tool.
+- **Figure readings.** The ingest skill writes labelled figure readings with
+  approximate values and embeds the image. Figures never block an ingest.
+- **Parts.** Every capture, web or PDF, now splits within 1,850 lines and
+  45 KB, because OpenCode's read tool truncates at about 50 KB. Web pages split
+  before headings.
+- **Manifest.** The operation manifest lists exact readable paths.
+- **Live run.** A 12-page arXiv paper was ingested end-to-end in two parts,
+  with six figure readings; see the trials doc for the failures found and
+  fixed.
+
+Verification: 117 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Index merge, back-link patches and compile by topic
+
+A deployment compile request exposed three failures: the worker rewrote the
+142-line index down to 2 entries (the checker blocked it), fetched an
+unrequested URL, and could not return long notes whole.
+
+- **Index merge.** Index changes are INDEX entries that `apply` merges;
+  `wiki/index.md` can no longer be a FILE.
+- **Back-link patches.** LINKS lines append to a page's Links section, so no
+  long note is retyped.
+- **Guards.** `apply` refuses updates that drop existing links or shrink a
+  page by half.
+- **Compile by topic.** `compile` with no inputs lets the worker choose notes
+  from the index. The operator skill routes concept requests there and never
+  captures a URL it wasn't given.
+- **Paths.** Workers read by relative path and retry denied optional reads.
+
+A rerun of the same request on a copy of the deployment wiki succeeded on the
+first attempt. Verification: 120 offline tests pass; `git diff --check`
+passes.
+
+## 2026-09-29 — Reliable long-document ingest
+
+A 90-part textbook ingest stopped about once every five parts. The causes were
+worker formatting drift, a page both rewritten and link-patched, a forward
+link to a later part, and ad-hoc agent-written retry loops.
+
+- **Tolerant parser.** The proposal parser reads marked sections and ignores
+  noise.
+- **Format-only `revise`.** `revise` handles unparseable replies with a
+  format-only rerun, up to two revisions per operation.
+- **Mechanical repairs.** `apply` merges links into rewrites, unlinks missing
+  targets, drops dangling entries and fills in the log heading, reporting
+  each repair.
+- **The `series` command.** Runs items in order with one fixed retry policy,
+  resumes by skipping ingested items, runs in the background and has
+  `series-status`. Workers are told their position, the previous item's
+  source page, and to write source pages only.
+- **Local PDFs.** `capture` also extracts a PDF already in `raw/`.
+- **Live run.** The primary agent ingested an invented 4-part PDF through a
+  background series with no retries.
+
+Verification: 125 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Large files read in ranges
+
+Once `wiki/index.md` passed OpenCode's roughly 50 KB read cap, every
+operation failed its full-read check, which stalled the textbook series at
+part 47.
+
+- **Coverage check.** The check now accepts a file read in several
+  offset/limit ranges when the reads together show every line and none was
+  cut short. The worker prompt says to keep reading in ranges.
+- **Stop reasons.** Series stops name the file not read in full.
+- **Live check.** Part 47's run passed on the deployment.
+
+Verification: 125 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Worker search, compact staged index and index themes
+
+The owner kept `wiki/index.md` as one page and set no cap on notes per
+operation. Three changes address index growth (backlog H2) within that.
+
+- **Worker search (B5).** Workers get grep and glob over their staged copy
+  (`search`, on by default). A fake-provider Bubblewrap probe on OpenCode
+  1.18.33 showed that `external_directory` confines both to the worktree,
+  including against traversal and outside symlinks. It also showed that grep
+  sees every worktree file, granted or not, hidden folders included. `run`
+  therefore refuses a staged copy holding any file without a read grant, and
+  a new check, `searches_in_scope`, verifies search paths. Prompts treat
+  search hits as leads that must be read before use, and ingest searches for
+  existing pages before creating new ones (upstream's "check what already
+  exists").
+- **Compact staged index.** Ingest workers read a copy of the index with
+  headings, titles and paths only. On the deployment it measured 57.5 KB →
+  32.0 KB, all 183 entries kept. Compile and query workers still get the full
+  index, and the vault's index is unchanged.
+- **Themes.** INDEX lines may name a theme, which `apply` files under a
+  `### theme` heading in the section. A replacement without a theme keeps its
+  place, and emptied themes are dropped. A series files its source entries
+  under the capture's title, or `--theme`.
+- **Primary-agent permissions.** `framework/vault-opencode.example.json`
+  and installation step 2 give the operator agent path-scoped reads of
+  `wiki/` and `raw/`, no edits to managed folders, CLI-only shell without a
+  prompt, and grep and glob on ask, because a vault-root search reaches
+  `.obsidian`. `opencode debug` resolves the example as intended.
+
+Live evidence (OpenCode 1.18.33, previously approved route, synthetic fixture)
+is in `docs/native-acceptance-trials.md`: the search probe passed 8/8 cases,
+worker permission verification passed with search on and off, and a synthetic
+ingest and query each passed every run check while using search. Not yet done:
+installing the changed framework files and the permission profile into the
+deployment (after its running textbook series), rerunning the researcher
+evaluation there, and logically structured notes for long documents (A4).
+
+Verification: 131 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Plan series for chapter compiles
+
+The owner chose to reorganize long documents by chapter while keeping their
+part notes as page-level evidence.
+
+- **`series --plan`.** Runs an ordered JSON plan of ingest and compile items
+  with the series retry policy. It resumes by skipping items whose `done_if`
+  page exists. `file_inputs_under` re-files the inputs' existing index entries
+  under a theme, keeping their text; the worker gives no INDEX lines for them.
+- **Chapter pages.** The ingest skill's compile section defines a chapter
+  source page: `raw` is the original document, the body holds the chapter's
+  argument and a section map to its part notes, with one to three concepts and
+  an up-link on each part note.
+
+Verification: 132 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Automatic concept back-links
+
+The deployment's textbook series stopped at part 79: its source page linked
+the book's hub concept, a sources-only item may not touch concept pages, so the
+back-link was missing (`not_reciprocal`), and the revision then failed the full
+read of the 57 KB index. `normalize` now adds a LINKS back-link on an existing
+concept or entity page that a proposed source page links, and reports it. The
+compact staged index addresses the second failure.
+
+Verification: 133 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Step budget and empty format revisions
+
+Resuming the textbook series on the new code, parts 79 and 80 were recorded as
+`no change` without source pages. The worker ran out of its 12 steps (search,
+six figure reads and related pages). Its reply was a status message, and the
+format-only revision had no proposal to restate, so it replied with NOTES only.
+A format revision without a proposal now counts as a failed run, which gets a
+fresh operation and otherwise stops the series. The default `steps` is 20,
+because searches and figure reads use turns.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Compact index for named-input compiles; evaluation search
+
+The deployment's first chapter compile failed twice on the full-read check of
+the 66 KB index, although its second attempt produced a chapter proposal. A
+compile given named inputs now gets the compact index like an ingest; compile
+by topic and query keep the full index because they choose pages by
+description. `tests/researcher_eval.py --search` grants the researcher grep
+and glob on its staged copy and scores those calls, so evaluations can
+compare index-only and search-enabled retrieval.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Chapter pages without the raw document
+
+The first chapter compile on the deployment replied NOTES only: it treated the
+unstaged PDF named as the chapter page's `raw` as a required read and would not
+infer the chapter's page range. The series recorded it as `no change` and moved
+on. The ingest skill now says the raw document need not be staged or read and
+that the range comes from the part notes, marked approximate where needed. A
+plan item whose `done_if` page was not created now stops the series.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Only required files must be read in full
+
+The deployment's chapter plan applied chapters 1–7 and stopped at chapter 8:
+the worker read the 100 KB log, which is optional, hit the read cap and treated
+the prompt's complete-read rule as covering every file. The prompt now limits
+that rule to the index, the contract and the inputs, which are what the
+operator checks; other files, such as the log, may be read in part.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Two-way back-link repair
+
+Chapter 8's compile cited individual part notes from a new concept page; the
+part notes lacked the back-links, so the checker refused it after a revision.
+The back-link repair now also covers concept and entity pages that link an
+existing source page the proposal does not rewrite.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Declined plan items get one fresh attempt
+
+Chapter 8 was declined again: the worker judged a 42-line concept page
+"capped" and stopped. The prompt now says a capped read means continuing from
+the next offset, never stopping, and a plan item that declines without
+creating its `done_if` page gets one fresh operation before the series stops.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Back-links for every new source ↔ concept edge
+
+Chapters 8–14 applied; chapter 15 stopped because the worker's LINKS lines
+added part → concept links while its new concept page did not link those
+parts. The repair now covers every source ↔ concept/entity link a proposal
+adds, from pages or LINKS lines, and writes the back-link into the proposed
+page when the proposal writes it.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Deployment follow-through and evaluation
+
+Installed the changed framework files and the primary-agent permission profile
+in the deployment (clean per-file upgrades, backups and a receipt kept
+locally), finished the textbook's last 12 parts, and ran a private 22-item
+chapter plan: 21 chapter pages and a back-matter page, 30 concepts, checker
+clean. The researcher evaluation on the same 10 questions scored 9/10
+index-only (the miss a scorer false negative, now fixed) and 8/10 with search
+(two real misses: citing grep hits without reading them, and answering from
+the contract without the index). Details are in the trials document.
+
+Verification: 134 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Query citations must be read
+
+The deployment evaluation found a search-enabled answer citing pages it had
+seen only in grep output. `run` now checks every query: each `wiki/` page the
+answer cites must have been opened with the read tool (`citations_read`,
+failures listed as `unread_citations`), and `revise` gives the researcher one
+retry to read those pages or drop the claims. The citation extractor moved
+from the evaluation harness into `scripts/sb_runtime.py`, which both share.
+
+Verification: 135 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Owner acceptance command
+
+`sb_operator.py accept` appends one owner acceptance record naming, one bullet
+each, every partial operation no earlier acceptance record names, with the
+owner-stated level, sample and defects; `technical` keeps them partial. It
+backs up the log and restores it if the checker fails. On the deployment the
+owner recorded `sampled` acceptance (pages not itemized, no defects reported)
+for all 130 pending operations; none remain partial and unaccepted.
+
+Verification: 136 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Primary agent cannot load worker skills
+
+Asked "what does the wiki say about…", the deployment's primary agent loaded
+`second-brain-query` directly instead of the operator skill. In the vault root
+that worker skill found no staged copy or contract and asked for a read scope.
+The permission profile now denies both worker skills to the primary agent
+(workers load them from their own profile), the worker skill descriptions say
+they are worker-only, and the operator skill's description covers any question
+about the wiki.
+
+Verification: 136 offline tests pass; `git diff --check` passes; `opencode
+debug agent` resolves the operator skill as allowed and both worker skills as
+denied for the example profile.
+
+## 2026-09-29 — Startup timeout for worker runs (H1)
+
+`opencode run` occasionally stalls before starting a session and emits
+nothing; the operator used to wait out the full per-run timeout (900 s on the
+deployment) and then count a failed run. `run_role` now watches the event
+stream: no output after 120 s means a startup stall, so the process is killed
+and relaunched once, and a second stall raises "OpenCode did not start". A run
+that has started keeps the normal timeout. Three offline tests use a fake
+`opencode` script.
+
+Verification: 139 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Drift guards only rewritten pages
+
+The deployment's first synthesis was refused because another compile applied
+while it ran: `apply` required the log and index to match their staged hashes,
+though it appends the log record and merges index entries against the current
+files anyway. A revision could not fix that and returned no pages. The drift
+check now covers only pages a proposal rewrites whole, and `revise` refuses
+when drift is the only problem, asking for a new stage.
+
+Verification: 139 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Page limit counts written pages
+
+The deployment's first synthesis (after a rerun with a 40-step budget for the
+reading it needed) wrote one page plus 25 LINKS back-links and was refused as
+26 pages over the limit of 20. Back-link lines are one-line appends, not pages
+to review, and the owner set no per-operation cap on notes, so `max_pages` now
+counts only pages a proposal writes whole.
+
+Verification: 140 offline tests pass; `git diff --check` passes.
+
+## 2026-09-29 — Default step limit 40
+
+The first synthesis needed about 40 reads, so the default worker `steps` is
+now 40 (and on the deployment). A worker that finishes earlier is unaffected.
+
+Verification: 140 offline tests pass; `git diff --check` passes.
+
+## 2026-09-30 — Status split, one place for test counts, knowledge-layer statistics
+
+- **Split PLAN.md (D1).** Current state moved to a one-screen `STATUS.md`;
+  dated entries to `docs/changelog.md`; the design decisions and decision
+  register to `docs/decisions.md`; the execution history, upstream inventory,
+  research coverage, planning notes and optional tracks T1–T5 to
+  `docs/archive/planning-history.md`. `PLAN.md` keeps the objective,
+  requirements, delivery approach, phases, validation and runbooks R0–R8.
+  Section text moved unchanged.
+- **One place for test counts (D2).** The README and PLAN.md no longer state a
+  count; each change's result is recorded only in its changelog entry.
+- **Statistics that tell a mirror from a knowledge graph (C4).**
+  `vault_stats.py` (definitions v2) reports the knowledge-layer ratio
+  (concept + entity + synthesis pages per source page) and links by type pair,
+  first in the human report.
+
+Verification: 140 offline tests pass; `git diff --check` passes.
+
