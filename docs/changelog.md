@@ -516,4 +516,16 @@ Verification: 144 offline tests pass; `git diff --check` passes.
   caveats listed under "Closed without further work" in STATUS.md); B3 and E3
   declined by the owner.
 
-Verification: 147 offline tests pass; `git diff --check` passes.
+Verification: 145 offline tests pass; `git diff --check` passes.
+
+## 2026-09-30 — OpenCode issues reproduced and drafted (F3)
+
+Both behaviours reproduce on OpenCode 1.18.33 with a fake provider: `opencode
+run --agent` with an unknown name runs the default agent and exits 0, and
+custom-command arguments are expanded (`@file` inlined, `` !`cmd` `` executed)
+regardless of the command agent's `read` and `bash` permissions. OpenCode's
+security policy bans AI-generated security reports and puts permission bypasses
+out of scope, so both are drafted as ordinary bug reports for the owner to
+review and post; the drafts are kept outside this repository. The operator is
+unaffected: it verifies the role with `opencode debug` before each run and never
+uses command wrappers.

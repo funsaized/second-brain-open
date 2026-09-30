@@ -241,7 +241,7 @@ Deployment facts (sanitized):
 | E3 | ✖ Offline CI — won't do (owner, 2026-09-30) | Implement | P2 | S | Yes |
 | F1 | ✅ Re-verify runtime behavior on OpenCode 1.18.33 — closed by owner | Verify | P0 | S | — |
 | F2 | ✅ Confirm a deployment recovery point — closed by owner | Verify | P0 | S | Yes |
-| F3 | Report the two OpenCode safety issues upstream | Decide | P2 | S | Yes |
+| F3 | ✅ Report the two OpenCode safety issues upstream — both reproduced on 1.18.33 and drafted for the owner to post as ordinary bugs (upstream bans AI-written security reports) | Decide | P2 | S | Yes |
 | F4 | ✅ Retire caveats that will not be acted on — moved to a closed list in STATUS.md | Simplify | P2 | S | — |
 | F5 | Decide how to do the P4 project round trip | Decide | P1 | S | Yes |
 | G1 | ✅ Explicit chat selection vs `--min-words` — chosen IDs default to no filter | Improve | P2 | S | — |
