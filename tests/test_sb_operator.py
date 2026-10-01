@@ -293,6 +293,19 @@ class OperatorTests(unittest.TestCase):
         completed = dict(proposal, log="## 2026-09-28 — x — completed\n- y")
         self.assertTrue(op.normalize(manifest, completed)[0]["log"].startswith("## 2026-09-28 — x — partial"))
 
+    def test_prompt_lists_read_ranges_for_files_over_the_cap(self):
+        operation = self.staged()
+        manifest = json.loads((operation / "manifest.json").read_text())
+        corpus = operation / "corpus"
+        self.assertNotIn("size cap", op.worker_prompt(manifest, corpus))
+        (corpus / "wiki/index.md").write_text("".join(f"- entry {i} {'x' * 200}\n" for i in range(1, 501)))
+        ranges = op.read_ranges(corpus / "wiki/index.md")
+        self.assertGreater(len(ranges), 1)
+        self.assertEqual(ranges[0][0], 1)
+        self.assertEqual(sum(count for _, count in ranges), 500)
+        self.assertTrue(all(a + n == b for (a, n), (b, _) in zip(ranges, ranges[1:])))
+        self.assertIn(f"offset=1 limit={ranges[0][1]}", op.worker_prompt(manifest, corpus))
+
     def test_an_index_only_proposal_applies_and_an_empty_one_does_not(self):
         operation = self.staged()
         self.proposal(operation, files={}, index=[["Gaps", "- Domain X was never researched."]])

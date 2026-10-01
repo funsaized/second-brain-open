@@ -557,3 +557,15 @@ refused. The index and log are written and undone as with any operation.
 
 Verification: 147 offline tests pass; a dry-run apply of the refused live
 proposal passes with no problems.
+
+## 2026-10-01 — Exact read ranges for large files
+
+The compact staged index reached 54.9 KB on the deployment (423 lines), over
+OpenCode's roughly 50 KB read cap again. Some workers read it once, got a
+capped output and did not continue, so a concept series stopped after two
+failed attempts. The prompt now gives the exact `offset`/`limit` calls for
+any required file over 40 KB, instead of relying on the worker to page.
+
+Verification: 148 offline tests pass. For the failed live operation the
+prompt now lists `offset=1 limit=350, offset=351 limit=73`. Not yet
+confirmed in a live run.

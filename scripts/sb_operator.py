@@ -459,6 +459,23 @@ def corpus_state(corpus):
             for p in sorted(corpus.rglob("*")) if p.is_file() and ".git" not in p.relative_to(corpus).parts}
 
 
+def read_ranges(path, budget=40_000):
+    """(offset, limit) read calls that keep each OpenCode read under its ~50 KB cap; [] if missing."""
+    if not path.is_file():
+        return []
+    ranges, start, size = [], 1, 0
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    for number, line in enumerate(lines, 1):
+        cost = len(line.encode()) + len(str(number)) + 3  # "N: " prefix and newline
+        if size and size + cost > budget:
+            ranges.append((start, number - start))
+            start, size = number, 0
+        size += cost
+    if lines:
+        ranges.append((start, len(lines) - start + 1))
+    return ranges
+
+
 def worker_prompt(manifest, corpus):
     kind, config = manifest["kind"], manifest["config"]
     search = config.get("search", False)
@@ -474,6 +491,11 @@ def worker_prompt(manifest, corpus):
             "it in consecutive ranges with offset and limit until you have seen every line; the operator checks "
             "this. Other files, such as wiki/log.md, may be read in part. A capped read is never a reason to stop: "
             "continue from the next offset. Read wiki/index.md first. ")
+    for path in ["wiki/index.md", CONTRACT, *manifest["inputs"]]:
+        ranges = read_ranges(corpus / path)
+        if len(ranges) > 1:
+            head += (f"{path} is over the read tool's size cap: read it in exactly these calls, "
+                     + ", ".join(f"offset={start} limit={count}" for start, count in ranges) + ". ")
     if kind == "query":
         return head + (
             f"Question: {manifest['task']} Answer as your skill says, citing exact page paths such as "
