@@ -616,3 +616,28 @@ worker run has used the catalog yet, and the deployment is not migrated.
 
 Not yet done: the researcher evaluation rerun (its private question file is
 no longer available), and ingest and query runs on the catalog.
+
+## 2026-10-01 — Researcher evaluation on the catalog; synthesis on the deployment
+
+- **Evaluation.** A new private set of 14 questions (10 to answer across
+  four documents, 4 to abstain on, one of them about the unresearched D-12
+  domain) ran in catalog mode with search, 12 steps, on OpenCode 1.18.33:
+  12/14 after a scorer fix. Every answer question found its expected page and
+  terms (10/10), all abstentions were correct, and the catalog was read first
+  14/14; mean 1.9 content pages and about 20 s per question. The two failures:
+  one failed tool call during a correct answer (`tools_ok`), and one correct
+  abstention citing a page seen only in search results (`citations_read`,
+  which operator query runs retry). Not comparable with the 2026-09-29 set.
+- **Scorer fix.** Emphasis is dropped before the abstention check, so "does
+  **not** provide" counts; "provide" joins the abstention verbs.
+- **Invalid comparison.** A `--full-index` run is not reported: the installed
+  query skill tells the researcher to read `catalog.md`, which that mode does
+  not stage, so several runs stopped. A fair comparison needs the pre-P6 skill.
+- **Synthesis.** The owner's primary agent compiled six synthesis pages
+  through the operator in one non-interactive run: 6/6 applied with no
+  revisions, checker clean (305 pages, 1,396 links).
+- **Found: vault permission patterns.** In a vault that is not a git
+  repository, OpenCode's worktree is `/`, so the relative read and edit rules
+  from `framework/vault-opencode.example.json` never match: reads fall through
+  to `ask`, and the `edit` denials for `wiki/**`, `raw/**` and `.opencode/**`
+  fall through to `ask` instead of `deny`. Not yet fixed; needs a runtime probe.

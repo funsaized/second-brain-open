@@ -119,6 +119,10 @@ class ResearcherEvalTests(unittest.TestCase):
         self.assertEqual([k for k, ok in result["checks"].items() if not ok], ["abstained"])
         summary = ev.summarize([result])
         self.assertEqual((summary["questions"], summary["passed"], summary["checks"]["abstained"]), (1, 0, "0/1"))
+        bold = ("Trial B's publication date: the wiki does **not** provide it ([[wiki/sources/trial-b]]).\n"
+                "Read: wiki/sources/trial-b.md\nNot covered: publication date\n")
+        self.assertTrue(ev.score(question, events("catalog.md", "wiki/sources/trial-b.md", text=bold),
+                                 corpus, self.state, self.state)["checks"]["abstained"])
         for phrase in ("I can’t determine it from the staged pages.", "I can't answer that.",
                        "The wiki does not answer this.", "I found no related material."):
             self.assertTrue(ev.ABSTAIN.search(phrase), phrase)

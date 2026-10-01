@@ -43,7 +43,7 @@ INSTALLED = {
 ABSTAIN = re.compile(
     r"not covered|not (?:recorded|stated|established|found|mentioned|addressed|specified|documented|identified)"
     r"|no (?:evidence|information|record|source|page)|unknown|(?:cannot|can[’']t) (?:answer|determine|confirm)"
-    r"|does(?: not|n't) (?:answer|say|state|cover|mention|address|specify|name|identify|record)|found no ", re.I)
+    r"|does(?: not|n't) (?:answer|say|state|cover|mention|address|specify|name|identify|record|provide)|found no ", re.I)
 SECTION = {"read": re.compile(r"(?im)^[#>*\s-]*\**read\**\s*(?::|$)"),
            "not_covered": re.compile(r"(?im)^[#>*\s-]*\**not covered\**\s*(?::|$)")}
 
@@ -154,7 +154,9 @@ def score(question, events, corpus, before, after, returncode=0, search=False, g
         checks["expected_cited"] = set(question["expected_pages"]) <= set(cited)
     else:
         # The required "Not covered:" label is not itself an abstention.
-        checks["abstained"] = bool(ABSTAIN.search(re.sub(r"(?im)^[#>*\s-]*\**not covered\**\s*:?", "", text)))
+        # Emphasis markers are dropped first, so "does **not** answer" still reads as an abstention.
+        plain = re.sub(r"[*_]+", "", re.sub(r"(?im)^[#>*\s-]*\**not covered\**\s*:?", "", text))
+        checks["abstained"] = bool(ABSTAIN.search(plain))
     if question.get("expected_terms"):
         lowered = text.lower()
         checks["expected_terms"] = all(term.lower() in lowered for term in question["expected_terms"])
