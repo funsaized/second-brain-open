@@ -257,7 +257,7 @@ Private backup/restore and operating cadence are owner-local checks.
 
 ### P6. Generated index and scoped worker catalogs
 
-**Status:** approved by the owner on 2026-10-01; in progress.
+**Status:** approved by the owner on 2026-10-01; delivered and deployed (migration applied, three live compiles passed). Researcher evaluation rerun outstanding.
 
 **Why:** every worker had to read the whole `wiki/index.md`, so cost grew with
 the wiki and runs failed whenever the index passed the read tool's ~50 KB cap

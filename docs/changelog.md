@@ -598,3 +598,21 @@ lines. The index stays one page.
 
 Verification: 161 offline tests pass; `git diff --check` passes. No live
 worker run has used the catalog yet, and the deployment is not migrated.
+
+## 2026-10-01 — P6 on the deployment
+
+- **Install.** The 12 installed framework files matched earlier public
+  versions (no local edits) and were replaced per file, with backups and a
+  hash manifest outside the vault.
+- **Migration.** 296 pages gained summaries from their index entries, 172
+  their theme, and 90 capture parts `part_of` their chapter; 7 parts of a
+  book without chapter pages stay listed. Of 89 distinct Gaps lines, the owner
+  kept 11 on their pages and dropped 78 stale "parts N–90 remain uncovered"
+  lines. Checker clean afterwards; the index went from 92.6 KB to 54.7 KB.
+- **First live runs on the catalog.** The three concept items of a plan that
+  had stopped on the index read cap ran on the new flow: 3/3 applied on the
+  first attempt, no retries, checker clean (299 pages, 1,291 links). Their
+  catalogs were about 20 KB, read in one call.
+
+Not yet done: the researcher evaluation rerun (its private question file is
+no longer available), and ingest and query runs on the catalog.

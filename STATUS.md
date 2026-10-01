@@ -45,9 +45,8 @@ change's result is recorded in its dated [changelog](docs/changelog.md) entry.
 
 ## Outstanding, withheld and deferred
 
-1. **P6 deployment steps.** Migrate a deployment's hand-written index after
-   the owner reviews its gaps, then rerun the researcher evaluation on the
-   catalog flow. No live run has used the catalog yet.
+1. **P6 evaluation.** The deployment is migrated and compiles pass on the
+   catalog; the researcher evaluation still needs a rerun on the catalog flow.
 2. **P4/R5 project round trip.** Wiki context into a project and durable
    findings back, demonstrated with a real project when one needs it (backlog
    F5).
