@@ -157,7 +157,8 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 
 `apply` refuses the whole proposal, writing nothing, when any of these fail:
 
-- **Pages:** at least one page changed (FILE or LINKS), and no more than
+- **Pages:** at least one page changed (FILE or LINKS) or one INDEX entry,
+  such as a Gaps line, and no more than
   `max_pages` pages written whole with FILE.
 - **Paths:** only `wiki/{sources,concepts,entities,synthesis}/**.md`; never
   `wiki/index.md` or `wiki/log.md` as a page, `raw/`, instruction filenames or

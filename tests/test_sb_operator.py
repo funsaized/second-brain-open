@@ -293,6 +293,18 @@ class OperatorTests(unittest.TestCase):
         completed = dict(proposal, log="## 2026-09-28 — x — completed\n- y")
         self.assertTrue(op.normalize(manifest, completed)[0]["log"].startswith("## 2026-09-28 — x — partial"))
 
+    def test_an_index_only_proposal_applies_and_an_empty_one_does_not(self):
+        operation = self.staged()
+        self.proposal(operation, files={}, index=[["Gaps", "- Domain X was never researched."]])
+        result = op.apply(operation)
+        self.assertEqual(result["problems"], [])
+        self.assertIn("- Domain X was never researched.", (self.vault / "wiki/index.md").read_text())
+        op.undo(operation)
+        self.assertNotIn("Domain X", (self.vault / "wiki/index.md").read_text())
+        empty = self.staged()
+        self.proposal(empty, files={}, index=[])
+        self.assertIn("proposal has no pages or index entries", op.apply(empty, dry_run=True)["problems"])
+
     def test_normalize_turns_markdown_page_links_into_wikilinks(self):
         operation = self.staged()
         manifest = json.loads((operation / "manifest.json").read_text())

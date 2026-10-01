@@ -780,8 +780,8 @@ def check_proposal(manifest, proposal):
     problems = []
     links = proposal.get("links", [])
     touched = set(files) | {path for path, _ in links}
-    if not touched:
-        problems.append("proposal has no pages")
+    if not touched and not proposal.get("index"):
+        problems.append("proposal has no pages or index entries")
     # The limit bounds pages to review; LINKS lines are one-line appends and do not count.
     if len(files) > config["max_pages"]:
         problems.append(f"proposal writes {len(files)} pages; the limit is {config['max_pages']}")

@@ -547,3 +547,13 @@ Verification: 146 offline tests pass; a dry-run apply of the failed live
 proposal passes with the one conversion reported. The worker's other slip,
 inferring a domain ID from the series position, is a task-wording issue and
 is not changed here.
+
+## 2026-09-30 — Index-only proposals
+
+A compile whose only change was a Gaps entry in the index was refused as
+"proposal has no pages", and a revision could not change that. `apply` now
+accepts a proposal with INDEX entries and no pages; one with neither is still
+refused. The index and log are written and undone as with any operation.
+
+Verification: 147 offline tests pass; a dry-run apply of the refused live
+proposal passes with no problems.
