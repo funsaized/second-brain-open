@@ -115,8 +115,10 @@ plan: a JSON list of compile operations, one per chapter, naming that
 chapter's part notes and the chapter page to create (`done_if`). Each chapter
 page points at the original document, gives the chapter's argument and a map of
 its sections to the part notes, and comes with one to three concept pages. The
-part notes stay as page-level evidence, link up to their chapter, and have
-their index entries filed under a "capture parts" theme (`file_inputs_under`).
+part notes stay as page-level evidence and link up to their chapter. With
+`"parts": true` on each plan item, the operator sets `part_of` on every part
+the chapter page links, and the index lists the parts through their chapter,
+as "(N parts)", instead of one entry each.
 
 ```sh
 python3 "$CLI" series . --plan plan.json --background
@@ -156,12 +158,13 @@ Describe the concept; the worker finds the relevant notes itself:
 > Use the second-brain-operator skill to create a concept around the structure
 > of the wiki filesystem and how it plays into usage.
 
-The worker reads the index and searches the wiki's pages, picks the most
-relevant notes (usually three to eight), reads them in full, and writes the
-concept page. Every claim links to the note that supports it, and each note
-gets a link back to the concept; the operator adds any back-link the worker
-missed. The operator merges the new index entry; nothing is fetched from the
-web. To choose the notes yourself, name them: "…from wiki/sources/a.md and
+The worker reads its catalog (the operator's selection of the index for this
+task) and searches the wiki's pages, picks the most relevant notes (usually
+three to eight), reads them in full, and writes the concept page. Every claim
+links to the note that supports it, and each note gets a link back to the
+concept; the operator adds any back-link the worker missed, and refuses a new
+page that duplicates an existing one. The index is regenerated from the pages;
+nothing is fetched from the web. To choose the notes yourself, name them: "…from wiki/sources/a.md and
 wiki/sources/b.md".
 
 A **synthesis page** compares or combines several concepts and sources. Ask for
@@ -239,8 +242,14 @@ edits share the wiki. With Obsidian [set up for hand editing](installation.md#4-
   back-link on the other page.
 - **Frontmatter:** keep values JSON-quoted and set `updated` to today's date
   when you change a page. Edit it in source mode.
-- **New pages:** start from a template in `templates/second-brain/`, and add an
-  entry for the page to `wiki/index.md`.
+- **New pages:** start from a template in `templates/second-brain/` and fill
+  in `summary`. Never edit `wiki/index.md`: it is generated from the pages'
+  `summary`, `theme`, `gaps` and `part_of`. The next operation regenerates it,
+  or regenerate it now (the previous index is backed up to the workdir):
+
+  ```sh
+  python3 "$CLI" rebuild-index .
+  ```
 - **Images:** paste or drop them into a folder under `raw/`, or link existing
   files there; the checker confirms they exist.
 - **Check your work:** run the checker from the vault root. It lists each
@@ -263,7 +272,31 @@ python3 "$CLI" undo OPERATION
 
 `undo` restores every file the operation changed, including the log. It keeps
 any file you edited after the operation and names it under
-`skipped_changed_since`.
+`skipped_changed_since`. Then it regenerates the index from the pages, so an
+undone page never stays listed.
+
+## Move to the generated index
+
+A vault whose `wiki/index.md` was written by hand (before 2026-10-01) is
+migrated once; until then ingest and compile refuse to stage. Ask your primary
+agent to migrate the index, or from a terminal:
+
+```sh
+python3 "$CLI" migrate-index .
+```
+
+This writes nothing to the vault. It prints counts and two files to review:
+`index-preview.md`, the index you will get, and `gaps.json`, every current Gaps
+line with a suggested page. Set each gap's `page` to the page it belongs on, or
+`null` to drop it, then apply:
+
+```sh
+python3 "$CLI" migrate-index --apply OPERATION
+```
+
+Every page gets a `summary` (its old index description) and its index theme;
+capture parts get `part_of` when a chapter page links them. Page `updated`
+dates are kept. `undo OPERATION` restores the hand-written index and pages.
 
 ## Record your review
 

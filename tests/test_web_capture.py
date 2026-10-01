@@ -132,7 +132,8 @@ class CaptureTests(unittest.TestCase):
 
     def test_stage_url_captures_then_stages(self):
         (self.vault / "wiki/index.md").write_text('---\ntitle: "Index"\ntype: "index"\ncreated: "2026-09-29"\n'
-                                                 'updated: "2026-09-29"\naliases: []\ntags: []\n---\n# Index\n')
+                                                 'updated: "2026-09-29"\naliases: []\ntags: []\n---\n# Index\n\n'
+                                                 + op.wiki_index.MARKER + '\n')
         original = op.web_capture.fetch
         op.web_capture.fetch = self.fake()
         try:

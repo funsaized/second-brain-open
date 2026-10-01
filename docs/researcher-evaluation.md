@@ -65,8 +65,10 @@ The harness:
 Each question takes about a minute. `--steps` (default 8) limits the
 researcher's turns and `--timeout` (default 300 seconds) stops a stuck run.
 `--search` also grants grep and glob on the staged copy, as the operator does
-by default; run with and without it to compare index-only and search-enabled
-retrieval. The operator's own query runs also enforce `citations_read`.
+by default; run with and without it to compare catalog-only and
+search-enabled retrieval. Like the operator, the evaluation gives the
+researcher a per-question `catalog.md` instead of `wiki/index.md`;
+`--full-index` stages the whole index instead, to compare the two. The operator's own query runs also enforce `citations_read`.
 
 ## 3. Read the scores
 
@@ -79,7 +81,7 @@ with owner-only permissions.
 | `run_completed` | The run exited 0 with an answer |
 | `skill_loaded` | The query skill was loaded with the skill tool |
 | `tools_ok` | Every tool call was a completed read or skill call |
-| `index_first` | `wiki/index.md` was read before any content page |
+| `index_first` | `catalog.md` (or `wiki/index.md` with `--full-index`) was read before any content page |
 | `citations_exist` / `citations_read` | Every cited page exists and was read in this run |
 | `sections` | The answer has `Read:` and `Not covered:` lines |
 | `zero_writes` | Staged files are byte-identical after the run |

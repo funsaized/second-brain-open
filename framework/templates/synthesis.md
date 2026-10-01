@@ -5,6 +5,9 @@ created: "{{CREATED}}"
 updated: "{{UPDATED}}"
 aliases: []
 tags: []
+summary: "{{SUMMARY}}"
+theme: null
+gaps: []
 ---
 
 # {{TITLE}}

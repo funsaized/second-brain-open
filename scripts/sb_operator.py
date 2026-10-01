@@ -19,7 +19,14 @@ skill) runs one operation at a time:
   apply  validate the proposal (allowed paths, page cap, unchanged vault files,
          append-only log record, managed checker clean on the result), back up
          the files it replaces and write it into the vault.
-  undo   restore an applied operation's files if nothing changed them since.
+  undo   restore an applied operation's files if nothing changed them since,
+         then rebuild the generated index.
+  migrate-index  stage, then (--apply) write, the move from a hand-written
+         wiki/index.md to the generated one.
+  rebuild-index  regenerate wiki/index.md from the pages after hand edits.
+
+wiki/index.md is generated from page frontmatter (scripts/wiki_index.py);
+workers read a bounded catalog.md instead of the index.
 
 Workers never hold edit rights; only `apply` writes, and only under wiki/.
 Settings come from VAULT/.opencode/second-brain/operator.json (see
@@ -45,13 +52,14 @@ import urllib.parse
 
 if __package__:
     from . import link_check
-    from . import pdf_capture, web_capture
+    from . import pdf_capture, web_capture, wiki_index
     from .sb_runtime import (answer_text, configure_worker, extract_citations, relative_read, run_role,
                              tool_calls, validate_scope)
 else:
     import link_check
     import pdf_capture
     import web_capture
+    import wiki_index
     from sb_runtime import (answer_text, configure_worker, extract_citations, relative_read, run_role,
                             tool_calls, validate_scope)
 
@@ -69,6 +77,7 @@ CONFIG_KEYS = {"cli", "agent", "model", "opencode_version", "workdir", "max_page
                "search"}
 WRITABLE = re.compile(r"wiki/(?:sources|concepts|entities|synthesis)/.+\.md")
 INDEX_SECTIONS = ("Concepts", "Entities", "Synthesis", "Sources", "Gaps")
+CATALOG = "catalog.md"
 LINK = re.compile(r"\[\[([^\]|#]+)")
 INDEX_LINE = re.compile(r"\s*(?:[-*]\s*)?(\w+)\s*\|\s*(?:(?!-\s)([^|\[\]\n]+?)\s*\|\s*)?(.+?)\s*")
 RECORD = re.compile(r"## (\d{4}-\d{2}-\d{2}) — .+ — partial")
@@ -360,6 +369,9 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
         validate_scope(vault, [Path(item)])
     if "@" in task or re.search(r"!\s*`", task):
         raise ValueError("task/question must be plain text without @ or !` preprocessing tokens")
+    index_file = vault / "wiki/index.md"
+    if kind != "query" and index_file.is_file() and not wiki_index.is_generated(index_file.read_text(encoding="utf-8")):
+        raise ValueError("wiki/index.md is not the generated index yet: run migrate-index and apply it first")
     state = wiki_state(vault)
     today = today or date.today().isoformat()
     workdir = Path(config["workdir"])
@@ -369,7 +381,8 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
     op.mkdir(mode=0o700)
     corpus.mkdir()
     profile.mkdir()
-    copies = {key: vault / key for key in state}
+    # Workers read a bounded catalog, not the index, so cost does not grow with the wiki.
+    copies = {key: vault / key for key in state if key != "wiki/index.md"}
     copies.update({item: vault / item for item in inputs})
     figures, input_parts = [], {}
     for item in inputs if kind == "ingest" else ():
@@ -395,11 +408,10 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
         path = corpus / target
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(source.read_bytes())
-    # Workers with named inputs need titles and paths; compile by topic and query choose pages by description.
-    compact = (kind == "ingest" or (kind == "compile" and bool(inputs))) and (corpus / "wiki/index.md").is_file()
-    if compact:
-        index = corpus / "wiki/index.md"
-        index.write_text(compact_index(index.read_text(encoding="utf-8")))
+    pages, _ = link_check.collect(vault)
+    titles = [capture_fields(vault / item).get("title") for item in inputs if kind == "ingest"]
+    query = " ".join([task, *(title for title in titles if isinstance(title, str))])
+    (corpus / CATALOG).write_text(wiki_index.catalog(pages, inputs if kind == "compile" else (), query))
     origin = {}
     for name in (f"agents/{role}.md", f"skills/{skill}/SKILL.md"):
         local = vault / ".opencode" / name
@@ -411,18 +423,18 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
         origin[name] = {"from": "vault" if base == vault else "framework", "sha256": file_hash(source)}
     manifest = {"id": op.name, "kind": kind, "role": role, "skill": skill, "vault": str(vault), "date": today,
                 "task": task, "inputs": inputs, "input_sha256": {i: file_hash(vault / i) for i in inputs},
-                "wiki_preimages": state, "reads": sorted(copies) + ["operation.md"], "origin": origin,
-                "figures": figures, "input_parts": input_parts, "series": series, "compact_index": compact,
+                "wiki_preimages": state, "reads": sorted([*copies, CATALOG, "operation.md"]), "origin": origin,
+                "figures": figures, "input_parts": input_parts, "series": series,
                 "config": {k: config[k] for k in sorted(config)},
                 "capture": captured}
     (corpus / "operation.md").write_text(
         "# Operator-verified operation manifest\n\n```json\n" + json.dumps({
             "status": "operator preflight verifies these read grants before the worker starts",
             "operation": kind, "role": role, "task": task, "inputs": inputs, "date": today,
-            "readable": f"{len(manifest['reads'])} staged files: every wiki page the index links, plus the paths below",
-            "index": ("compact: titles and paths only; search the pages for more" if compact else "full catalog"),
+            "readable": f"{len(manifest['reads'])} staged files: every wiki page, plus the paths below",
+            "catalog": "a bounded selection of the index for this operation; search wiki/ for other pages",
             "search": "grep and glob over these staged files" if config["search"] else "not available",
-            "paths": {"contract": CONTRACT, "index": "wiki/index.md", "log": "wiki/log.md",
+            "paths": {"contract": CONTRACT, "catalog": CATALOG, "log": "wiki/log.md",
                       "templates": [f"templates/{name}.md" for name in TEMPLATES] if kind != "query" else [],
                       "inputs": inputs, "figures": figures},
             "writes": "none; the worker returns a proposal and the operator validates and applies it"},
@@ -435,23 +447,6 @@ def stage(vault, kind, inputs=(), task=None, config_path=None, today=None, url=N
 def write_json(path, data):
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     path.chmod(0o600)
-
-
-def compact_index(text):
-    """The index without frontmatter, comments or entry descriptions: headings, titles and paths only."""
-    lines = text.split("\n")
-    if lines and lines[0] == "---" and "---" in lines[1:]:
-        lines = lines[lines.index("---", 1) + 1:]
-    body = re.sub(r"<!--.*?-->", "", "\n".join(lines), flags=re.S)
-    out, noted = [], False
-    for line in body.split("\n"):
-        entry = re.match(r"- \[\[[^\]]+\]\]", line)
-        out.append(entry.group(0) if entry else line.rstrip())
-        if line.startswith("# ") and not noted:
-            out += ["", "> Compact copy for this operation: titles and paths only; the vault's index keeps the "
-                        "descriptions. Search the staged pages when a title is not enough."]
-            noted = True
-    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip("\n") + "\n"
 
 
 def corpus_state(corpus):
@@ -483,15 +478,17 @@ def worker_prompt(manifest, corpus):
             + ("; you can also search the staged files with grep and glob" if search else "")
             + ". Edits and all other tools are denied. Load your designated skill with the skill tool. "
             f"Working directory: {corpus}. Read files by their paths relative to it, exactly as operation.md "
-            f"lists them (for example wiki/index.md, {CONTRACT}, templates/concept.md); do not retype the absolute "
+            f"lists them (for example {CATALOG}, {CONTRACT}, templates/concept.md); do not retype the absolute "
             "directory. If a read is denied, you used a path that is not staged: retry with the listed relative "
-            "path, or continue without an optional page. Stop only when the index, the contract or an input cannot "
-            "be read at its listed path. The index, the contract and every input must be read completely: when one "
-            "is too long for one read (the output says it was capped, or does not end with 'End of file'), read "
-            "it in consecutive ranges with offset and limit until you have seen every line; the operator checks "
-            "this. Other files, such as wiki/log.md, may be read in part. A capped read is never a reason to stop: "
-            "continue from the next offset. Read wiki/index.md first. ")
-    for path in ["wiki/index.md", CONTRACT, *manifest["inputs"]]:
+            f"path, or continue without an optional page. Stop only when {CATALOG}, the contract or an input "
+            f"cannot be read at its listed path. {CATALOG}, the contract and every input must be read completely: "
+            "when one is too long for one read (the output says it was capped, or does not end with 'End of "
+            "file'), read it in consecutive ranges with offset and limit until you have seen every line; the "
+            "operator checks this. Other files, such as wiki/log.md, may be read in part. A capped read is never "
+            f"a reason to stop: continue from the next offset. Read {CATALOG} first: it is a selection of the "
+            "wiki's index for this operation, not the whole wiki"
+            + (", so search wiki/ for pages it does not list. " if search else ". "))
+    for path in [CATALOG, CONTRACT, *manifest["inputs"]]:
         ranges = read_ranges(corpus / path)
         if len(ranges) > 1:
             head += (f"{path} is over the read tool's size cap: read it in exactly these calls, "
@@ -516,40 +513,39 @@ def worker_prompt(manifest, corpus):
               ("This is a compile from the named inputs. " if manifest["inputs"] else
                "This is a compile by topic: you choose the pages to draw on. "))
     reading = (f"Read these inputs completely before proposing: {inputs}. " if manifest["inputs"] else "")
-    if manifest.get("compact_index"):
-        reading += "wiki/index.md is a compact catalog here: titles and paths, no descriptions. "
     series = manifest.get("series")
     if series:
         reading += (f"This is item {series['position']} of {series['count']} in an ordered series. "
                     + (f"The previous item's source page is {series['previous_source']}; link it as the previous part. "
                        if series.get("previous_source") else "")
                     + "Pages from later items do not exist yet: never link to them. "
-                    + (f"The operator files this item's new Sources index entries under the theme '{series['theme']}'. "
+                    + (f"The operator sets theme \"{series['theme']}\" on this item's new source pages. "
                        if series.get("theme") else "")
-                    + (f"The operator re-files the input notes' existing index entries under the theme "
-                       f"'{series['file_inputs_under']}': give no INDEX lines for them. "
-                       if series.get("file_inputs_under") else "")
-                    + ("Write only this item's source page and its index entry; do not create or update concept, "
+                    + (f"The operator sets part_of on the inputs to the page this item creates. "
+                       if series.get("parts") else "")
+                    + ("Write only this item's source page; do not create or update concept, "
                        "entity or synthesis pages, which are compiled after the series. "
                        if series.get("sources_only") else ""))
     return head + source + (
         f"Task: {manifest['task']} {reading}Readable files, by exact relative path"
-        + (" (find them with the index, grep or glob)" if search else " only (directory listings are not available)")
-        + ": every page the index links, wiki/log.md, "
-        f"{', '.join(f'templates/{name}.md' for name in TEMPLATES)}, the inputs and operation.md (the operation manifest, optional; there is no other manifest). "
-        "Open candidate pages from the index as needed. "
+        + (f" (find them with {CATALOG}, grep or glob)" if search else " only (directory listings are not available)")
+        + f": every page under wiki/, {CATALOG}, wiki/log.md, "
+        f"{', '.join(f'templates/{name}.md' for name in TEMPLATES)}, the inputs and operation.md (the operation "
+        "manifest, optional; there is no other manifest). "
         f"Today is {manifest['date']}. Propose at most {config['max_pages']} new or changed pages under "
         "wiki/sources, wiki/concepts, wiki/entities or wiki/synthesis. Never propose wiki/index.md, wiki/log.md, "
-        "raw/ or any other path as a FILE: give index changes as INDEX entries, which the operator merges. "
-        "Reply with no outer code fence, in this format:\n<<<FILE path>>>\ncomplete Markdown with final newline\n"
-        "<<<END FILE>>>\n(one block per page)\n<<<INDEX>>>\none line per new or changed catalog entry, as "
-        "'<Concepts|Entities|Synthesis|Sources|Gaps> | - [[wiki/<folder>/<page>|Title]] — short description' "
-        "or, to file it under a '### <theme>' heading in that section (the document a part belongs to, or a "
-        "topic), '<Section> | <theme> | - [[...]] — description'. Gaps entries are plain text. An entry replaces "
-        "the existing entry for the same page; without a theme it keeps that entry's place\n"
+        "raw/ or any other path as a FILE. The operator generates wiki/index.md from page frontmatter, so give "
+        "every page you write: summary, one line of at most 200 characters saying what the page holds, written "
+        "for someone choosing which pages to read; theme, the document or topic it belongs with, or null; and "
+        "gaps, a JSON list of the page's missing coverage as plain text, or []. Keep an existing page's theme, "
+        "gaps and part_of unless they are wrong. Link other pages only as [[wiki/<folder>/<page>|Title]] "
+        "wikilinks. Reply with no outer code fence, in this format:\n<<<FILE path>>>\ncomplete Markdown with "
+        "final newline\n<<<END FILE>>>\n(one block per page)\n"
         "<<<LINKS>>>\none line per link to add to an existing page without rewriting it, as "
         "'wiki/<folder>/<page>.md | - [[wiki/<folder>/<page>|Title]] — how they relate'; use this for "
         "reciprocal back-links on long source notes\n"
+        "<<<GAPS>>>\none line per gap to add to an existing page without rewriting it, as "
+        "'wiki/<folder>/<page>.md | plain-text description of the missing coverage'\n"
         f"<<<LOG>>>\none log record whose heading is '## {manifest['date']} — <operation> — partial', followed "
         "by bullets for source identity, changed paths, contradictions, gaps and pending verification\n"
         "<<<NOTES>>>\ncoverage review, claim/locator notes and open questions.\n"
@@ -566,7 +562,7 @@ def section(text, name):
     return "\n".join(lines).strip()
 
 
-MARKER = re.compile(r"^\s*<<<\s*(END\s+)?(FILE|INDEX|LINKS|LOG|NOTES)(?:\s+([^>]*?))?\s*>>>\s*$")
+MARKER = re.compile(r"^\s*<<<\s*(END\s+)?(FILE|INDEX|LINKS|GAPS|LOG|NOTES)(?:\s+([^>]*?))?\s*>>>\s*$")
 
 
 def parse_proposal(text):
@@ -579,7 +575,7 @@ def parse_proposal(text):
     lines = text.strip().splitlines()
     if len(lines) > 1 and lines[0].startswith("```") and lines[-1].strip().startswith("```"):
         lines = lines[1:-1]
-    files, sections, warnings = {}, {"INDEX": [], "LINKS": [], "LOG": [], "NOTES": []}, []
+    files, sections, warnings = {}, {"INDEX": [], "LINKS": [], "GAPS": [], "LOG": [], "NOTES": []}, []
     current, path, buffer, seen, ignored = None, None, [], False, 0
 
     def close_file():
@@ -639,8 +635,17 @@ def parse_proposal(text):
             continue
         entry = match.group(2) if match.group(2).startswith("- ") else "- " + match.group(2)
         links.append([match.group(1), entry])
+    gaps = []
+    for line in sections["GAPS"]:
+        if not line.strip():
+            continue
+        match = re.fullmatch(r"\s*(?:[-*]\s*)?`?(wiki/\S+?\.md)`?\s*\|\s*(.+?)\s*", line)
+        if not match:
+            warnings.append(f"skipped GAPS line: {line.strip()[:60]}")
+            continue
+        gaps.append([match.group(1), re.sub(r"\s+", " ", match.group(2)).lstrip("- ").strip()])
     log = "\n".join(sections["LOG"]).strip() or None
-    return {"files": files, "index": index, "links": links, "log": log,
+    return {"files": files, "index": index, "links": links, "gaps": gaps, "log": log,
             "notes": "\n".join(sections["NOTES"]).strip(), "warnings": warnings}
 
 
@@ -677,7 +682,7 @@ def verify_events(manifest, corpus, events, returncode, before, after, required=
             reads[path] = path not in cut and set(range(1, total + 1)) <= numbers
         else:
             reads[path] = False
-    required = required or {"wiki/index.md", CONTRACT, *manifest["inputs"]}
+    required = required or {CATALOG, CONTRACT, *manifest["inputs"]}
     # An answer may cite only pages the researcher opened; a search hit is not a read.
     unread_citations = ([p for p in extract_citations(answer_text(events)) if p not in seen]
                         if manifest["kind"] == "query" else [])
@@ -801,9 +806,20 @@ def check_proposal(manifest, proposal):
     files, record = proposal["files"], proposal["log"]
     problems = []
     links = proposal.get("links", [])
-    touched = set(files) | {path for path, _ in links}
-    if not touched and not proposal.get("index"):
-        problems.append("proposal has no pages or index entries")
+    touched = set(files) | {path for path, _ in links} | {path for path, _ in proposal.get("gaps", [])}
+    touched |= set(proposal.get("meta", {}))
+    if not touched:
+        problems.append("proposal changes no pages")
+    new_pages = {}
+    for path, text in files.items():
+        kind = wiki_index.page_type(path)
+        if kind and WRITABLE.fullmatch(path) and not (vault / path).exists():
+            fields, body, _ = link_check.metadata(text, path, kind)
+            new_pages[path] = {"metadata": fields, "body": body}
+    if new_pages:
+        for new, existing, name in wiki_index.duplicates(link_check.collect(vault)[0], new_pages):
+            problems.append(f"new page {new}.md duplicates existing page {existing}.md (both named '{name}'): "
+                            "update the existing page instead of creating another")
     # The limit bounds pages to review; LINKS lines are one-line appends and do not count.
     if len(files) > config["max_pages"]:
         problems.append(f"proposal writes {len(files)} pages; the limit is {config['max_pages']}")
@@ -814,7 +830,7 @@ def check_proposal(manifest, proposal):
             problems.append(f"LINKS target is not an existing wiki page: {path}")
     for path in files:
         if path == "wiki/index.md":
-            problems.append("wiki/index.md must not be rewritten: give INDEX entries and the operator merges them")
+            problems.append("wiki/index.md must not be rewritten: the operator generates it from page frontmatter")
         elif (not WRITABLE.fullmatch(path) or not link_check.canonical_parts(path)
                 or Path(path).name in link_check.INSTRUCTIONS):
             problems.append(f"path not writable by the operator: {path}")
@@ -850,68 +866,6 @@ def first_link(line):
     return match.group(1).strip() if match else None
 
 
-def merge_index(text, entries, today):
-    """Add or replace catalog entries section by section; never removes other entries.
-
-    An entry is [section, line] or [section, line, theme]. A theme files the line
-    under a '### theme' heading inside its section. A replacement without a theme
-    keeps the existing entry's place; theme headings left empty are dropped.
-    """
-    lines = text.rstrip("\n").split("\n")
-    if lines and lines[0] == "---" and "---" in lines[1:]:
-        for i in range(1, lines.index("---", 1)):
-            if lines[i].startswith("updated: "):
-                lines[i] = f'updated: "{today}"'
-
-    def section_of(position):
-        return next((lines[i][3:].strip() for i in range(position, -1, -1) if lines[i].startswith("## ")), None)
-
-    for section_name, entry, *rest in entries:
-        theme = rest[0] if rest and rest[0] else None
-        target = first_link(entry)
-        if not target and entry in lines:
-            continue
-        existing = [i for i, line in enumerate(lines) if target and line.startswith("- ") and first_link(line) == target]
-        if existing and theme is None and section_of(existing[0]) == section_name:
-            lines[existing[0]] = entry
-            for i in reversed(existing[1:]):
-                del lines[i]
-            continue
-        for i in reversed(existing):
-            del lines[i]
-        heading = f"## {section_name}"
-        if heading not in lines:
-            position = lines.index("## Gaps") if "## Gaps" in lines and section_name != "Gaps" else len(lines)
-            lines[position:position] = [heading, "", ""]
-        start = lines.index(heading)
-        end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
-        for i in reversed(range(start + 1, end)):
-            if re.match(r"\s*No (pages|known gaps) yet", lines[i]):
-                del lines[i]
-                end -= 1
-        if theme:
-            sub = f"### {theme}"
-            if sub not in lines[start + 1:end]:
-                lines[end:end] = ["", sub, "", entry, ""]
-                continue
-            start = lines.index(sub, start + 1)
-        end = next((i for i in range(start + 1, end) if lines[i].startswith("### ")), end)
-        items = [i for i in range(start + 1, end) if lines[i].startswith("- ")]
-        if items:
-            lines.insert(items[-1] + 1, entry)
-        else:
-            while start + 1 < len(lines) and start + 1 < end and not lines[start + 1].strip():
-                del lines[start + 1]
-                end -= 1
-            lines[start + 1:start + 1] = ["", entry, ""]
-    for i in reversed(range(len(lines))):
-        if lines[i].startswith("### "):
-            following = next((j for j in range(i + 1, len(lines)) if lines[j].startswith("#")), len(lines))
-            if not any(line.strip() for line in lines[i + 1:following]):
-                del lines[i:following]
-    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).rstrip("\n") + "\n"
-
-
 def add_links(text, entries, today):
     """Append link lines to a page's '## Links' section (created if absent); skips links already present."""
     lines = text.rstrip("\n").split("\n")
@@ -944,9 +898,11 @@ def normalize(manifest, proposal):
     """Deterministic repairs before checking; every repair is reported, nothing else changes.
 
     Links for a page that is also rewritten are merged into the rewrite; links to
-    pages that do not exist become plain text (outside code); INDEX and LINKS
-    entries pointing at missing pages are dropped; a missing or mis-headed log
-    record gets an operator heading with status partial.
+    pages that do not exist become plain text (outside code); LINKS and GAPS
+    lines for missing pages are dropped; INDEX lines are ignored (the index is
+    generated); a missing summary is filled and a rewrite keeps the page's theme,
+    gaps and part_of; a missing or mis-headed log record gets an operator heading
+    with status partial.
     """
     proposal = json.loads(json.dumps(proposal))
     files, fixes = proposal["files"], []
@@ -1042,43 +998,88 @@ def normalize(manifest, proposal):
             links.append([target + ".md", entry])
         fixes.append(f"added the back-link {target} -> {origin}")
     proposal["links"] = links
-    index = []
+    # The index is generated from page frontmatter; INDEX lines (from older prompts) are not merged.
+    if proposal.get("index"):
+        fixes.append(f"ignored {len(proposal['index'])} INDEX line(s): the operator generates the index")
+    proposal["index"] = []
+    vault = Path(manifest["vault"])
     series = manifest.get("series") or {}
-    theme, refile = series.get("theme"), series.get("file_inputs_under")
-    inputs = {path[:-3] for path in manifest["inputs"]}
-    for section_name, entry, *rest in proposal.get("index", []):
-        target = first_link(entry)
-        if target and missing(target):
-            fixes.append(f"dropped index entry for missing {target}")
-            continue
-        if refile and target in inputs:
-            fixes.append(f"dropped the worker's index entry for input {target}; the operator re-files it")
-            continue
-        if (theme and section_name == "Sources" and (target or "").startswith("wiki/sources/")
-                and target not in inputs and rest[:1] != [theme]):
-            rest = [theme]
-            fixes.append(f"filed the index entry for {target} under the series theme")
-        index.append([section_name, entry, *rest[:1]] if rest and rest[0] else [section_name, entry])
-    if refile:
-        current = Path(manifest["vault"], "wiki/index.md")
-        lines = current.read_text(encoding="utf-8").split("\n") if current.is_file() else []
-        heading, sub = None, None
-        for line in lines:
-            if line.startswith("## "):
-                heading, sub = line[3:].strip(), None
-            elif line.startswith("### "):
-                sub = line[4:].strip()
-            elif line.startswith("- ") and first_link(line) in inputs and sub != refile:
-                index.append([heading, line, refile])
-                fixes.append(f"re-filed the index entry for {first_link(line)} under '{refile}'")
-    proposal["index"] = index
+
+    def current(path):
+        page = vault / path
+        return (page.read_text(encoding="utf-8", errors="replace")
+                if link_check.canonical_parts(path) and page.is_file() else None)
+
+    for path in sorted(files):
+        text = files[path]
+        if not WRITABLE.fullmatch(path) or wiki_index.split_frontmatter(text)[0] is None:
+            continue  # check_proposal and the checker report these
+        old, values = current(path), {}
+        for key in ("theme", "gaps", "part_of"):
+            if old is not None and wiki_index.has_field(old, key) and not wiki_index.has_field(text, key):
+                values[key] = wiki_index.get_field(old, key)
+                fixes.append(f"kept the existing {key} of {path}")
+        summary = wiki_index.get_field(text, "summary")
+        if isinstance(summary, str) and summary.strip():
+            clean = re.sub(r"\s+", " ", summary).strip()
+            if len(clean) > wiki_index.SUMMARY_MAX:
+                clean = clean[:wiki_index.SUMMARY_MAX - 1].rsplit(" ", 1)[0] + "…"
+            if clean != summary:
+                values["summary"] = clean
+                fixes.append(f"shortened the summary of {path} to one line")
+        else:
+            fallback = wiki_index.get_field(old, "summary") if old is not None else None
+            if not (isinstance(fallback, str) and fallback.strip()):
+                fallback = wiki_index.first_sentence(wiki_index.split_frontmatter(text)[1])
+            if fallback:
+                values["summary"] = fallback
+                fixes.append(f"added a summary to {path} from its "
+                             + ("previous version" if old is not None and fallback == wiki_index.get_field(old, "summary")
+                                else "first sentence"))
+        if (series.get("theme") and path.startswith("wiki/sources/") and old is None
+                and wiki_index.get_field(text, "theme") != series["theme"]):
+            values["theme"] = series["theme"]
+            fixes.append(f"set the series theme on {path}")
+        if values:
+            files[path] = wiki_index.set_fields(text, values)
+    gaps = []
+    for path, gap in proposal.get("gaps", []):
+        if path in files:
+            listed = wiki_index.get_field(files[path], "gaps")
+            listed = listed if isinstance(listed, list) else []
+            if gap not in listed:
+                files[path] = wiki_index.set_fields(files[path], {"gaps": listed + [gap]})
+            fixes.append(f"merged a gap into rewritten {path}")
+        elif not (WRITABLE.fullmatch(path) and current(path) is not None):
+            fixes.append(f"dropped a gap for missing page {path}")
+        else:
+            gaps.append([path, gap])
+    proposal["gaps"] = gaps
+    # A chapter compiled from part notes: the operator marks each part it links as part of it.
+    meta = {}
+    chapter_path = series.get("done_if") if series.get("parts") else None
+    if chapter_path and chapter_path in files:
+        chapter, linked = chapter_path[:-3], {t.strip() for t in LINK.findall(files[chapter_path])}
+        for item in manifest["inputs"]:
+            if not item.startswith("wiki/sources/") or item == chapter_path:
+                continue
+            if item[:-3] not in linked:
+                fixes.append(f"did not set part_of on {item}: {chapter_path} does not link it")
+            elif item in files:
+                files[item] = wiki_index.set_fields(files[item], {"part_of": chapter})
+                fixes.append(f"set part_of on {item}")
+            elif wiki_index.get_field(current(item) or "", "part_of") is None:
+                meta[item] = {"part_of": chapter}
+                fixes.append(f"set part_of on {item}")
+    proposal["meta"] = meta
     record = (proposal.get("log") or "").strip()
-    if files or links:
+    if files or links or gaps or meta:
         heading = f"## {manifest['date']} — {manifest['kind']} {', '.join(manifest['inputs']) or manifest['task'][:60]} — partial"
         first = record.splitlines()[0].strip() if record else ""
         match = re.fullmatch(r"## (\d{4}-\d{2}-\d{2}) — (.+) — (\w+)", first)
         if not record:
-            record = heading + "\n- Changed paths: " + ", ".join(sorted({*files, *(p for p, _ in links)})) + "."
+            record = heading + "\n- Changed paths: " + ", ".join(
+                sorted({*files, *(p for p, _ in links), *(p for p, _ in gaps), *meta})) + "."
             fixes.append("added the missing log record")
         elif not match:
             record = heading + "\n" + "\n".join(line for line in record.splitlines()
@@ -1092,7 +1093,7 @@ def normalize(manifest, proposal):
 
 
 def changes_for(manifest, proposal):
-    """Every file the proposal writes: pages, the merged index and the appended log."""
+    """Every file the proposal writes: pages, link/gap/metadata patches, the regenerated index and the log."""
     vault = Path(manifest["vault"])
     changes = dict(proposal["files"])
     grouped = {}
@@ -1100,11 +1101,31 @@ def changes_for(manifest, proposal):
         grouped.setdefault(path, []).append(entry)
     for path, entries in grouped.items():
         changes[path] = add_links((vault / path).read_text(), entries, manifest["date"])
-    if proposal.get("index"):
-        current = (vault / "wiki/index.md").read_text() if (vault / "wiki/index.md").is_file() else "# Index\n"
-        changes["wiki/index.md"] = merge_index(current, proposal["index"], manifest["date"])
+    for path, gap in proposal.get("gaps", []):
+        text = changes.get(path) or (vault / path).read_text()
+        listed = wiki_index.get_field(text, "gaps")
+        listed = listed if isinstance(listed, list) else []
+        if gap not in listed:
+            changes[path] = wiki_index.set_fields(text, {"gaps": listed + [gap], "updated": manifest["date"]})
+    for path, values in proposal.get("meta", {}).items():
+        changes[path] = wiki_index.set_fields(changes.get(path) or (vault / path).read_text(), values)
+    changes["wiki/index.md"] = rebuilt_index(vault, changes)
+    if changes["wiki/index.md"] == ((vault / "wiki/index.md").read_text() if (vault / "wiki/index.md").is_file() else None):
+        del changes["wiki/index.md"]
     changes["wiki/log.md"] = appended_log(vault, proposal["log"])
     return changes
+
+
+def rebuilt_index(vault, changes=None):
+    """The generated index for the vault's pages with `changes` ({path: text}) applied."""
+    pages, _ = link_check.collect(vault)
+    for path, text in (changes or {}).items():
+        kind = wiki_index.page_type(path)
+        if kind and path.endswith(".md") and path not in wiki_index.CONTROLS:
+            fields, body, _ = link_check.metadata(text, path, kind)
+            pages[path] = {"metadata": fields, "body": body}
+    created = (pages.get("wiki/index.md") or {}).get("metadata", {}).get("created")
+    return wiki_index.build_index(pages, created if isinstance(created, str) else None)
 
 
 def problem_keys(report):
@@ -1174,17 +1195,25 @@ def apply(op, dry_run=False):
     summary = {"operation": manifest["id"], "dry_run": dry_run, "problems": problems, "fixes": fixes,
                "files": [{"path": p, "action": "update" if manifest["wiki_preimages"].get(p) else "create"}
                          for p in sorted(proposal["files"])],
-               "index_entries": [f"{item[0]}{' / ' + item[2] if len(item) > 2 else ''}: {first_link(item[1]) or item[1]}"
-                                 for item in proposal.get("index", [])],
                "links_added": [f"{path} -> {first_link(entry)}" for path, entry in proposal.get("links", [])],
+               "gaps_added": [f"{path}: {gap}" for path, gap in proposal.get("gaps", [])],
+               "metadata_set": [f"{path}: {', '.join(sorted(values))}" for path, values in proposal.get("meta", {}).items()],
                "log_record": (proposal["log"] or "").splitlines()[0] if proposal["log"] else None,
                "checker": checker and {k: checker[k] for k in ("pages", "links", "unchecked", "existing")}}
     if problems or dry_run:
         return summary
+    if not write_changes(op, vault, changes_for(manifest, proposal)):
+        summary["problems"] = ["post-apply checker errors; the operation was undone"]
+        return summary
+    summary["applied"] = True
+    return summary
+
+
+def write_changes(op, vault, changes):
+    """Back up, write and record every change; undo and return False if the checker finds new problems."""
     before_check = link_check.check(vault)
     backup = op / "backup"
     backup.mkdir(mode=0o700)
-    changes = changes_for(manifest, proposal)
     receipt = []
     for path, text in sorted(changes.items()):
         target = vault / path
@@ -1199,10 +1228,7 @@ def apply(op, dry_run=False):
     write_json(op / "receipt.json", {"files": receipt, "complete": True, "post_check_clean": ok})
     if not ok:
         undo(op)
-        summary["problems"] = ["post-apply checker errors; the operation was undone"]
-        return summary
-    summary["applied"] = True
-    return summary
+    return ok
 
 
 def undo(op):
@@ -1220,8 +1246,195 @@ def undo(op):
         else:
             atomic_write(target, (op / "backup" / entry["path"]).read_text())
         restored.append(entry["path"])
-    write_json(op / "undo.json", {"restored": sorted(restored), "skipped_changed_since": sorted(skipped)})
-    return {"restored": sorted(restored), "skipped_changed_since": sorted(skipped)}
+    # The index is derived from the pages: rebuild it, so a later operation's index never keeps an undone page.
+    index, rebuilt = vault / "wiki/index.md", False
+    if index.is_file() and wiki_index.is_generated(index.read_text(encoding="utf-8")):
+        fresh = rebuilt_index(vault)
+        if fresh != index.read_text(encoding="utf-8"):
+            atomic_write(index, fresh)
+            rebuilt = True
+            skipped = [path for path in skipped if path != "wiki/index.md"]
+    result = {"restored": sorted(restored), "skipped_changed_since": sorted(skipped), "index_rebuilt": rebuilt}
+    write_json(op / "undo.json", result)
+    return result
+
+
+def legacy_index(text):
+    """A hand-maintained index as ({page: {"section", "theme", "description"}}, [{"gap", "theme"}])."""
+    entries, gaps, section_name, theme = {}, [], None, None
+    for line in text.split("\n"):
+        if line.startswith("## "):
+            section_name, theme = line[3:].strip(), None
+        elif line.startswith("### "):
+            theme = line[4:].strip() or None
+        elif line.startswith("- ") and section_name == "Gaps":
+            gap = re.sub(r"\s+", " ", line[2:]).strip()
+            if gap:
+                gaps.append({"gap": gap, "theme": theme})
+        elif line.startswith("- ") and first_link(line):
+            match = re.match(r"- \[\[[^\]]+\]\]\s*(?:—|-|:)?\s*(.*)", line)
+            entries.setdefault(first_link(line), {"section": section_name, "theme": theme,
+                                                  "description": (match.group(1) if match else "").strip()})
+    return entries, gaps
+
+
+def plain(text, limit=wiki_index.SUMMARY_MAX):
+    """One line of plain text from index Markdown: wikilinks become their labels."""
+    text = re.sub(r"\[\[[^\]|]+\|([^\]]+)\]\]", r"\1", text or "")
+    text = re.sub(r"\[\[([^\]]+)\]\]", lambda m: m.group(1).rsplit("/", 1)[-1], text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if limit and len(text) > limit:
+        text = text[:wiki_index.SUMMARY_MAX - 1].rsplit(" ", 1)[0] + "…"
+    return text
+
+
+def migrate_index(vault, config_path=None, today=None):
+    """Stage a reviewable migration from a hand-maintained index to the generated one; writes nothing.
+
+    Each page gets summary (its index description, else its first sentence) and theme (its index theme
+    heading); a capture part gets part_of (the first non-part source page that links it). Every current
+    Gaps line goes to gaps.json with a suggested page, for the owner to confirm, change or drop.
+    """
+    vault = Path(vault).resolve()
+    config = load_config(vault, config_path)
+    index_file = vault / "wiki/index.md"
+    text = index_file.read_text(encoding="utf-8") if index_file.is_file() else ""
+    if wiki_index.is_generated(text):
+        raise ValueError("wiki/index.md is already generated")
+    entries, gaps = legacy_index(text)
+    pages, _ = link_check.collect(vault)
+    found = wiki_index.records(pages)
+    is_part = {}
+    for path, page in pages.items():
+        raw = page["metadata"].get("raw") if path.startswith("wiki/sources/") else None
+        is_part[path[:-3]] = bool(isinstance(raw, str) and link_check.canonical_parts(raw) and (vault / raw).is_file()
+                                  and raw.endswith(".md") and capture_fields(vault / raw).get("part"))
+    values, counts = {}, Counter()
+    for path, info in sorted(found.items()):
+        meta, entry = pages[path + ".md"]["metadata"], entries.get(path, {})
+        update = {}
+        if not info["summary"]:
+            summary = plain(entry.get("description")) or wiki_index.first_sentence(pages[path + ".md"]["body"])
+            update["summary"] = summary or info["title"]
+            counts["summary from index" if entry.get("description") else "summary from first sentence"
+                   if summary else "summary from title"] += 1
+        theme = wiki_index.label(entry.get("theme") or "")
+        if not info["theme"] and theme and "theme" not in meta:
+            update["theme"] = theme
+            counts["theme from index"] += 1
+        if is_part.get(path) and not info["part_of"]:
+            chapters = sorted((p for p, other in found.items() if path in other["links"] and p.startswith(
+                "wiki/sources/") and not is_part.get(p)), key=lambda p: wiki_index.natural_key(found[p]["title"]))
+            if chapters:
+                update["part_of"] = chapters[0]
+                counts["part_of from chapter links"] += 1
+            else:
+                counts["parts without a chapter page"] += 1
+        if update:
+            values[path + ".md"] = update
+    review, seen = [], set()
+    for item in gaps:
+        if item["gap"] in seen:
+            continue
+        seen.add(item["gap"])
+        pool = {p: i for p, i in found.items() if not item["theme"] or i["theme"] == wiki_index.label(item["theme"])
+                or wiki_index.label(entries.get(p, {}).get("theme") or "") == wiki_index.label(item["theme"])}
+        ranked = wiki_index.rank(pool or found, item["gap"] + " " + (item["theme"] or ""),
+                                 {key[:-3]: page["body"] for key, page in pages.items()})
+        review.append({"gap": plain(item["gap"], limit=None), "theme": item["theme"],
+                       "page": ranked[0] if ranked else None})
+    today = today or date.today().isoformat()
+    workdir = Path(config["workdir"])
+    workdir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    op = workdir / f"{today}-migrate-{secrets.token_hex(3)}"
+    op.mkdir(mode=0o700)
+    manifest = {"id": op.name, "kind": "migrate", "task": "migrate the index to the generated form", "inputs": [],
+                "vault": str(vault), "date": today, "values": values,
+                "wiki_preimages": {key: file_hash(vault / key) for key in pages}}
+    write_json(op / "manifest.json", manifest)
+    write_json(op / "gaps.json", review)
+    preview = rebuilt_index(vault, {path: wiki_index.set_fields((vault / path).read_text(encoding="utf-8"), update)
+                                    for path, update in values.items()})
+    (op / "index-preview.md").write_text(preview)
+    return {"operation": str(op), "pages": len(found), "pages_changed": len(values), **dict(sorted(counts.items())),
+            "gaps": len(review), "gaps_without_suggestion": sum(item["page"] is None for item in review),
+            "index_bytes": {"current": len(text.encode()), "generated_without_gaps": len(preview.encode())},
+            "review": [str(op / "gaps.json"), str(op / "index-preview.md")],
+            "next": f"edit gaps.json (set page to a wiki page path, or null to drop the gap), then "
+                    f"migrate-index --apply {op}"}
+
+
+def apply_migration(op):
+    """Write a reviewed migration: frontmatter, assigned gaps, the generated index and a log record."""
+    op = Path(op).resolve()
+    manifest = json.loads((op / "manifest.json").read_text())
+    if manifest.get("kind") != "migrate":
+        raise ValueError("not a migrate-index operation")
+    if (op / "receipt.json").exists():
+        raise ValueError("migration already applied")
+    vault = Path(manifest["vault"])
+    changed = sorted(key for key, digest_ in manifest["wiki_preimages"].items() if file_hash(vault / key) != digest_)
+    if changed:
+        raise ValueError(f"wiki changed since the migration was staged ({', '.join(changed[:5])}): stage it again")
+    pages, _ = link_check.collect(vault)
+    assigned, dropped = {}, 0
+    for item in json.loads((op / "gaps.json").read_text()):
+        page = item.get("page")
+        if page is None:
+            dropped += 1
+            continue
+        key = page if page.endswith(".md") else page + ".md"
+        if key not in pages or not wiki_index.page_type(key) or not isinstance(item.get("gap"), str):
+            raise ValueError(f"gaps.json names a page that does not exist: {page}")
+        gap = re.sub(r"\s+", " ", item["gap"]).strip()
+        if gap:
+            assigned.setdefault(key, []).append(gap)
+    changes = {}
+    for key in sorted(set(manifest["values"]) | set(assigned)):
+        text = (vault / key).read_text(encoding="utf-8")
+        update = dict(manifest["values"].get(key, {}))
+        if key in assigned:
+            listed = wiki_index.get_field(text, "gaps")
+            listed = listed if isinstance(listed, list) else []
+            update["gaps"] = listed + [g for g in assigned[key] if g not in listed]
+        changes[key] = wiki_index.set_fields(text, update)
+    changes["wiki/index.md"] = rebuilt_index(vault, changes)
+    record = "\n".join([
+        f"## {manifest['date']} — migrate index to the generated form — partial",
+        f"- Changed paths: frontmatter of {len(changes) - 1} pages (summary, theme, part_of, gaps); wiki/index.md "
+        "is now generated from page frontmatter by the operator.",
+        f"- Gaps: {sum(len(v) for v in assigned.values())} kept on {len(assigned)} pages; {dropped} dropped after "
+        "owner review.",
+        "- Page `updated` dates are unchanged: the migration adds catalog metadata, not content.",
+        "- Verification: the operator ran the checker after writing; owner acceptance pending."])
+    changes["wiki/log.md"] = appended_log(vault, record)
+    if not write_changes(op, vault, changes):
+        return {"operation": manifest["id"], "applied": False,
+                "problems": ["post-apply checker errors; the migration was undone"]}
+    return {"operation": manifest["id"], "applied": True, "pages_changed": len(changes) - 2,
+            "gaps_kept": sum(len(v) for v in assigned.values()), "gaps_dropped": dropped,
+            "undo": f"python3 {Path(__file__).resolve()} undo {op}"}
+
+
+def rebuild_index(vault, config_path=None, dry_run=False):
+    """Regenerate a generated wiki/index.md after hand edits; the previous file is backed up to the workdir."""
+    vault = Path(vault).resolve()
+    config = load_config(vault, config_path)
+    index = vault / "wiki/index.md"
+    current = index.read_text(encoding="utf-8") if index.is_file() else None
+    if current is not None and not wiki_index.is_generated(current):
+        raise ValueError("wiki/index.md is hand-written: use migrate-index")
+    fresh = rebuilt_index(vault)
+    result = {"changed": fresh != current, "dry_run": dry_run}
+    if dry_run or not result["changed"]:
+        return result
+    if current is not None:
+        backup = Path(config["workdir"]) / f"index-backup-{datetime.now():%Y%m%d-%H%M%S}.md"
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(index, backup)
+        result["backup"] = str(backup)
+    atomic_write(index, fresh)
+    return result
 
 
 ACCEPT_LEVELS = ("technical", "sampled", "full")
@@ -1318,7 +1531,7 @@ def series_step(vault, item, task, config_path, info, emit, kind="ingest", input
     if op is None:
         return {**line, "status": "stopped", "reason": "the worker failed twice: " + " | ".join(line["retries"])[:500]}
     proposal = json.loads((op / "proposal.json").read_text())
-    if not proposal["files"] and not proposal["links"]:
+    if not proposal["files"] and not proposal["links"] and not proposal.get("gaps"):
         return {**line, "status": "no change", "notes": proposal["notes"][:300]}
     summary = apply(op, dry_run=True)
     if summary["problems"]:
@@ -1329,7 +1542,7 @@ def series_step(vault, item, task, config_path, info, emit, kind="ingest", input
         except ValueError as error:
             return {**line, "status": "stopped", "reason": str(error)}
         proposal = json.loads((op / "proposal.json").read_text())
-        if not proposal["files"] and not proposal["links"]:
+        if not proposal["files"] and not proposal["links"] and not proposal.get("gaps"):
             return {**line, "status": "no change", "notes": proposal["notes"][:300]}
         summary = apply(op, dry_run=True)
         if summary["problems"]:
@@ -1352,22 +1565,23 @@ def series_theme(vault, inputs, theme=None):
 
 
 def load_plan(vault, path):
-    """A series plan: {"theme"?, "items": [{"kind", "inputs", "task", "done_if"?, "file_inputs_under"?}]}."""
+    """A series plan: {"theme"?, "items": [{"kind", "inputs", "task", "done_if"?, "parts"?}]}."""
     plan = json.loads(Path(path).read_text(encoding="utf-8"))
     items = plan.get("items") if isinstance(plan, dict) else None
     if not items or set(plan) - {"theme", "items"}:
         raise ValueError("a plan is {\"theme\": optional, \"items\": [...]}")
     for item in items:
         if (not isinstance(item, dict) or item.get("kind") not in ("ingest", "compile")
-                or set(item) - {"kind", "inputs", "task", "done_if", "file_inputs_under"}
+                or set(item) - {"kind", "inputs", "task", "done_if", "parts"}
                 or not isinstance(item.get("task"), str) or not isinstance(item.get("inputs", []), list)):
             raise ValueError("each plan item needs kind (ingest|compile), task, and optional inputs, done_if, "
-                             "file_inputs_under")
+                             "parts")
         done_if = item.get("done_if")
         if done_if is not None and not (WRITABLE.fullmatch(done_if) and link_check.canonical_parts(done_if)):
             raise ValueError(f"done_if must be a wiki page path: {done_if}")
-        if item.get("file_inputs_under") is not None and item["kind"] != "compile":
-            raise ValueError("file_inputs_under applies to compile items")
+        if item.get("parts") is not None and (item["kind"] != "compile" or item["parts"] is not True
+                                              or done_if is None):
+            raise ValueError("parts: true applies to compile items with done_if (a chapter built from part notes)")
     return plan
 
 
@@ -1411,7 +1625,7 @@ def series(vault, inputs, task, config_path=None, sources_only=True, limit=None,
                 items[position - 2]["kind"] == "ingest" else None
             info = {"position": position, "count": len(items), "theme": theme,
                     "sources_only": sources_only and entry["kind"] == "ingest" and plan is None,
-                    "file_inputs_under": entry.get("file_inputs_under"),
+                    "parts": bool(entry.get("parts")), "done_if": entry.get("done_if"),
                     "previous_source": raw_sources(vault).get(previous) if previous else None}
             declined = []
             for attempt in (1, 2):
@@ -1497,6 +1711,14 @@ def main():
     capturing.add_argument("url")
     capturing.add_argument("--config", type=Path)
     commands.add_parser("pending", help="list raw/ captures without a source page").add_argument("vault", type=Path)
+    rebuilding = commands.add_parser("rebuild-index", help="regenerate wiki/index.md after hand edits")
+    rebuilding.add_argument("vault", type=Path)
+    rebuilding.add_argument("--dry-run", action="store_true")
+    rebuilding.add_argument("--config", type=Path)
+    migrating = commands.add_parser("migrate-index", help="stage, or with --apply write, the move to a generated index")
+    migrating.add_argument("target", type=Path, help="the vault, or with --apply the staged migration")
+    migrating.add_argument("--apply", action="store_true", help="write a reviewed migration")
+    migrating.add_argument("--config", type=Path)
     running = commands.add_parser("series", help="ingest many inputs in order, one operation each, resumable")
     running.add_argument("vault", type=Path)
     running.add_argument("--input", action="append", default=[], help="input in order (repeatable)")
@@ -1542,6 +1764,10 @@ def main():
                 result = capture_pdf(args.vault, args.url)
             else:
                 result = capture(args.vault, args.url, args.config)
+        elif args.command == "rebuild-index":
+            result = rebuild_index(args.vault, args.config, args.dry_run)
+        elif args.command == "migrate-index":
+            result = apply_migration(args.target) if args.apply else migrate_index(args.target, args.config)
         elif args.command == "pending":
             result = {"pending": pending(args.vault)}
         elif args.command == "accept":

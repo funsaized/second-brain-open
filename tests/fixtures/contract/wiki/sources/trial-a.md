@@ -9,6 +9,7 @@ author: "Aster Desk Lab"
 published: "2026-09-01"
 captured: "2026-09-24"
 raw: "raw/trial-a.md"
+summary: "single trial recommending open, published 2026-09-01."
 ---
 
 # Tray trial A

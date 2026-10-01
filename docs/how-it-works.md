@@ -102,8 +102,10 @@ influence what a worker proposes, but a proposal only reaches the vault after
 - the paths are allowed pages
 - the page count is within the limit
 - no page it rewrites whole changed since staging
-- the log gains exactly one `partial` record, index entries are merged and
-  back-links are appended, never rewritten by the model
+- the log gains exactly one `partial` record, back-links are appended, and
+  the index is regenerated from the pages' frontmatter, never written by the
+  model
+- no new page duplicates an existing page's title or alias
 - no updated page loses its existing links
 - the managed checker passes on the result
 
@@ -122,7 +124,8 @@ source. That is the owner's review.
 
 The ingestor reads an approved source and proposes complete pages. The
 operator's checks catch metadata and link problems, leftover template
-placeholders, pages missing from the index and one-way source links. When a
+placeholders, an index that no longer matches its pages and one-way source
+links. When a
 proposal fails them, the worker gets one chance to revise. Purely mechanical
 gaps, such as a missing back-link, the operator repairs itself and reports.
 

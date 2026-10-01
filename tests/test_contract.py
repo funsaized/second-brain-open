@@ -14,6 +14,7 @@ EXTENSIONS = {
     "source": {"url", "author", "published", "captured", "raw"},
     "entity": {"kind"}, "concept": set(), "synthesis": set(), "index": set(), "log": set(),
 }
+CATALOG = {"summary", "theme", "gaps"}  # content pages; sources may also carry part_of
 LINK = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]")
 
 
@@ -41,12 +42,13 @@ class ContractTests(unittest.TestCase):
         values = {"TITLE": "Invented paper glider", "CREATED": "2026-01-01",
                   "UPDATED": "2026-01-01", "CAPTURED": "2026-01-01",
                   "RAW_PATH": "raw/glider.md", "SOURCE_IDENTITY_AND_SCOPE": "An invented instruction sheet.",
+                  "SUMMARY": "Folding steps and trade-offs for an invented glider.",
                   "SOURCE_CONTENT": body, "RELEVANCE_OR_UNCERTAINTY": "Examples are untested.",
                   "RELATED_LINKS": "No related pages yet."}
         template = (ROOT / "framework/templates/source.md").read_text()
         rendered = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: values[m[1]], template)
         fields, content = metadata(rendered)
-        self.assertEqual(set(fields), COMMON | EXTENSIONS["source"])
+        self.assertEqual(set(fields), COMMON | EXTENSIONS["source"] | CATALOG)
         self.assertNotRegex(rendered, r"\{\{[^}]*\}\}")
         self.assertIn(body, content)
         self.assertIn(tree, content)
@@ -67,7 +69,11 @@ class ContractTests(unittest.TestCase):
                 seen_types.add(kind)
                 self.assertIn(kind, EXTENSIONS)
                 self.assertTrue(COMMON <= fields.keys())
-                self.assertTrue(fields.keys() <= COMMON | EXTENSIONS[kind])
+                catalog = CATALOG | ({"part_of"} if kind == "source" else set()) if kind not in ("index", "log") else set()
+                self.assertTrue(fields.keys() <= COMMON | EXTENSIONS[kind] | catalog)
+                if catalog:
+                    self.assertIsInstance(fields["summary"], str)
+                    self.assertNotIn("\n", fields["summary"])
                 template_fields, _ = metadata((templates / f"{kind}.md").read_text())
                 self.assertEqual(template_fields["type"], kind)
                 self.assertTrue(fields.keys() <= template_fields.keys())
@@ -107,8 +113,13 @@ class ContractTests(unittest.TestCase):
             for related in ("wiki/concepts/vent-choice", "wiki/entities/aster-desk-lab"):
                 self.assertIn(related, graph[source])
                 self.assertIn(source, graph[related])
+        # The index is generated: rebuilding it from the pages gives the same file, and each gap names its page.
+        from scripts import link_check, wiki_index
         index = (FIXTURE / "wiki/index.md").read_text()
-        self.assertNotIn("[[", index.split("## Gaps", 1)[1])
+        self.assertTrue(wiki_index.is_generated(index))
+        self.assertEqual(wiki_index.build_index(link_check.collect(FIXTURE)[0], "2026-09-24"), index)
+        gaps = index.split("## Gaps", 1)[1].strip().splitlines()
+        self.assertTrue(gaps and all(line.startswith("- [[wiki/") for line in gaps))
 
     def test_fixed_claim_source_matrix_and_unknown_provenance(self):
         # This is a hand-reviewed fixture oracle, not automated fact verification.

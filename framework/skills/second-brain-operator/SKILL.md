@@ -38,8 +38,9 @@ and tell the owner. The fix is the agent permissions in the vault's
      yourself with web tools.
    - **A file in `raw/`** → ingest with `--input`.
    - **A topic or concept to build from what the wiki already knows** →
-     compile with just `--task`. The worker finds the relevant notes from the
-     index. Name source notes with `--input` only when the owner named them.
+     compile with just `--task`. The worker finds the relevant notes from its
+     catalog and a search. Name source notes with `--input` only when the
+     owner named them.
 
    Never capture a URL the owner did not give you. If existing knowledge seems
    too thin, say so and suggest a source instead.
@@ -114,11 +115,14 @@ on a real failure. Never write your own loop around `stage`/`run`/`apply`.
    again. Already-ingested items are skipped.
 
 To compile a long document by chapter after its series, the owner can approve
-a plan file (one compile per chapter, naming its part notes). Run it with
-`series . --plan <file> --background` and follow it the same way.
+a plan file (one compile per chapter, naming its part notes, with
+`"done_if": "wiki/sources/<chapter>.md"` and `"parts": true`). Run it with
+`series . --plan <file> --background` and follow it the same way. With
+`parts`, each part the chapter page links gets `part_of`, and the index lists
+the parts through their chapter instead of one entry each.
 
 A series writes source pages only, links each part to the previous one, and
-files the parts' index entries under the document's title. Add
+gives the new source pages the document's title as their `theme`. Add
 `--theme "<title>"` when the capture's title is missing or unhelpful.
 After it completes, offer to compile the document's key concepts by topic.
 
@@ -135,6 +139,24 @@ including PDFs whose text has not been extracted. Extract each pending PDF
 with `capture`, run `pending` again, then ingest the list with `series`
 (above). Stop at the first failure you cannot resolve with one `revise`, and
 report what was done and what remains.
+
+## The index and gaps
+
+`wiki/index.md` is generated: after every applied operation the CLI rebuilds it
+from each page's `summary`, `theme`, `gaps` and `part_of`. Never edit it, and
+never ask a worker for INDEX lines. To record missing coverage, compile with a
+task that names the page it belongs on; the worker adds it with a GAPS line.
+
+A vault whose index was written by hand must be migrated once before ingest or
+compile will stage (query still works):
+
+1. `python3 <cli> migrate-index .` stages the migration and writes nothing. It
+   prints counts and two review files: `gaps.json` (every current gap with a
+   suggested page) and `index-preview.md`.
+2. Show the owner the counts and `gaps.json`. The owner sets each gap's `page`
+   to the page it belongs on, or `null` to drop it. Never decide this yourself.
+3. After the owner approves, `python3 <cli> migrate-index --apply <operation>`.
+   Report the result and the undo command.
 
 ## Answer a question
 

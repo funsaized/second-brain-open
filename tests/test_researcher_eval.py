@@ -71,23 +71,26 @@ class ResearcherEvalTests(unittest.TestCase):
     def test_passing_answer(self):
         corpus = Path("/staged/corpus")
         result = ev.score(self.questions["trial-a-times"],
-                          events(str(corpus / "wiki/index.md"), "wiki/sources/trial-a.md", text=ANSWER),
+                          events(str(corpus / "catalog.md"), "wiki/sources/trial-a.md", text=ANSWER),
                           corpus, self.state, dict(self.state))
         self.assertTrue(result["passed"], result["checks"])
         self.assertEqual(result["cited"], ["wiki/sources/trial-a.md"])
         self.assertEqual(result["metrics"]["content_pages_read"], 1)
         self.assertEqual((result["metrics"]["tokens_input"], result["metrics"]["tokens_output"]), (100, 20))
+        full = ev.score(self.questions["trial-a-times"], events("wiki/index.md", "wiki/sources/trial-a.md", text=ANSWER),
+                        corpus, self.state, dict(self.state), guide="wiki/index.md")  # --full-index comparison
+        self.assertTrue(full["passed"], full["checks"])
 
     def test_failures_are_specific(self):
         corpus = Path("/staged/corpus")
         question = self.questions["trial-a-times"]
         cases = {
-            "citations_read": events("wiki/index.md", text=ANSWER),
-            "index_first": events("wiki/sources/trial-a.md", "wiki/index.md", text=ANSWER),
-            "sections": events("wiki/index.md", "wiki/sources/trial-a.md", text=ANSWER.split("\n\n")[0]),
-            "tools_ok": events("wiki/index.md", "wiki/sources/trial-a.md", read("raw/x.md", "error"), text=ANSWER),
-            "skill_loaded": events("wiki/index.md", "wiki/sources/trial-a.md", text=ANSWER, skill=False),
-            "expected_terms": events("wiki/index.md", "wiki/sources/trial-a.md", text=ANSWER.replace("24", "30")),
+            "citations_read": events("catalog.md", text=ANSWER),
+            "index_first": events("wiki/sources/trial-a.md", "catalog.md", text=ANSWER),
+            "sections": events("catalog.md", "wiki/sources/trial-a.md", text=ANSWER.split("\n\n")[0]),
+            "tools_ok": events("catalog.md", "wiki/sources/trial-a.md", read("raw/x.md", "error"), text=ANSWER),
+            "skill_loaded": events("catalog.md", "wiki/sources/trial-a.md", text=ANSWER, skill=False),
+            "expected_terms": events("catalog.md", "wiki/sources/trial-a.md", text=ANSWER.replace("24", "30")),
         }
         for check, stream in cases.items():
             with self.subTest(check=check):
@@ -95,11 +98,11 @@ class ResearcherEvalTests(unittest.TestCase):
                 self.assertFalse(result["passed"])
                 self.assertEqual([k for k, ok in result["checks"].items() if not ok], [check])
         changed = dict(self.state, **{"wiki/index.md": "changed"})
-        result = ev.score(question, events("wiki/index.md", "wiki/sources/trial-a.md", text=ANSWER),
+        result = ev.score(question, events("catalog.md", "wiki/sources/trial-a.md", text=ANSWER),
                           corpus, self.state, changed)
         self.assertEqual([k for k, ok in result["checks"].items() if not ok], ["zero_writes"])
         both = ev.score(self.questions["vent-disagreement"],
-                        events("wiki/index.md", "wiki/sources/trial-a.md", text=ANSWER), corpus, self.state, self.state)
+                        events("catalog.md", "wiki/sources/trial-a.md", text=ANSWER), corpus, self.state, self.state)
         self.assertEqual([k for k, ok in both["checks"].items() if not ok], ["expected_cited"])
 
     def test_abstention(self):
@@ -107,11 +110,11 @@ class ResearcherEvalTests(unittest.TestCase):
         question = self.questions["trial-b-published"]
         text = ("The publication date of Trial B is unknown ([[wiki/sources/trial-b]]).\n"
                 "Read: wiki/index.md, wiki/sources/trial-b.md\nNot covered: publication date\n")
-        result = ev.score(question, events("wiki/index.md", "wiki/sources/trial-b.md", text=text),
+        result = ev.score(question, events("catalog.md", "wiki/sources/trial-b.md", text=text),
                           corpus, self.state, self.state)
         self.assertTrue(result["passed"], result["checks"])
         guess = text.replace("is unknown", "is 2026-09-01").replace("publication date\n", "none\n")
-        result = ev.score(question, events("wiki/index.md", "wiki/sources/trial-b.md", text=guess),
+        result = ev.score(question, events("catalog.md", "wiki/sources/trial-b.md", text=guess),
                           corpus, self.state, self.state)
         self.assertEqual([k for k, ok in result["checks"].items() if not ok], ["abstained"])
         summary = ev.summarize([result])
@@ -135,8 +138,11 @@ class ResearcherEvalTests(unittest.TestCase):
             base.mkdir()
             corpus, profile, origin = ev.stage(vault, base)
             files = set(ev.corpus_state(corpus))
-            self.assertEqual(files, {ev.CONTRACT, *[p.relative_to(FIXTURE).as_posix()
-                                                     for p in (FIXTURE / "wiki").rglob("*.md")]})
+            pages = {p.relative_to(FIXTURE).as_posix() for p in (FIXTURE / "wiki").rglob("*.md")}
+            self.assertEqual(files, {ev.CONTRACT, *pages} - {"wiki/index.md"})  # the catalog replaces the index
+            full = Path(tmp) / "full"
+            full.mkdir()
+            self.assertIn("wiki/index.md", ev.corpus_state(ev.stage(vault, full, full_index=True)[0]))
             self.assertTrue((profile / "agents/sb-researcher.md").is_file())
             self.assertTrue((profile / "skills/second-brain-query/SKILL.md").is_file())
             self.assertEqual({v["from"] for v in origin.values()}, {"framework"})

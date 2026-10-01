@@ -255,6 +255,59 @@ Private backup/restore and operating cadence are owner-local checks.
 
 **Exit:** only the selected track's concrete deliverables and negative tests pass, costs/data exposure are approved, and the owner accepts its report. No track completion is required to declare vault setup complete.
 
+### P6. Generated index and scoped worker catalogs
+
+**Status:** approved by the owner on 2026-10-01; in progress.
+
+**Why:** every worker had to read the whole `wiki/index.md`, so cost grew with
+the wiki and runs failed whenever the index passed the read tool's ~50 KB cap
+(2026-09-29 and 2026-10-01). The index was also merged by hand from worker
+INDEX lines, and nothing kept it in step with the pages: stale gaps, duplicate
+"further parts" lines and one entry per capture part accumulated. The owner's
+2026-09-29 decision stands: one index page, no split.
+
+**Files:** `scripts/wiki_index.py` (new), `scripts/sb_operator.py`,
+`scripts/link_check.py`, the contract, content templates, the ingest, query and
+operator skills, docs and tests.
+
+**Changes:**
+
+1. **Generated index.** Content pages carry `summary` (one line) and optional
+   `theme` in frontmatter. The operator regenerates `wiki/index.md` from the
+   pages after every operation; workers no longer propose INDEX lines. The
+   generated index carries a marker, and the checker reports an index that no
+   longer matches its pages.
+2. **Gaps on pages.** A page's `gaps` frontmatter lists its missing coverage;
+   the index's Gaps section is generated from them, linked to their page. A
+   worker adds a gap to an existing page with a GAPS line.
+3. **Parts under their chapter.** A capture-part source page names its chapter
+   page in `part_of`; the index lists the chapter with a part count, and the
+   chapter page must link the part. A plan item with `"parts": true` sets
+   `part_of` on its inputs.
+4. **Scoped catalog.** Each operation stages `catalog.md`, a fixed-budget
+   selection (pages sharing the inputs' themes, pages linked with the inputs,
+   the best keyword matches for the task, then every concept, entity and
+   synthesis title). Workers read it in full instead of the index and search
+   the staged wiki for the rest.
+5. **Duplicate guard.** A new page whose title or alias matches an existing
+   page's title, alias or filename is refused with a pointer to that page.
+6. **Migration.** `migrate-index` stages a reviewable migration: summaries and
+   themes from the current index, `part_of` from capture parts and the chapter
+   pages that link them, and every current Gaps line in `gaps.json` for the
+   owner to assign to a page or drop. Applying it writes frontmatter and the
+   generated index with a backup and receipt; `undo` reverses it.
+
+**Dependencies/risks:** P2 operator and checker. A scoped catalog can omit a
+related page; search, the duplicate guard and the checker cover most of that,
+and the researcher evaluation measures the rest. Migration rewrites
+frontmatter on every page, so it runs only after owner review and keeps
+`updated` dates unchanged.
+
+**Exit:** offline tests cover index generation and staleness, gaps, parts, the
+catalog budget, the duplicate guard, GAPS lines and migration with undo. The
+deployment migration is reviewed and applied by the owner; Phase 3 items
+16–18 then run on the new flow, and the researcher evaluation is rerun.
+
 ## Validation
 
 Run the offline distribution suite from the repository root:

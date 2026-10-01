@@ -36,14 +36,16 @@ sb_operator.py status OPERATION
 |---|---|
 | `capture` | Fetches one http(s) URL with no model involved. A web page's main content goes to `raw/<date>-<slug>.md` (see [Web capture](#web-capture)). A PDF is kept as `raw/<date>-<slug>.pdf` beside its extracted text (see [PDF capture](#pdf-capture)). Never overwrites: repeats get `-2`, `-3`. |
 | `pending` | Lists `.md`, `.txt` and `.html` files under `raw/` that no source page's `raw` field references, plus PDFs no capture's `source_pdf` names, oldest first. Skips `raw/assets/`, hidden files, and subfolders where any file is already referenced (multi-file captures). |
-| `stage` | Writes `operation.md`, listing the exact contract, index, log, template, input and figure paths the worker may read. With `--url`, runs `capture` first and ingests the result. An ingest `--input` ending in `.pdf` is extracted first. Either way, the printed `capture` lists every part, and the operation ingests part 1. Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
+| `stage` | Writes `operation.md`, listing the exact contract, catalog, log, template, input and figure paths the worker may read, and `catalog.md` (see [Worker catalog](#worker-catalog)). Refuses ingest and compile while `wiki/index.md` is a hand-written index: run `migrate-index` first. With `--url`, runs `capture` first and ingests the result. An ingest `--input` ending in `.pdf` is extracted first. Either way, the printed `capture` lists every part, and the operation ingests part 1. Creates `WORKDIR/<date>-<kind>-<id>/` holding `corpus/` (a copy of every adopted wiki page except the index, the catalog, the contract, the four content templates and the inputs), `profile/` (the worker role and skill) and `manifest.json` (every vault wiki file's SHA-256, the inputs and the config). Refuses symlinks, hardlinks and traversal. Never copies the vault's `AGENTS.md`, settings or other folders. |
 | `run` | Grants the worker exact reads on the staged files, denies every other tool, verifies the effective configuration with `opencode debug`, then runs the worker once. Saves `response.md`, `run.json` and, for ingest and compile, `proposal.json`. |
 | `revise` | Up to twice per operation: reruns the worker with feedback and its previous reply readable as `previous-proposal.md`; earlier attempts move to `attempt-N/`. A reply that could not be parsed gets a format-only revision, whose only required read is `previous-proposal.md`. Dry-run problems get a content revision, which rereads the inputs. |
 | `accept` | Appends one owner acceptance record to `wiki/log.md` naming, one bullet each, every `partial` operation that no earlier acceptance record names (optionally filtered by `--match`). The owner states the level, the sample and the defects; `technical` keeps the operations partial, `sampled` and `full` complete them. The log is backed up to the workdir and restored if the checker fails afterwards. |
-| `series` | Ingests inputs in order, one operation each. Retry policy: a reply that cannot be parsed gets one format-only `revise`; a failed run gets one fresh operation; dry-run problems get one `revise`. Items whose reply adds nothing are recorded as `no change`. Inputs already referenced by a source page are skipped, so rerunning the same command resumes. Workers are told their position, the previous item's source page, and that later items don't exist yet. Without `--with-concepts` they write source pages only. Each item's Sources index entry is filed under one theme: `--theme`, or else the first capture's `title`. `--plan` runs a JSON plan instead, `{"theme": ..., "items": [{"kind": "ingest"|"compile", "inputs": [...], "task": ..., "done_if": "wiki/...md", "file_inputs_under": ...}]}`: an item is skipped once its `done_if` page exists, and `file_inputs_under` makes the operator re-file the inputs' existing index entries, text unchanged, under that theme (for example, a book's part notes once chapter pages exist). `--background` detaches and logs one JSON line per item to `WORKDIR/series-*.jsonl`. One series runs per workdir at a time. |
+| `series` | Ingests inputs in order, one operation each. Retry policy: a reply that cannot be parsed gets one format-only `revise`; a failed run gets one fresh operation; dry-run problems get one `revise`. Items whose reply adds nothing are recorded as `no change`. Inputs already referenced by a source page are skipped, so rerunning the same command resumes. Workers are told their position, the previous item's source page, and that later items don't exist yet. Without `--with-concepts` they write source pages only. Each item's new source pages get one `theme`: `--theme`, or else the first capture's `title`. `--plan` runs a JSON plan instead, `{"theme": ..., "items": [{"kind": "ingest"|"compile", "inputs": [...], "task": ..., "done_if": "wiki/...md", "parts": true}]}`: an item is skipped once its `done_if` page exists, and `parts` (compile items with `done_if`) makes the operator set `part_of` to that page on every input it links, so the index lists a book's part notes through their chapter page. `--background` detaches and logs one JSON line per item to `WORKDIR/series-*.jsonl`. One series runs per workdir at a time. |
 | `series-status` | Shows the latest background series: whether it is running, the applied and no-change counts, the last item and the final result. |
 | `apply` | Validates the proposal (below), backs up every file it replaces to `backup/`, writes the pages and appends the log record, then runs the checker on the vault. If that check fails, it undoes the write. `--dry-run` validates without writing. |
-| `undo` | Restores the files an applied operation changed, and removes files it created, when each still matches what `apply` wrote. Files changed since are listed in `skipped_changed_since` and left alone. |
+| `undo` | Restores the files an applied operation changed, and removes files it created, when each still matches what `apply` wrote. Files changed since are listed in `skipped_changed_since` and left alone. A generated index is then rebuilt from the pages (`index_rebuilt`), so it never keeps an undone page even when a later operation rewrote it. |
+| `migrate-index` | Moves a vault from a hand-written index to the generated one, in two steps. `migrate-index VAULT` writes nothing to the vault: it stages `WORKDIR/<date>-migrate-<id>/` with each page's new `summary` (its index description, else its first sentence), `theme` (its index theme heading) and, for a source page whose capture has a `part` field, `part_of` (the first non-part source page linking it). Every current Gaps line goes to `gaps.json` with a suggested page; `index-preview.md` shows the result. The owner sets each gap's `page`, or `null` to drop it. `migrate-index --apply OPERATION` refuses if any wiki file changed since staging, then writes the frontmatter, the generated index and a log record with a backup and receipt; `undo OPERATION` reverses it. Page `updated` dates are kept. |
+| `rebuild-index` | Regenerates a generated `wiki/index.md` from the pages after hand edits, backing up the previous file to the workdir. `--dry-run` reports whether it would change. Refuses a hand-written index. |
 | `status` | Shows the operation's kind, task, inputs and completed stages. |
 
 Exit codes: `0` success; `1` the worker run failed verification, `apply`
@@ -78,7 +80,7 @@ Example: [`framework/operator.example.json`](../framework/operator.example.json)
 | `searches_in_scope` | Every grep or glob path, if given, stays inside the staged copy |
 | `citations_read` | Queries only: every `wiki/` page the answer cites was opened with the read tool; a search hit does not count. Failures list `unread_citations`, and `revise` gives the researcher one retry |
 | `reads_in_scope` | Every completed read was a staged file |
-| `required_full_reads` | Every line of the index, the contract and each input was read. A large file may be read in several offset/limit ranges; the reads together must show all of its lines, and none may be cut short at 2,000 characters |
+| `required_full_reads` | Every line of `catalog.md`, the contract and each input was read. A large file may be read in several offset/limit ranges; the reads together must show all of its lines, and none may be cut short at 2,000 characters |
 | `zero_writes` | Staged files are byte-identical afterwards |
 
 Before launching a worker with `search` on, `run` refuses a staged copy that
@@ -86,10 +88,26 @@ holds any file without a read grant. OpenCode checks a search against its
 pattern, not the files it returns, and grep includes hidden folders, so the
 staged copy must contain only files the worker may read.
 
-Ingest workers, and compile workers given named inputs, get a compact copy of
-`wiki/index.md`: headings, titles and paths, without descriptions or
-frontmatter. Compile-by-topic and query workers choose pages by their
-descriptions, so they get the full index. The vault's own index is never trimmed.
+When a required file is over 40 KB, the prompt lists the exact `offset`/`limit`
+read calls that cover it, each under OpenCode's ~50 KB read cap.
+
+### Worker catalog
+
+Workers never read `wiki/index.md`; it is not staged. Each operation instead
+stages `catalog.md`, built from the pages' frontmatter and capped at 24 KB, so
+a worker reads it in one call however large the wiki grows. In order:
+
+1. **Inputs**, and the pages they link, the pages that link them, and their
+   chapter page.
+2. Pages sharing an input's **theme**.
+3. The best **matches for the task**: words from the task (and an ingest's
+   capture title) scored against each page's title, aliases, tags and theme
+   (weight 3), summary (1) and body (0.5), rarer words counting more.
+4. Every remaining **concept, entity and synthesis** title.
+5. The remaining **source themes** with their page counts.
+
+Lines past the budget are dropped and counted. The catalog says it is a
+selection; workers search the staged wiki for the rest.
 
 ### Proposal format
 
@@ -97,12 +115,10 @@ descriptions, so they get the full index. The vault's own index is never trimmed
 <<<FILE wiki/<folder>/<page>.md>>>
 complete Markdown
 <<<END FILE>>>
-<<<INDEX>>>
-Concepts | - [[wiki/concepts/<page>|Title]] — short description
-Sources | <theme> | - [[wiki/sources/<page>|Title]] — short description
-Gaps | - plain-text gap
 <<<LINKS>>>
 wiki/sources/<note>.md | - [[wiki/concepts/<page>|Title]] — how they relate
+<<<GAPS>>>
+wiki/sources/<note>.md | plain-text description of missing coverage
 <<<LOG>>>
 ## YYYY-MM-DD — operation — partial
 - bullets
@@ -112,24 +128,22 @@ coverage review
 
 A reply with only `<<<NOTES>>>` is a valid no-op.
 
-- **INDEX.** Optional. Each line names a section (`Concepts`, `Entities`,
-  `Synthesis`, `Sources` or `Gaps`), an optional theme, and an entry. `apply`
-  merges the entries into `wiki/index.md`. A theme files the entry under a
-  `### theme` heading in its section, created at the section's end if needed.
-  Without a theme, an entry that replaces an existing one keeps its place, and
-  a new one goes after the section's last unthemed entry. Theme headings left
-  empty are removed, and a "No pages yet" line is replaced.
-  Other entries are never removed, and the index's `updated` date is set. The
-  worker never returns the whole index.
+- **Pages carry their catalog entry.** Every page a worker writes gives
+  `summary`, `theme` and `gaps` in its frontmatter; see
+  [Generated index](#generated-index). An `<<<INDEX>>>` section from an older
+  prompt is parsed but ignored, and reported under `fixes`.
 - **LINKS.** Optional. Each line names an existing page and a link entry.
   `apply` appends the entry to that page's `## Links` (or `## Related`)
   section, creating `## Links` at the end if needed. Links the page already
   has are skipped, and the page's `updated` date is set. This is how
   back-links reach long notes without the worker retyping them. A page may be
   rewritten with FILE or patched with LINKS, not both.
+- **GAPS.** Optional. Each line names an existing page and a gap; `apply`
+  appends it to that page's `gaps` (skipping one already listed) and sets its
+  `updated` date.
 - **Tolerance.** Text outside sections, repeated section markers, missing
   or mismatched closing markers, a missing NOTES section and an outer code
-  fence are all ignored. Malformed INDEX or LINKS lines are skipped and
+  fence are all ignored. Malformed LINKS or GAPS lines are skipped and
   reported under `parse_warnings`. Only a reply with no markers, or a FILE
   marker without a path, fails to parse.
 
@@ -145,7 +159,13 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 - An embedded image under `raw/` that does not exist becomes its caption
   followed by "(image not rendered)"; a doubled `raw/raw/` is corrected when
   the fixed path exists.
-- INDEX and LINKS entries that point at missing pages are dropped.
+- LINKS entries and GAPS lines that point at missing pages are dropped.
+- A page without a `summary` gets its previous version's summary, else its
+  first sentence; a summary over 300 characters or several lines is cut to
+  one line. A rewrite that omits an existing page's `theme`, `gaps` or
+  `part_of` keeps the old value. In a series, new source pages get the series
+  theme. A plan item with `parts` sets `part_of` on the inputs its chapter
+  page links.
 - Every source ↔ concept/entity link the proposal adds, in a page or a LINKS
   line, gets its missing back-link: inside the page when the proposal writes
   it, otherwise as a LINKS entry on the existing page.
@@ -157,9 +177,12 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 
 `apply` refuses the whole proposal, writing nothing, when any of these fail:
 
-- **Pages:** at least one page changed (FILE or LINKS) or one INDEX entry,
-  such as a Gaps line, and no more than
-  `max_pages` pages written whole with FILE.
+- **Pages:** at least one page changed (FILE, LINKS or GAPS), and no more
+  than `max_pages` pages written whole with FILE.
+- **No duplicates:** a new page whose title or an alias matches, after
+  lowercasing and dropping punctuation, the title, an alias or the filename of
+  an existing page of a comparable type (source with source, synthesis with
+  synthesis, concept or entity with either) is refused, naming that page.
 - **Paths:** only `wiki/{sources,concepts,entities,synthesis}/**.md`; never
   `wiki/index.md` or `wiki/log.md` as a page, `raw/`, instruction filenames or
   traversal.
@@ -169,14 +192,27 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 - **Log record:** a single record whose heading is
   `## YYYY-MM-DD — operation — partial`.
 - **Drift:** every page it rewrites with a FILE still has its staged hash. The
-  log record is appended, INDEX entries merged and LINKS lines patched against
-  the vault's current files, so another operation applied in between doesn't
+  log record is appended, LINKS and GAPS lines patched and the index
+  regenerated against the vault's current files, so another operation applied in between doesn't
   block it. `revise` refuses when drift is the only problem: stage again.
 - **Checker:** the proposal adds no checker errors or unsupported forms, on a
   copy of the wiki with the proposal applied. Problems the vault already has,
   for example from a hand edit, are counted as `existing` in the dry-run's
   checker summary but never block an operation; the same rule applies to the
   post-apply check and to `accept`.
+
+### Generated index
+
+`wiki/index.md` is rebuilt from the pages after every applied operation, so
+it always matches them; it carries a marker comment saying so. For each
+section (Concepts, Entities, Synthesis, Sources), pages without a `theme`
+come first, then one `### theme` group per theme, both in natural title order
+(part 2 before part 10). Each entry is `- [[path|title]] — summary`. A source
+page whose `part_of` names a chapter page that links it is left out and
+counted on the chapter's entry, as `(N parts)`. The Gaps section lists every
+page's `gaps` as `- [[path|title]]: gap`, grouped by theme. The index's
+`created` date is kept and its `updated` date is the newest page date, so
+rebuilding the same pages gives the same bytes.
 
 ### Web capture
 
@@ -291,9 +327,18 @@ OpenCode session without the operator gives them no file access.
   not guess a unique basename.
 - Reports contract errors: `placeholder` for leftover `{{...}}` text in metadata
   or in the body outside code (HTML comments included); `not_indexed` for a
-  content page that `wiki/index.md` does not link, when the index exists; and
+  content page that `wiki/index.md` does not link, when the index exists,
+  except a part whose `part_of` chapter links it; `part_of` when that field
+  names a page that doesn't exist or doesn't link the part; and
   `not_reciprocal` for a source ↔ concept/entity link without its back-link,
-  reported on the page that lacks it.
+  reported on the page that lacks it. When the index is generated, it also
+  reports `missing_summary` for a content page without `summary`, and
+  `index_stale` when the index differs from the one its pages would generate
+  (a hand edit, or pages changed outside the operator).
+- Validates the catalog fields when present: `summary` one line of at most 300
+  characters, `theme` a string without `|`, `[`, `]` or `#` (or `null`),
+  `gaps` a list of one-line strings, and source `part_of` a canonical
+  `wiki/sources/...` path.
 - Strips fragments only to check the file; heading/block validity is **unchecked**.
   A zero exit with unchecked anchors is not proof that those anchors exist.
 - Excludes leading frontmatter, ordinary fenced code and simple inline-code

@@ -25,6 +25,11 @@ import stat
 import sys
 import urllib.parse
 
+if __package__:
+    from . import wiki_index
+else:
+    import wiki_index
+
 
 FOLDERS = {"sources": "source", "concepts": "concept", "entities": "entity", "synthesis": "synthesis"}
 CONTROLS = ("wiki/index.md", "wiki/log.md")
@@ -33,6 +38,10 @@ COMMON = {"title", "type", "created", "updated", "aliases", "tags"}
 EXTRA = {"source": {"url", "author", "published", "captured", "raw"},
          "entity": {"kind"}, "concept": set(), "synthesis": set(),
          "index": set(), "log": set()}
+# Optional catalog fields on content pages; the generated index is built from them.
+OPTIONAL = {"source": {"summary", "theme", "gaps", "part_of"}, "entity": {"summary", "theme", "gaps"},
+            "concept": {"summary", "theme", "gaps"}, "synthesis": {"summary", "theme", "gaps"},
+            "index": set(), "log": set()}
 TOKEN = re.compile(r"!?\[\[.*?\]\]|!?\[\[.*$|\]\]")
 FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 INLINE = re.compile(r"(`+)(?!`)[^`\n]*?\1(?!`)")
@@ -74,7 +83,7 @@ def metadata(text, page, expected):
         return {}, "", [diagnostic(page, "metadata", detail="unclosed frontmatter")]
     fields, issues, parse_issues = {}, [], []
     for line in lines[1:end]:
-        match = re.fullmatch(r"([a-z]+): (.+)\s*", line.rstrip("\r\n"))
+        match = re.fullmatch(r"([a-z][a-z_]*): (.+)\s*", line.rstrip("\r\n"))
         if not match:
             issues.append("invalid key/value line")
             continue
@@ -89,8 +98,20 @@ def metadata(text, page, expected):
     for key in sorted((COMMON | EXTRA[expected]) - fields.keys()):
         if key != "url":
             issues.append(f"missing {key}")
-    for key in sorted(fields.keys() - (COMMON | EXTRA[expected])):
+    for key in sorted(fields.keys() - (COMMON | EXTRA[expected] | OPTIONAL[expected])):
         issues.append(f"unsupported {key}")
+    if "summary" in fields and (not isinstance(fields["summary"], str) or not fields["summary"].strip()
+                                or "\n" in fields["summary"] or len(fields["summary"]) > wiki_index.SUMMARY_MAX):
+        issues.append(f"invalid summary (one line, at most {wiki_index.SUMMARY_MAX} characters)")
+    if "theme" in fields and fields["theme"] is not None and (
+            not isinstance(fields["theme"], str) or not fields["theme"].strip() or re.search(r"[|\[\]\n#]", fields["theme"])):
+        issues.append("invalid theme")
+    if "gaps" in fields and (not isinstance(fields["gaps"], list)
+                             or not all(isinstance(g, str) and g.strip() and "\n" not in g for g in fields["gaps"])):
+        issues.append("invalid gaps")
+    if "part_of" in fields and not (isinstance(fields["part_of"], str) and fields["part_of"].startswith("wiki/sources/")
+                                    and canonical_parts(fields["part_of"]) and not fields["part_of"].endswith(".md")):
+        issues.append("invalid part_of")
     if fields.get("type") != expected:
         issues.append("type does not match path")
     if not isinstance(fields.get("title"), str) or not fields["title"].strip():
@@ -296,11 +317,28 @@ def contract_checks(pages, edges, references):
         for line, text in body_lines(content["body"]):
             for match in PLACEHOLDER.finditer(text):
                 issues.append(diagnostic(page, "placeholder", match.group(), line=line))
+    found = wiki_index.records(pages)
+    chapters = wiki_index.parents(found)
+    for path, info in found.items():
+        if info["part_of"] and path not in chapters:
+            issues.append(diagnostic(path + ".md", "part_of", info["part_of"],
+                                     detail="part_of must name an existing source page that links this page"))
     if "wiki/index.md" in pages:
         indexed = {dest for source, dest in references if source == "wiki/index.md"}
         for page in pages:
-            if page not in CONTROLS and page not in indexed:
+            # A part is reached through its chapter page, which links it.
+            if page not in CONTROLS and page not in indexed and page[:-3] not in chapters:
                 issues.append(diagnostic(page, "not_indexed", "wiki/index.md"))
+        index = pages["wiki/index.md"]
+        if wiki_index.is_generated(index["body"]):
+            for path, info in found.items():
+                if not info["summary"]:
+                    issues.append(diagnostic(path + ".md", "missing_summary", detail="a generated index needs summary"))
+            expected = wiki_index.build_index(pages, index["metadata"].get("created"))
+            if metadata(expected, "wiki/index.md", "index")[1] != index["body"] or any(
+                    index["metadata"].get(k) != v for k, v in metadata(expected, "wiki/index.md", "index")[0].items()):
+                issues.append(diagnostic("wiki/index.md", "index_stale",
+                                         detail="the generated index does not match its pages; rebuild it"))
     for source, dest in sorted(edges):
         if (page_type(source), page_type(dest)) in RECIPROCAL and (dest, source) not in edges:
             issues.append(diagnostic(dest, "not_reciprocal", source))

@@ -5,6 +5,8 @@ created: "2026-09-24"
 updated: "2026-09-24"
 aliases: []
 tags: ["synthetic", "decision"]
+summary: "no preferred setting established."
+gaps: ["Replicated measurements and humidity data are absent.", "The cause of the conflicting rankings is unknown."]
 ---
 
 # Which vent setting should the next tray trial use?

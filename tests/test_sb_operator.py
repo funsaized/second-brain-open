@@ -95,70 +95,175 @@ class OperatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside the vault"):
             op.stage(self.vault, "compile", ["wiki/sources/trial-a.md"], "t", self.config)
 
-    def test_merge_index_adds_replaces_and_keeps_entries(self):
+    def test_workers_get_a_catalog_not_the_index(self):
         index = (self.vault / "wiki/index.md").read_text()
-        before = [line for line in index.splitlines() if line.startswith("- ")]
-        merged = op.merge_index(index, [
-            ["Concepts", "- [[wiki/concepts/oven-airflow|Oven airflow]] — airflow."],
-            ["Sources", "- [[wiki/sources/trial-a|Trial A]] — revised description."],
-            ["Synthesis", "- [[wiki/synthesis/new|New]] — new section entry."],
-            ["Gaps", "- No replicated trial yet."]], "2026-09-29")
-        self.assertIn('updated: "2026-09-29"', merged)
-        self.assertIn("- [[wiki/sources/trial-a|Trial A]] — revised description.", merged)
-        self.assertEqual(merged.count("[[wiki/sources/trial-a|"), 1)
-        kept = [line for line in before if "wiki/sources/trial-a|" not in line]
-        self.assertTrue(all(line in merged for line in kept))
-        concepts = merged.split("## Concepts", 1)[1].split("\n## ", 1)[0]
-        self.assertIn("[[wiki/concepts/oven-airflow|", concepts)
-        self.assertIn("- No replicated trial yet.", merged.split("## Gaps", 1)[1])
-        self.assertNotIn("\n\n\n", merged)
-        empty = op.merge_index("# Index\n\n## Concepts\n\nNo pages yet.\n\n## Gaps\n",
-                               [["Concepts", "- [[wiki/concepts/a|A]] — a."]], "2026-09-29")
-        self.assertEqual(empty, "# Index\n\n## Concepts\n\n- [[wiki/concepts/a|A]] — a.\n\n## Gaps\n")
-
-    def test_ingest_stages_a_compact_index_and_others_the_full_one(self):
-        full = (self.vault / "wiki/index.md").read_text()
-        ingest = self.staged("ingest", ["raw/trial-b.md"], "Ingest trial B")
-        compact = (ingest / "corpus/wiki/index.md").read_text()
-        entries = [line for line in full.splitlines() if line.startswith("- [[")]
-        self.assertTrue(entries)
-        for line in entries:
-            self.assertIn(line.split("]]", 1)[0] + "]]\n", compact)
-        self.assertNotIn(" — ", compact)
-        self.assertNotIn("---", compact.split("\n", 1)[0])
-        self.assertIn("Compact copy", compact)
-        self.assertTrue(json.loads((ingest / "manifest.json").read_text())["compact_index"])
-        self.assertIn("compact catalog", op.worker_prompt(json.loads((ingest / "manifest.json").read_text()),
-                                                          ingest / "corpus"))
+        for kind, inputs, task in (("ingest", ["raw/trial-b.md"], "Ingest trial B"),
+                                   ("compile", ["wiki/sources/trial-a.md"], "t"), ("compile", [], "vent setting"),
+                                   ("query", [], "Which vent setting?")):
+            with self.subTest(kind=kind, inputs=inputs):
+                operation = self.staged(kind, inputs, task)
+                manifest = json.loads((operation / "manifest.json").read_text())
+                self.assertFalse((operation / "corpus/wiki/index.md").exists())
+                catalog = (operation / "corpus/catalog.md").read_text()
+                self.assertIn("# Catalog for this operation", catalog)
+                self.assertIn("catalog.md", manifest["reads"])
+                prompt = op.worker_prompt(manifest, operation / "corpus")
+                self.assertIn("Read catalog.md first", prompt)
+                self.assertNotIn("<<<INDEX>>>", prompt)
         named = self.staged("compile", ["wiki/sources/trial-a.md"], "t")
-        self.assertIn("Compact copy", (named / "corpus/wiki/index.md").read_text())
-        for kind, inputs, task in (("compile", [], "t"), ("query", [], "q?")):
-            operation = self.staged(kind, inputs, task)
-            self.assertEqual((operation / "corpus/wiki/index.md").read_text(), full)
-        self.assertEqual((self.vault / "wiki/index.md").read_text(), full)
+        catalog = (named / "corpus/catalog.md").read_text()
+        related = catalog.split("## Related pages", 1)[1]
+        self.assertIn("[[wiki/concepts/vent-choice|Vent choice]] — competing evidence", related)  # linked from the input
+        self.assertEqual((self.vault / "wiki/index.md").read_text(), index)
 
-    def test_merge_index_files_entries_under_themes(self):
-        index = "# Index\n\n## Concepts\n\n- [[wiki/concepts/a|A]] — a.\n\n## Sources\n\n- [[wiki/sources/s|S]] — s.\n\n## Gaps\n\nNo known gaps yet.\n"
-        merged = op.merge_index(index, [
-            ["Sources", "- [[wiki/sources/book-1|Book, part 1]] — one.", "Book"],
-            ["Sources", "- [[wiki/sources/book-2|Book, part 2]] — two.", "Book"],
-            ["Sources", "- [[wiki/sources/t|T]] — unthemed."]], "2026-09-29")
-        sources = merged.split("## Sources", 1)[1].split("\n## ", 1)[0]
-        self.assertEqual(sources.count("### Book"), 1)
-        self.assertLess(sources.index("[[wiki/sources/t|"), sources.index("### Book"))  # unthemed first
-        self.assertLess(sources.index("book-1|"), sources.index("book-2|"))
-        self.assertLess(sources.index("### Book"), sources.index("book-1|"))
-        replaced = op.merge_index(merged, [["Sources", "- [[wiki/sources/book-1|Book, part 1]] — revised."]], "2026-09-29")
-        self.assertLess(replaced.index("### Book"), replaced.index("revised."))  # keeps its place without a theme
-        self.assertEqual(replaced.count("wiki/sources/book-1|"), 1)
-        moved = op.merge_index(replaced, [
-            ["Sources", "- [[wiki/sources/book-1|Book, part 1]] — moved.", "Other"],
-            ["Sources", "- [[wiki/sources/book-2|Book, part 2]] — moved.", "Other"]], "2026-09-29")
-        self.assertNotIn("### Book", moved)  # emptied themes are dropped
-        self.assertEqual(moved.count("### Other"), 1)
-        self.assertEqual(moved.count("wiki/sources/book-2|"), 1)
-        self.assertIn("- [[wiki/concepts/a|A]] — a.", moved)
-        self.assertNotIn("\n\n\n", moved)
+    def test_stage_refuses_a_hand_written_index_until_migrated(self):
+        index = self.vault / "wiki/index.md"
+        index.write_text(index.read_text().replace(op.wiki_index.MARKER, ""))
+        with self.assertRaisesRegex(ValueError, "migrate-index"):
+            self.staged()
+        self.assertTrue(op.stage(self.vault, "query", [], "Which vent setting?", self.config).is_dir())
+
+    def test_apply_regenerates_the_index_from_frontmatter(self):
+        operation = self.staged()
+        concept = CONCEPT.replace('tags: []\n', 'tags: []\nsummary: "How airflow changes tray drying."\n'
+                                  'theme: "Tray trials"\ngaps: ["No humidity readings."]\n')
+        self.proposal(operation, files={"wiki/concepts/oven-airflow.md": concept},
+                      index=[["Concepts", "- [[wiki/concepts/oven-airflow|Wrong]] — ignored."]])
+        result = op.apply(operation)
+        self.assertTrue(result.get("applied"), result)
+        self.assertIn("ignored 1 INDEX line(s): the operator generates the index", result["fixes"])
+        index = (self.vault / "wiki/index.md").read_text()
+        concepts = index.split("## Concepts", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("### Tray trials\n\n- [[wiki/concepts/oven-airflow|Oven airflow]] — How airflow changes", concepts)
+        self.assertIn("- [[wiki/concepts/oven-airflow|Oven airflow]]: No humidity readings.", index.split("## Gaps")[1])
+        self.assertFalse(op.link_check.check(self.vault)["errors"])
+        op.undo(operation)
+        self.assertNotIn("oven-airflow", (self.vault / "wiki/index.md").read_text())
+
+    def test_a_missing_summary_is_filled_and_rewrites_keep_catalog_fields(self):
+        operation = self.staged()
+        page = (self.vault / "wiki/sources/trial-a.md").read_text()
+        rewritten = "\n".join(line for line in page.splitlines() if not line.startswith(("summary:", "gaps:")))
+        self.proposal(operation, files={"wiki/sources/trial-a.md": rewritten + "\n", "wiki/concepts/oven-airflow.md": CONCEPT})
+        fixed, fixes = op.normalize(json.loads((operation / "manifest.json").read_text()),
+                                    json.loads((operation / "proposal.json").read_text()))
+        self.assertIn("added a summary to wiki/sources/trial-a.md from its previous version", fixes)
+        self.assertIn("added a summary to wiki/concepts/oven-airflow.md from its first sentence", fixes)
+        self.assertEqual(op.wiki_index.get_field(fixed["files"]["wiki/concepts/oven-airflow.md"], "summary"),
+                         "Trial A timed the open vent at 18 minutes (Trial A, raw Measurements).")
+        self.assertTrue(op.apply(operation).get("applied"))
+
+    def test_gaps_lines_add_to_existing_pages(self):
+        operation = self.staged()
+        self.proposal(operation, files={})
+        proposal = json.loads((operation / "proposal.json").read_text())
+        proposal["gaps"] = [["wiki/sources/trial-b.md", "Oven model is not stated."],
+                            ["wiki/sources/missing.md", "dropped"]]
+        (operation / "proposal.json").write_text(json.dumps(proposal))
+        result = op.apply(operation)
+        self.assertTrue(result.get("applied"), result)
+        self.assertIn("dropped a gap for missing page wiki/sources/missing.md", result["fixes"])
+        self.assertEqual(op.wiki_index.get_field((self.vault / "wiki/sources/trial-b.md").read_text(), "gaps"),
+                         ["Oven model is not stated."])
+        self.assertIn("[[wiki/sources/trial-b|Tray trial B]]: Oven model is not stated.",
+                      (self.vault / "wiki/index.md").read_text())
+        empty = self.staged()
+        self.proposal(empty, files={})
+        self.assertIn("proposal changes no pages", op.apply(empty, dry_run=True)["problems"])
+
+    def test_a_new_page_that_duplicates_an_existing_one_is_refused(self):
+        operation = self.staged()
+        twin = CONCEPT.replace('title: "Oven airflow"', 'title: "Vent Choice"')
+        self.proposal(operation, files={"wiki/concepts/vent-selection.md": twin})
+        problems = op.apply(operation, dry_run=True)["problems"]
+        self.assertTrue(any("duplicates existing page wiki/concepts/vent-choice.md" in p for p in problems), problems)
+        alias = CONCEPT.replace('aliases: []', 'aliases: ["Tray trial A"]')
+        other = self.staged()
+        self.proposal(other, files={"wiki/concepts/oven-airflow.md": alias})
+        self.assertFalse(any("duplicates" in p for p in op.apply(other, dry_run=True)["problems"]))  # source vs concept
+
+    def test_migrate_index_stages_for_review_then_applies_and_undoes(self):
+        index = self.vault / "wiki/index.md"
+        pages = {key: (self.vault / key).read_text() for key in op.link_check.collect(self.vault)[0]
+                 if key != "wiki/index.md"}
+        for key, text in pages.items():
+            if key != "wiki/log.md":
+                (self.vault / key).write_text("\n".join(line for line in text.splitlines()
+                                                         if not line.startswith(("summary:", "gaps:"))) + "\n")
+        index.write_text("# Index\n\n## Concepts\n\n- [[wiki/concepts/vent-choice|Vent choice]] — two settings.\n\n"
+                         "## Sources\n\n### Trials\n\n- [[wiki/sources/trial-a|Trial A]] — open vent.\n\n"
+                         "## Gaps\n\n- Humidity was not measured in the trials.\n- Humidity was not measured in the trials.\n")
+        before = {key: (self.vault / key).read_text() for key in [*pages, "wiki/index.md"]}
+        with self.assertRaisesRegex(ValueError, "migrate-index"):
+            self.staged()
+        staged = op.migrate_index(self.vault, self.config, today="2026-10-01")
+        operation = Path(staged["operation"])
+        self.assertEqual(staged["gaps"], 1)  # duplicates collapsed
+        self.assertEqual(staged["summary from index"], 2)
+        self.assertEqual(staged["theme from index"], 1)
+        self.assertEqual({key: (self.vault / key).read_text() for key in before}, before)  # staging writes nothing
+        gaps = json.loads((operation / "gaps.json").read_text())
+        self.assertEqual(gaps[0]["gap"], "Humidity was not measured in the trials.")
+        gaps[0]["page"] = "wiki/sources/trial-a"
+        (operation / "gaps.json").write_text(json.dumps(gaps))
+        result = op.apply_migration(operation)
+        self.assertTrue(result["applied"], result)
+        trial = (self.vault / "wiki/sources/trial-a.md").read_text()
+        self.assertEqual(op.wiki_index.get_field(trial, "summary"), "open vent.")
+        self.assertEqual(op.wiki_index.get_field(trial, "theme"), "Trials")
+        self.assertEqual(op.wiki_index.get_field(trial, "gaps"), ["Humidity was not measured in the trials."])
+        self.assertIn('updated: "2026-09-24"', trial)  # metadata only: the content date is kept
+        self.assertTrue(op.wiki_index.is_generated(index.read_text()))
+        self.assertFalse(op.link_check.check(self.vault)["errors"])
+        self.assertIn("migrate index to the generated form — partial", (self.vault / "wiki/log.md").read_text())
+        self.assertTrue(self.staged().is_dir())
+        with self.assertRaisesRegex(ValueError, "already applied"):
+            op.apply_migration(operation)
+        op.undo(operation)
+        self.assertEqual({key: (self.vault / key).read_text() for key in before}, before)
+
+    def test_rebuild_index_after_a_hand_edit(self):
+        page = self.vault / "wiki/sources/trial-b.md"
+        page.write_text(op.wiki_index.set_fields(page.read_text(), {"summary": "Hand-written summary."}))
+        self.assertIn("index_stale", {d["kind"] for d in op.link_check.check(self.vault)["errors"]})
+        self.assertTrue(op.rebuild_index(self.vault, self.config, dry_run=True)["changed"])
+        result = op.rebuild_index(self.vault, self.config)
+        self.assertTrue(Path(result["backup"]).is_file())
+        self.assertIn("Hand-written summary.", (self.vault / "wiki/index.md").read_text())
+        self.assertEqual(op.link_check.check(self.vault)["errors"], [])
+        self.assertFalse(op.rebuild_index(self.vault, self.config)["changed"])
+        index = self.vault / "wiki/index.md"
+        index.write_text(index.read_text().replace(op.wiki_index.MARKER, ""))
+        with self.assertRaisesRegex(ValueError, "migrate-index"):
+            op.rebuild_index(self.vault, self.config)
+
+    def test_migration_finds_capture_parts_through_their_chapter(self):
+        raw = self.vault / "raw"
+        for n in (1, 2):
+            (raw / f"book-part-{n}.md").write_text(f'---\ntitle: "Book"\npart: "{n}/2"\n---\n\n## Page {n}\n\nText.\n')
+        def source(slug, title, raw_path, body):
+            return (f'---\ntitle: "{title}"\ntype: "source"\ncreated: "2026-09-24"\nupdated: "2026-09-24"\n'
+                    f'aliases: []\ntags: []\nsummary: "{title}."\nauthor: null\npublished: null\n'
+                    f'captured: "2026-09-24"\nraw: "{raw_path}"\n---\n\n# {title}\n\n{body}\n')
+        wiki = self.vault / "wiki/sources"
+        (wiki / "book-part-1.md").write_text(source("book-part-1", "Book, part 1", "raw/book-part-1.md",
+                                                    "Next: [[wiki/sources/book-part-2|Part 2]]."))
+        (wiki / "book-part-2.md").write_text(source("book-part-2", "Book, part 2", "raw/book-part-2.md",
+                                                    "Previous: [[wiki/sources/book-part-1|Part 1]]."))
+        (wiki / "book-chapter-1.md").write_text(source("book-chapter-1", "Book, chapter 1", "raw/trial-a.md",
+            "Built from [[wiki/sources/book-part-1|part 1]] and [[wiki/sources/book-part-2|part 2]]."))
+        index = self.vault / "wiki/index.md"
+        index.write_text(index.read_text().replace(op.wiki_index.MARKER, ""))
+        operation = Path(op.migrate_index(self.vault, self.config)["operation"])
+        values = json.loads((operation / "manifest.json").read_text())["values"]
+        self.assertEqual(values["wiki/sources/book-part-1.md"]["part_of"], "wiki/sources/book-chapter-1")
+        self.assertNotIn("part_of", values.get("wiki/sources/book-chapter-1.md", {}))
+        (operation / "gaps.json").write_text("[]")
+        self.assertTrue(op.apply_migration(operation)["applied"])
+        text = index.read_text()
+        self.assertIn("[[wiki/sources/book-chapter-1|Book, chapter 1]] — Book, chapter 1. (2 parts)", text)
+        self.assertNotIn("[[wiki/sources/book-part-1|", text)
+        self.assertFalse(op.link_check.check(self.vault)["errors"])
 
     def test_parse_index_themes(self):
         text = ("<<<INDEX>>>\nSources | Distributed systems: concepts | - [[wiki/sources/p1|Part 1]] — one.\n"
@@ -187,7 +292,7 @@ class OperatorTests(unittest.TestCase):
                 "status": "completed", "input": {"pattern": "vent", **({"path": path} if path else {})}}}}
         skill = {"type": "tool_use", "part": {"tool": "skill", "state": {
             "status": "completed", "input": {"name": "second-brain-ingest"}}}}
-        base = [skill, read("wiki/index.md"), read("instructions/wiki-contract.md"), read("wiki/sources/trial-a.md"),
+        base = [skill, read("catalog.md"), read("instructions/wiki-contract.md"), read("wiki/sources/trial-a.md"),
                 {"type": "text", "part": {"text": "<<<NOTES>>>\nno-op"}}]
         passed, evidence = op.verify_events(manifest, corpus, [search("grep"), search("glob", "wiki")] + base, 0, {}, {})
         self.assertTrue(passed, evidence)
@@ -286,7 +391,8 @@ class OperatorTests(unittest.TestCase):
         text = fixed["files"]["wiki/concepts/new.md"]
         self.assertIn("[[wiki/sources/trial-a|Trial A]] and Part 36 and ![[wiki/x]]", text)
         self.assertIn("[[wiki/sources/part-36|kept in code]]", text)
-        self.assertEqual(fixed["index"], [["Concepts", "- [[wiki/concepts/new|New]] — n."]])
+        self.assertEqual(fixed["index"], [])
+        self.assertIn("ignored 2 INDEX line(s): the operator generates the index", fixes)
         self.assertTrue(fixed["log"].startswith("## 2026-09-28 — compile wiki/sources/trial-a.md — partial"))
         self.assertEqual(len(fixes), 4)
         self.assertIn("added the back-link wiki/sources/trial-a -> wiki/concepts/new", fixes)
@@ -298,25 +404,13 @@ class OperatorTests(unittest.TestCase):
         manifest = json.loads((operation / "manifest.json").read_text())
         corpus = operation / "corpus"
         self.assertNotIn("size cap", op.worker_prompt(manifest, corpus))
-        (corpus / "wiki/index.md").write_text("".join(f"- entry {i} {'x' * 200}\n" for i in range(1, 501)))
-        ranges = op.read_ranges(corpus / "wiki/index.md")
+        (corpus / "catalog.md").write_text("".join(f"- entry {i} {'x' * 200}\n" for i in range(1, 501)))
+        ranges = op.read_ranges(corpus / "catalog.md")
         self.assertGreater(len(ranges), 1)
         self.assertEqual(ranges[0][0], 1)
         self.assertEqual(sum(count for _, count in ranges), 500)
         self.assertTrue(all(a + n == b for (a, n), (b, _) in zip(ranges, ranges[1:])))
         self.assertIn(f"offset=1 limit={ranges[0][1]}", op.worker_prompt(manifest, corpus))
-
-    def test_an_index_only_proposal_applies_and_an_empty_one_does_not(self):
-        operation = self.staged()
-        self.proposal(operation, files={}, index=[["Gaps", "- Domain X was never researched."]])
-        result = op.apply(operation)
-        self.assertEqual(result["problems"], [])
-        self.assertIn("- Domain X was never researched.", (self.vault / "wiki/index.md").read_text())
-        op.undo(operation)
-        self.assertNotIn("Domain X", (self.vault / "wiki/index.md").read_text())
-        empty = self.staged()
-        self.proposal(empty, files={}, index=[])
-        self.assertIn("proposal has no pages or index entries", op.apply(empty, dry_run=True)["problems"])
 
     def test_normalize_turns_markdown_page_links_into_wikilinks(self):
         operation = self.staged()
@@ -490,15 +584,22 @@ class OperatorTests(unittest.TestCase):
     def test_drift_blocks_apply_and_undo_preserves_later_edits(self):
         operation = self.staged()
         self.proposal(operation)
-        # Another operation's log record and index entry land in between: appends and merges still apply.
+        # Another operation's log record and gap land in between: the log appends and the index regenerates.
         (self.vault / "wiki/log.md").write_text((self.vault / "wiki/log.md").read_text() + "\nHuman note.\n")
-        index = self.vault / "wiki/index.md"
-        index.write_text(op.merge_index(index.read_text(), [["Gaps", "- A concurrent gap."]], "2026-09-28"))
+        index, other = self.vault / "wiki/index.md", self.vault / "wiki/sources/trial-b.md"
+        other.write_text(op.wiki_index.set_fields(other.read_text(), {"gaps": ["A concurrent gap."]}))
+        index.write_text(op.rebuilt_index(self.vault))
         self.assertTrue(op.apply(operation).get("applied"))
         self.assertIn("Human note.", (self.vault / "wiki/log.md").read_text())
         self.assertIn("A concurrent gap.", index.read_text())
         self.assertIn("[[wiki/concepts/oven-airflow|", index.read_text())
-        op.undo(operation)
+        # A later change to the index does not leave it stale when the earlier operation is undone.
+        other.write_text(op.wiki_index.set_fields(other.read_text(), {"gaps": ["A later gap."]}))
+        index.write_text(op.rebuilt_index(self.vault))
+        undone = op.undo(operation)
+        self.assertTrue(undone["index_rebuilt"])
+        self.assertNotIn("oven-airflow", index.read_text())
+        self.assertFalse(op.link_check.check(self.vault)["errors"])
         # A page the proposal rewrites that changed since staging is refused, and revise won't retry it.
         operation = self.staged()
         self.proposal(operation)
@@ -534,17 +635,17 @@ class OperatorTests(unittest.TestCase):
         skill = {"type": "tool_use", "part": {"tool": "skill", "state": {
             "status": "completed", "input": {"name": "second-brain-ingest"}}}}
         text = {"type": "text", "part": {"text": "<<<NOTES>>>\nno-op"}}
-        good = [skill, read("wiki/index.md"), read("instructions/wiki-contract.md"),
+        good = [skill, read("catalog.md"), read("instructions/wiki-contract.md"),
                 read("wiki/sources/trial-a.md"), text]
         passed, evidence = op.verify_events(manifest, corpus, good, 0, {"a": 1}, {"a": 1})
         self.assertTrue(passed, evidence)
-        half = len((corpus / "wiki/index.md").read_text().splitlines()) // 2
-        chunked = [skill, read("wiki/index.md", 1, half), read("wiki/index.md", half + 1),
+        half = len((corpus / "catalog.md").read_text().splitlines()) // 2
+        chunked = [skill, read("catalog.md", 1, half), read("catalog.md", half + 1),
                    read("instructions/wiki-contract.md"), read("wiki/sources/trial-a.md"), text]
         self.assertTrue(op.verify_events(manifest, corpus, chunked, 0, {}, {})[0])  # large files in ranges
-        gap = [skill, read("wiki/index.md", 1, half), read("instructions/wiki-contract.md"),
+        gap = [skill, read("catalog.md", 1, half), read("instructions/wiki-contract.md"),
                read("wiki/sources/trial-a.md"), text]
-        self.assertEqual(op.verify_events(manifest, corpus, gap, 0, {}, {})[1]["unread_required"], ["wiki/index.md"])
+        self.assertEqual(op.verify_events(manifest, corpus, gap, 0, {}, {})[1]["unread_required"], ["catalog.md"])
         truncated = good[:3] + [read("wiki/sources/trial-a.md", suffix="(line truncated to 2000)")] + [text]
         passed, evidence = op.verify_events(manifest, corpus, truncated, 0, {}, {})
         self.assertEqual(evidence["unread_required"], ["wiki/sources/trial-a.md"])
@@ -570,7 +671,7 @@ class OperatorTests(unittest.TestCase):
         grep = {"type": "tool_use", "part": {"tool": "grep", "state": {"status": "completed", "input": {"pattern": "vent"}}}}
         answer = ("Trial A timed 18 minutes (wiki/sources/trial-a.md, Measurements); Trial B differed "
                   "([[wiki/sources/trial-b|Trial B]]).\nRead: ...\nNot covered: none")
-        base = [skill, read("wiki/index.md"), read("instructions/wiki-contract.md"), read("wiki/sources/trial-a.md"), grep]
+        base = [skill, read("catalog.md"), read("instructions/wiki-contract.md"), read("wiki/sources/trial-a.md"), grep]
         text = {"type": "text", "part": {"text": answer}}
         passed, evidence = op.verify_events(manifest, corpus, base + [text], 0, {}, {})
         self.assertFalse(passed)
@@ -715,14 +816,14 @@ class SeriesTests(unittest.TestCase):
         result = op.series(self.vault, inputs, None, self.config, emit=lines.append, theme="Invented book")
         self.assertEqual(result["status"], "completed", result)
         self.assertEqual(self.prompts[0][0]["theme"], "Invented book")
-        self.assertIn("filed the index entry", " ".join(lines[0]["fixes"]))
+        self.assertIn("set the series theme on wiki/sources/book-part-1.md", lines[0]["fixes"])
         index = (self.vault / "wiki/index.md").read_text()
         themed = index.split("### Invented book", 1)[1].split("\n## ", 1)[0]
         self.assertIn("book-part-1|", themed)
         self.assertIn("book-part-2|", themed)
         self.assertEqual(op.link_check.check(self.vault)["errors"], [])
 
-    def test_plan_series_compiles_chapters_and_refiles_inputs(self):
+    def test_plan_series_compiles_chapters_and_marks_their_parts(self):
         self.replies = [self.good, self.good, self.good]
         lines = []
         op.series(self.vault, [f"raw/book-part-{n}.md" for n in (1, 2, 3)], None, self.config,
@@ -742,23 +843,22 @@ class SeriesTests(unittest.TestCase):
         plan_file = Path(self.tmp.name) / "plan.json"
         plan_file.write_text(json.dumps({"theme": "Invented book", "items": [
             {"kind": "compile", "inputs": ["wiki/sources/book-part-1.md", "wiki/sources/book-part-2.md"],
-             "task": "Chapter 1 page", "done_if": "wiki/sources/book-ch1.md",
-             "file_inputs_under": "Invented book: parts"}]}))
+             "task": "Chapter 1 page", "done_if": "wiki/sources/book-ch1.md", "parts": True}]}))
         plan = op.load_plan(self.vault, plan_file)
         self.replies = [chapter]
         result = op.series(self.vault, [], None, self.config, emit=lines.append, plan=plan)
         self.assertEqual(result["status"], "completed", (result, lines[-1]))
         series_info = self.prompts[-1][0]
-        self.assertEqual((series_info["file_inputs_under"], series_info["sources_only"]), ("Invented book: parts", False))
+        self.assertEqual((series_info["parts"], series_info["sources_only"]), (True, False))
         index = (self.vault / "wiki/index.md").read_text()
-        book = index.split("### Invented book\n", 1)[1].split("\n### ", 1)[0]
-        parts = index.split("### Invented book: parts\n", 1)[1].split("\n## ", 1)[0]
-        self.assertIn("book-ch1|", book)
-        self.assertIn("book-part-3|", book)
-        self.assertIn("[[wiki/sources/book-part-1|Part 1]] — part 1.", parts)  # original line, not the worker's
-        self.assertIn("book-part-2|", parts)
+        book = index.split("### Invented book\n", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("[[wiki/sources/book-ch1|Chapter 1]] — Parts: Part 1, Part 2. (2 parts)", book)
+        self.assertIn("book-part-3|", book)  # not in the chapter: still listed itself
+        self.assertNotIn("book-part-1|", book)
         self.assertNotIn("worker's own line", index)
-        self.assertIn("book-ch1", (self.vault / "wiki/sources/book-part-1.md").read_text())
+        part = (self.vault / "wiki/sources/book-part-1.md").read_text()
+        self.assertIn("book-ch1", part)
+        self.assertEqual(op.wiki_index.get_field(part, "part_of"), "wiki/sources/book-ch1")
         self.assertEqual(op.link_check.check(self.vault)["errors"], [])
         again = op.series(self.vault, [], None, self.config, emit=lines.append, plan=plan)
         self.assertEqual(again["skipped"], 1)
@@ -769,7 +869,8 @@ class SeriesTests(unittest.TestCase):
         self.assertEqual(declined["status"], "stopped")  # a plan page that was not created is not a no-op
         self.assertIn("cannot map", declined["reason"])
         for bad in ({"items": []}, {"items": [{"kind": "query", "task": "t"}]},
-                    {"items": [{"kind": "ingest", "task": "t", "file_inputs_under": "x"}]},
+                    {"items": [{"kind": "ingest", "task": "t", "parts": True}]},
+                    {"items": [{"kind": "compile", "task": "t", "parts": True}]},
                     {"items": [{"kind": "compile", "task": "t", "done_if": "raw/x.md"}]}):
             plan_file.write_text(json.dumps(bad))
             with self.subTest(bad=bad), self.assertRaises(ValueError):

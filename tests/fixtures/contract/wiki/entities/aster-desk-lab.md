@@ -6,6 +6,7 @@ updated: "2026-09-24"
 aliases: ["Aster lab"]
 tags: ["synthetic"]
 kind: "org"
+summary: "fictional author of both trials."
 ---
 
 # Aster Desk Lab

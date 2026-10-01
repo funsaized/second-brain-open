@@ -226,16 +226,16 @@ class R6BackupRestoreTests(unittest.TestCase):
     def test_partial_operation_drift_refuses_all_then_preserves_human_work(self):
         backup(self.source, self.bundle, self.manifest)
         restore_new(self.source, self.bundle, self.target, self.manifest)
-        concept, index, log = "wiki/concepts/vent-choice.md", "wiki/index.md", "wiki/log.md"
+        concept, edited, log = "wiki/concepts/vent-choice.md", "wiki/synthesis/vent-setting.md", "wiki/log.md"
         before_concept = (self.target / concept).read_bytes()
         partial = before_concept + b"\nUnfinished synthetic operation.\n"
         (self.target / concept).write_bytes(partial)
         # This simulated later source revision must not replace the backup's bytes.
         (self.source / concept).write_bytes(b"Source changed after snapshot\n")
         source_after_simulation = manifest_for(self.source, APPROVED)
-        intended_preimages = {concept: digest(partial), index: self.manifest[index], log: self.manifest[log]}
-        human = (self.target / index).read_bytes() + b"\nHuman review: preserve this synthetic paragraph.\n"
-        (self.target / index).write_bytes(human)
+        intended_preimages = {concept: digest(partial), edited: self.manifest[edited], log: self.manifest[log]}
+        human = (self.target / edited).read_bytes() + b"\nHuman review: preserve this synthetic paragraph.\n"
+        (self.target / edited).write_bytes(human)
         exclusive_file(self.target / "unrelated.md", b"Preserve unselected human work\n")
         before_refusal = manifest_for(self.target, APPROVED)
         with self.assertRaises(ValueError):
@@ -244,14 +244,14 @@ class R6BackupRestoreTests(unittest.TestCase):
         # Operator chooses preservation, not resetting the human edit to make a check pass.
         restore_selected(self.source, self.bundle, self.target, self.manifest, {concept: digest(partial)})
         self.assertEqual((self.target / concept).read_bytes(), before_concept)
-        self.assertEqual((self.target / index).read_bytes(), human)
+        self.assertEqual((self.target / edited).read_bytes(), human)
         old_log = (self.target / log).read_bytes()
         self.assertEqual(digest(old_log), self.manifest[log])
         with (self.target / log).open("ab") as stream:
-            stream.write(b"\n## 2026-09-25 - Synthetic recovery\nRestored only the interrupted concept change from verified backup; preserved human index and unrelated work.\n")
+            stream.write(b"\n## 2026-09-25 - Synthetic recovery\nRestored only the interrupted concept change from verified backup; preserved the human page edit and unrelated work.\n")
         self.assertTrue((self.target / log).read_bytes().startswith(old_log))
         self.assertEqual((self.target / "unrelated.md").read_bytes(), b"Preserve unselected human work\n")
-        unaffected = set(APPROVED) - {concept, index, log}
+        unaffected = set(APPROVED) - {concept, edited, log}
         self.assertEqual(manifest_for(self.target, unaffected), {p: self.manifest[p] for p in unaffected})
         self.assertEqual(manifest_for(self.source, APPROVED), source_after_simulation)
         load_backup(self.bundle, self.manifest)

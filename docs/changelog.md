@@ -569,3 +569,32 @@ any required file over 40 KB, instead of relying on the worker to page.
 Verification: 148 offline tests pass. For the failed live operation the
 prompt now lists `offset=1 limit=350, offset=351 limit=73`. Not yet
 confirmed in a live run.
+
+## 2026-10-01 — Generated index and worker catalogs (P6)
+
+Owner-approved after the deployment's index passed the read cap a second
+time and its hand-merged Gaps section had accumulated stale and repeated
+lines. The index stays one page.
+
+- **Generated index.** `scripts/wiki_index.py` builds `wiki/index.md` from each
+  page's `title`, `summary`, `theme`, `gaps` and `part_of`; `apply` rebuilds it
+  after every operation and `undo` rebuilds it after restoring. Workers no
+  longer send INDEX lines (old ones are ignored and reported); a GAPS section
+  adds a gap to an existing page. The checker reports `index_stale`,
+  `missing_summary` and invalid `part_of`, and no longer requires a part that
+  its chapter links to be listed itself.
+- **Catalog.** Workers read `catalog.md` (at most 24 KB: the inputs'
+  neighbours, their theme, task matches, then every concept, entity and
+  synthesis title) instead of the index, which is no longer staged. The
+  researcher evaluation does the same, with `--full-index` for comparison.
+- **Guards and repairs.** A new page duplicating an existing title or alias is
+  refused. A missing summary is filled from the previous version or first
+  sentence; rewrites keep `theme`, `gaps` and `part_of`; a plan item with
+  `parts` sets `part_of` (replacing `file_inputs_under`).
+- **Migration.** `migrate-index` stages summaries, themes and `part_of` from a
+  hand-written index plus `gaps.json` for the owner; `--apply` writes it with a
+  receipt for `undo`. `rebuild-index` regenerates after hand edits. The
+  contract fixture was converted with it.
+
+Verification: 161 offline tests pass; `git diff --check` passes. No live
+worker run has used the catalog yet, and the deployment is not migrated.

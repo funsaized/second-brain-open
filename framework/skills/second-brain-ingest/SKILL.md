@@ -11,13 +11,17 @@ follows `wiki-contract.md`, and page structure follows the templates.
 
 ## 1. Read and check what exists
 
-- Read the inputs, `wiki/index.md` and the contract completely. If an input is
+- Read the inputs, `catalog.md` and the contract completely. If an input is
   truncated or unreadable, return only NOTES saying what is missing; never
   write from a partial read.
-- Before writing, check what exists: the index (for an ingest, a compact copy
-  of titles and paths) and, when search is available, a search of the staged
-  pages for the input's main concepts, entities and distinctive terms. Read an
-  overlapping page completely before relying on it; a search hit is only a lead.
+- `catalog.md` is the operator's selection of the index for this operation:
+  the inputs' neighbours, pages sharing their theme, the best matches for the
+  task, and every concept, entity and synthesis title. It is not the whole
+  wiki. Before writing, also search the staged pages, when search is
+  available, for the input's main concepts, entities and distinctive terms.
+  Read an overlapping page completely before relying on it; a search hit is
+  only a lead. The operator refuses a new page whose title or alias matches
+  an existing page: update that page instead.
 - An unchanged input that is already ingested is a no-op: return only NOTES.
 
 ## 2. Decide what to write
@@ -53,7 +57,7 @@ each finding with the conditions it holds under.
 
 **Compile** (existing source notes, named or found by topic): write concept,
 entity or synthesis pages that connect the notes. For a topic, choose the most
-relevant pages from the index and a search (usually three to eight source notes
+relevant pages from the catalog and a search (usually three to eight source notes
 plus related concepts) and read them completely; name any you left out in
 NOTES. Explain the idea, where the sources agree and disagree, and what remains
 open, rather than re-summarizing each source.
@@ -64,18 +68,24 @@ original document's path. That document need not be staged or read. Take the
 page range from the part notes' locators, marking a boundary approximate when
 the notes don't pin it. Give the chapter's question and argument, a map of its
 sections to the part notes and pages covering each, and its key claims with
-locators. Link every part note rather than copying its detail. Then write one
-to three concept pages the chapter supports, citing the chapter page.
+locators. Link every part note rather than copying its detail; when the task
+says the inputs are parts of this chapter, the operator then sets each linked
+part's `part_of` and the index lists the parts through the chapter. Then write
+one to three concept pages the chapter supports, citing the chapter page.
 
 ## 3. Write the proposal
 
-- Every new page links existing pages in both directions, or the gap goes in the
-  index's Gaps. To add a link to an existing page, use a LINKS line.
+- Every new page links existing pages in both directions, or the missing link
+  goes in the page's `gaps`. To add a link to an existing page, use a LINKS
+  line; to add a gap to an existing page, use a GAPS line.
 - Rewriting an existing page with a FILE means returning all of it: every
   section, claim and link, plus your additions.
-- Give each new page, and each page whose description changes, an INDEX entry.
-  Use a theme for new entries that belong together, such as one document's
-  parts or chapters; an entry without a theme keeps its place.
+- The operator generates the index from frontmatter. Give every page you write
+  a `summary`: one line saying what the page holds, for someone deciding
+  whether to read it. Give a `theme` to pages that belong together, such as
+  one document's parts or chapters (a series sets it for you), and record
+  missing coverage in `gaps`. When rewriting a page, keep its `theme`, `gaps`
+  and `part_of` unless they are wrong.
 - Stay within the page limit, and list further pages in NOTES as follow-up
   operations.
 - NOTES holds the coverage review: what you retained, summarized or omitted and

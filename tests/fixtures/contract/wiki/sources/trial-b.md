@@ -9,6 +9,7 @@ author: "Aster Desk Lab"
 published: null
 captured: "2026-09-24"
 raw: "raw/trial-b.md"
+summary: "single trial recommending closed, publication date unknown."
 ---
 
 # Tray trial B

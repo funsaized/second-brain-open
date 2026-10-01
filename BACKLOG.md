@@ -122,6 +122,16 @@
   Synthetic ingest, compile and query pass with the new prompts; the
   deployment evaluation shows no answer-quality regression.
 
+## Status update (2026-10-01)
+
+- **H2: replaced by P6 (owner-approved).** The compact staged index passed the
+  read cap again (54.9 KB), and the hand-merged index had accumulated stale and
+  duplicate gaps. The index is now generated from page frontmatter and workers
+  read a bounded `catalog.md`; still one index page, per the 2026-09-29
+  decision. See PLAN.md P6.
+- **Next:** migrate the deployment's index (owner reviews `gaps.json`), finish
+  the TypeScript Phase 3 items on the new flow, rerun the A2 evaluation.
+
 ## How the review was done
 
 - Read README, PLAN.md, all of `docs/`, `framework/` and `scripts/`, and the

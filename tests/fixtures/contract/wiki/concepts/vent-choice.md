@@ -5,6 +5,7 @@ created: "2026-09-24"
 updated: "2026-09-24"
 aliases: ["Tray vent setting"]
 tags: ["synthetic", "cooling"]
+summary: "competing evidence for two settings."
 ---
 
 # Vent choice

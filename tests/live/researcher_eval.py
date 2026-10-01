@@ -3,7 +3,9 @@
 Stages the adopted wiki pages, the installed contract and the researcher role
 and skill in a new temporary directory, then asks each question from a JSON
 file in its own native `opencode run`. Personal vault instructions, settings and
-unrelated folders are never staged. Scores are deterministic: skill load,
+unrelated folders are never staged. Like the operator, it stages a
+per-question catalog.md instead of wiki/index.md; --full-index stages the whole
+index for comparison. Scores are deterministic: skill load, catalog- or
 index-first retrieval, citations that exist and were actually read, expected
 pages and terms, Read/Not covered sections, abstention on unsupported questions
 and unchanged corpus bytes. The abstention check is a phrase heuristic, so the
@@ -26,7 +28,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from scripts import link_check  # noqa: E402
+from scripts import link_check, wiki_index  # noqa: E402
 from scripts.sb_runtime import (  # noqa: E402
     CONTENT, answer_text, configure_worker, extract_citations, relative_read, run_role, tool_calls, validate_scope)
 
@@ -81,14 +83,14 @@ def load_questions(path, vault):
     return questions
 
 
-def stage(vault, base, include_raw=False):
+def stage(vault, base, include_raw=False, full_index=False):
     """Copy only adopted pages, the contract and role/skill; never vault instructions."""
     vault = Path(vault)
     corpus, profile = base / "corpus", base / "profile"
     corpus.mkdir(mode=0o700)
     profile.mkdir(mode=0o700)
     pages, _ = link_check.collect(vault)  # refuses links, hardlinks and protected entries
-    copies = {key: vault / key for key in pages}
+    copies = {key: vault / key for key in pages if full_index or key != "wiki/index.md"}
     if include_raw:
         for key, page in pages.items():
             raw = page["metadata"].get("raw") if key.startswith("wiki/sources/") else None
@@ -119,8 +121,12 @@ def corpus_state(corpus):
             for p in sorted(corpus.rglob("*")) if p.is_file() and ".git" not in p.relative_to(corpus).parts}
 
 
-def score(question, events, corpus, before, after, returncode=0, search=False):
-    """Deterministic checks for one answer; returns checks, metrics and answer."""
+def score(question, events, corpus, before, after, returncode=0, search=False, guide="catalog.md"):
+    """Deterministic checks for one answer; returns checks, metrics and answer.
+
+    guide: the page the researcher must read before any content page (catalog.md, or wiki/index.md
+    with --full-index); the check keeps its historical name, index_first.
+    """
     calls, text = tool_calls(events), answer_text(events)
     reads = []
     for call in calls:
@@ -129,7 +135,7 @@ def score(question, events, corpus, before, after, returncode=0, search=False):
             reads.append(relative_read(corpus, state.get("input", {}).get("filePath", "")))
     content_reads = [p for p in reads if p and CONTENT.fullmatch(p)]
     cited = extract_citations(text)
-    index_at = reads.index("wiki/index.md") if "wiki/index.md" in reads else None
+    index_at = reads.index(guide) if guide in reads else None
     first_content = next((i for i, p in enumerate(reads) if p in content_reads), None)
     checks = {
         "run_completed": returncode == 0 and bool(text),
@@ -176,7 +182,7 @@ def summarize(results):
             "seconds_total": round(sum(r["metrics"].get("seconds", 0) for r in results), 1)}
 
 
-def prompt_for(question, corpus, include_raw, search=False):
+def prompt_for(question, corpus, include_raw, search=False, guide="catalog.md"):
     raw = ("Approved raw captures are staged under raw/." if include_raw else
            "Raw captures are not staged for this evaluation; rely on the wiki's recorded locators and "
            "list raw evidence as not consulted.")
@@ -186,8 +192,8 @@ def prompt_for(question, corpus, include_raw, search=False):
         + ". Edits and all other tools are denied. "
         f"Load your designated skill with the skill tool. Working directory: {corpus}. "
         f"The operation manifest is {corpus / 'operation.md'} and the contract is {CONTRACT}. "
-        f"Read wiki/index.md first, then only the pages you need, and follow their links. {raw} "
-        + ("When the index does not point to the answer, search the staged pages with grep before concluding "
+        f"Read {guide} first, then only the pages you need, and follow their links. {raw} "
+        + ("When it does not point to the answer, search the staged pages with grep before concluding "
            "the wiki does not cover it; read every page you cite completely. " if search else "")
         +
         f"Question: {question['question']} "
@@ -210,19 +216,23 @@ def main():
     parser.add_argument("--steps", type=int, default=8, help="researcher step limit per question")
     parser.add_argument("--timeout", type=int, default=300, help="seconds per question")
     parser.add_argument("--search", action="store_true", help="also grant grep and glob over the staged copy")
+    parser.add_argument("--full-index", action="store_true",
+                        help="stage the whole wiki/index.md instead of a per-question catalog.md (comparison)")
     args = parser.parse_args()
     if not args.live:
         parser.error("provider use is opt-in; pass --live only after owner approval")
     questions = load_questions(args.questions, args.vault)
     base = Path(tempfile.mkdtemp(prefix="sb-researcher-eval-", dir=args.base))
-    corpus, profile, origin = stage(args.vault, base, args.include_raw)
-    reads = sorted(corpus_state(corpus)) + ["operation.md"]
+    corpus, profile, origin = stage(args.vault, base, args.include_raw, args.full_index)
+    guide = "wiki/index.md" if args.full_index else "catalog.md"
+    pages, _ = link_check.collect(args.vault)
+    reads = sorted({*corpus_state(corpus), guide, "operation.md"})
     (corpus / "operation.md").write_text(
         "# Operator-verified evaluation manifest\n\n```json\n" + json.dumps({
             "status": "operator preflight verified before inference",
             "scope": "read-only researcher evaluation on a staged copy; no edits approved",
             "role": ROLE, "skill": SKILL, "model": args.model, "worktree": str(corpus),
-            "approved_reads": f"{len(reads)} staged files: wiki pages, {CONTRACT}, this manifest"
+            "approved_reads": f"{len(reads)} staged files: wiki pages, {guide}, {CONTRACT}, this manifest"
                               + (", raw captures" if args.include_raw else ""),
             "search": "grep and glob over these staged files" if args.search else "not available",
             "limitation": "owner auth/session context; staged copy, not filesystem isolation"}, indent=2) + "\n```\n")
@@ -230,16 +240,18 @@ def main():
                            args.opencode_version, args.steps, args.search)
     results = []
     for question in questions:
+        if not args.full_index:
+            (corpus / guide).write_text(wiki_index.catalog(pages, (), question["question"]))
         before = corpus_state(corpus)
-        events, returncode, seconds = run_role(env, corpus, ROLE, prompt_for(question, corpus, args.include_raw, args.search),
-                                               args.timeout)
-        result = score(question, events, corpus, before, corpus_state(corpus), returncode, args.search)
+        events, returncode, seconds = run_role(env, corpus, ROLE, prompt_for(question, corpus, args.include_raw,
+                                                                             args.search, guide), args.timeout)
+        result = score(question, events, corpus, before, corpus_state(corpus), returncode, args.search, guide)
         result["question"] = question["question"]
         result["metrics"]["seconds"] = seconds
         results.append(result)
         print(json.dumps({k: result[k] for k in ("id", "passed", "checks", "metrics")}), flush=True)
     report = {"summary": summarize(results), "opencode_version": args.opencode_version, "model": args.model,
-              "search": args.search,
+              "search": args.search, "guide": guide,
               "staged": origin, "include_raw": args.include_raw, "results": results}
     output = base / "results.json"
     output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")

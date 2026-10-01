@@ -1,6 +1,6 @@
 # Status
 
-> Current state of the public machinery, updated 2026-09-30. How it got here is
+> Current state of the public machinery, updated 2026-10-01. How it got here is
 > in the [changelog](docs/changelog.md); what is planned in [PLAN.md](PLAN.md);
 > proposals in [BACKLOG.md](BACKLOG.md); decisions in
 > [docs/decisions.md](docs/decisions.md); what the machinery guarantees in
@@ -18,7 +18,8 @@
 | Long documents | Resumable background `series`; `series --plan` for chapter pages built from part notes | [Long documents](docs/operator.md#organize-a-long-document-by-chapter) |
 | Answers | Index-first researcher with search; citations must be pages it read | [Ask a question](docs/operator.md#ask-a-question) |
 | Acceptance | `accept` records the owner's stated review for every operation still waiting | [Record your review](docs/operator.md#record-your-review) |
-| Robustness | Compact staged index for workers with named inputs, drift guards only on rewritten pages, startup-stall relaunch, retry policy for series and plans | [Reference](docs/reference.md) |
+| Generated index (P6) | `wiki/index.md` rebuilt from page `summary`, `theme`, `gaps` and `part_of` after every operation; workers read a bounded per-operation `catalog.md`; duplicate-page guard; `migrate-index` and `rebuild-index` | [Reference](docs/reference.md#generated-index) |
+| Robustness | Exact read ranges for large required files, drift guards only on rewritten pages, startup-stall relaunch, retry policy for series and plans | [Reference](docs/reference.md) |
 | Checker | Metadata, canonical links, placeholders, index coverage, source ↔ concept reciprocity | [Checker](docs/reference.md#link-checker) |
 | Statistics (P2A) | Deterministic page/link statistics, including the knowledge-layer ratio and links by page type | [Statistics](docs/vault-stats.md) |
 | Chat export (P2B) | Local conversion of supported exports with omission reporting | [Chat exports](docs/chat-exports.md) |
@@ -44,16 +45,19 @@ change's result is recorded in its dated [changelog](docs/changelog.md) entry.
 
 ## Outstanding, withheld and deferred
 
-1. **P4/R5 project round trip.** Wiki context into a project and durable
+1. **P6 deployment steps.** Migrate a deployment's hand-written index after
+   the owner reviews its gaps, then rerun the researcher evaluation on the
+   catalog flow. No live run has used the catalog yet.
+2. **P4/R5 project round trip.** Wiki context into a project and durable
    findings back, demonstrated with a real project when one needs it (backlog
    F5).
-2. **Withheld: `/sb-ingest` and `/sb-ask`.** Command preprocessing exposed
+3. **Withheld: `/sb-ingest` and `/sb-ask`.** Command preprocessing exposed
    denied content and evaluated shell-like arguments, so the wrappers are not
    distributed. Use the operator.
-3. **Deferred by need:** optional tracks T1–T5 (see the
+4. **Deferred by need:** optional tracks T1–T5 (see the
    [planning history](docs/archive/planning-history.md)), extra agents, skills
    or wrappers, scheduling and publication.
-4. **Owner-local:** deployment records, backup policy and restore proof,
+5. **Owner-local:** deployment records, backup policy and restore proof,
    content acceptance.
 
 ## Closed without further work
