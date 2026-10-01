@@ -110,8 +110,25 @@ and the two paths filled in:
 }
 ```
 
-The last matching rule wins, so each folder rule overrides its `*` line. Paths
-are relative to the vault. What each part does:
+The last matching rule wins, so each folder rule overrides its `*` line.
+
+**The vault must be a git repository with at least one commit.** OpenCode
+matches these paths against the project's worktree, its git root. In a vault
+that is not a repository the worktree is `/`, so `wiki/**` never matches
+`home/you/vault/wiki/...`: reads fall through to `ask`, and, worse, the `edit`
+denials fall through to `ask` instead of `deny`. A local repository with no
+remote is enough:
+
+```sh
+cd /path/to/vault
+printf '.opencode/node_modules/\n.obsidian/workspace*.json\n.obsidian/plugins/\n.trash/\n' > .gitignore
+git init && git add -A && git commit -m "Initial commit of the vault"
+```
+
+Ignore `.obsidian/plugins/`: plugin settings can hold API keys. Check
+`git status` before the first commit for anything else private.
+
+Paths are then relative to the vault. What each part does:
 
 - **read:** the agent can open wiki pages and captures to check a result, and
   the operator config. Other files ask; `.obsidian` (plugin data can hold

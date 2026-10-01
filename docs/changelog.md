@@ -640,4 +640,10 @@ no longer available), and ingest and query runs on the catalog.
   repository, OpenCode's worktree is `/`, so the relative read and edit rules
   from `framework/vault-opencode.example.json` never match: reads fall through
   to `ask`, and the `edit` denials for `wiki/**`, `raw/**` and `.opencode/**`
-  fall through to `ask` instead of `deny`. Not yet fixed; needs a runtime probe.
+  fall through to `ask` instead of `deny`. Resolved the same day: the
+  installation guide now requires a git repository with at least one commit.
+  On the deployment, after `git init` and a first commit (no remote), a
+  non-interactive probe of the primary agent read `wiki/` and `operator.json`
+  without asking, still asked for the root `AGENTS.md`, and had an edit of
+  `wiki/log.md` refused by the deny rule, with the file unchanged. A
+  repository without commits was not tested.
