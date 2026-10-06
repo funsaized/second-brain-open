@@ -115,6 +115,12 @@ selection; workers search the staged wiki for the rest.
 <<<FILE wiki/<folder>/<page>.md>>>
 complete Markdown
 <<<END FILE>>>
+<<<EDIT wiki/<folder>/<page>.md>>>
+<<<OLD>>>
+exact existing text
+<<<NEW>>>
+replacement text
+<<<END EDIT>>>
 <<<LINKS>>>
 wiki/sources/<note>.md | - [[wiki/concepts/<page>|Title]] — how they relate
 <<<GAPS>>>
@@ -132,6 +138,14 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
   `summary`, `theme` and `gaps` in its frontmatter; see
   [Generated index](#generated-index). An `<<<INDEX>>>` section from an older
   prompt is parsed but ignored, and reported under `fixes`.
+- **EDIT.** Optional. One block per existing page, holding OLD/NEW pairs
+  applied in order. Each OLD must occur exactly once in the page as edited so
+  far; `apply` replaces it with NEW, sets the page's `updated` date and treats
+  the result as a whole-page rewrite, so every check below applies to it. An
+  OLD that is missing, empty or repeated is reported as a problem, which a
+  revision can fix. A page may be rewritten with FILE or edited, not both. An
+  OLD without a NEW is skipped and reported under `parse_warnings`. This is how
+  workers correct long notes without retyping them.
 - **LINKS.** Optional. Each line names an existing page and a link entry.
   `apply` appends the entry to that page's `## Links` (or `## Related`)
   section, creating `## Links` at the end if needed. Links the page already
@@ -144,8 +158,8 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 - **Tolerance.** Text outside sections, repeated section markers, missing
   or mismatched closing markers, a missing NOTES section and an outer code
   fence are all ignored. Malformed LINKS or GAPS lines are skipped and
-  reported under `parse_warnings`. Only a reply with no markers, or a FILE
-  marker without a path, fails to parse.
+  reported under `parse_warnings`. Only a reply with no markers, or a FILE or
+  EDIT marker without a path, fails to parse.
 
 ### Repairs before checking
 
@@ -177,8 +191,9 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
 
 `apply` refuses the whole proposal, writing nothing, when any of these fail:
 
-- **Pages:** at least one page changed (FILE, LINKS or GAPS), and no more
-  than `max_pages` pages written whole with FILE.
+- **Pages:** at least one page changed (FILE, EDIT, LINKS or GAPS), and no
+  more than `max_pages` pages written with FILE or EDIT.
+- **Edits match:** every EDIT's OLD text occurs exactly once in its page.
 - **No duplicates:** a new page whose title or an alias matches, after
   lowercasing and dropping punctuation, the title, an alias or the filename of
   an existing page of a comparable type (source with source, synthesis with
@@ -191,7 +206,7 @@ A reply with only `<<<NOTES>>>` is a valid no-op.
   length. These catch a model summarizing a page it was asked to extend.
 - **Log record:** a single record whose heading is
   `## YYYY-MM-DD — operation — partial`.
-- **Drift:** every page it rewrites with a FILE still has its staged hash. The
+- **Drift:** every page it rewrites with a FILE or EDIT still has its staged hash. The
   log record is appended, LINKS and GAPS lines patched and the index
   regenerated against the vault's current files, so another operation applied in between doesn't
   block it. `revise` refuses when drift is the only problem: stage again.

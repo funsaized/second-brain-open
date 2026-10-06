@@ -19,7 +19,7 @@
 | Answers | Index-first researcher with search; citations must be pages it read | [Ask a question](docs/operator.md#ask-a-question) |
 | Acceptance | `accept` records the owner's stated review for every operation still waiting | [Record your review](docs/operator.md#record-your-review) |
 | Generated index (P6) | `wiki/index.md` rebuilt from page `summary`, `theme`, `gaps` and `part_of` after every operation; workers read a bounded per-operation `catalog.md`; duplicate-page guard; `migrate-index` and `rebuild-index` | [Reference](docs/reference.md#generated-index) |
-| Robustness | Exact read ranges for large required files, drift guards only on rewritten pages, startup-stall relaunch, retry policy for series and plans | [Reference](docs/reference.md) |
+| Robustness | Targeted EDIT blocks for corrections to long pages, exact read ranges for large required files, drift guards only on rewritten pages, startup-stall relaunch, retry policy for series and plans | [Reference](docs/reference.md) |
 | Checker | Metadata, canonical links, placeholders, index coverage, source ↔ concept reciprocity | [Checker](docs/reference.md#link-checker) |
 | Statistics (P2A) | Deterministic page/link statistics, including the knowledge-layer ratio and links by page type | [Statistics](docs/vault-stats.md) |
 | Chat export (P2B) | Local conversion of supported exports with omission reporting | [Chat exports](docs/chat-exports.md) |

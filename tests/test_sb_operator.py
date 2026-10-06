@@ -379,6 +379,46 @@ class OperatorTests(unittest.TestCase):
             (operation / "proposal.json").write_text(json.dumps(proposal))
             self.assertTrue(any(expected in f for f in op.apply(operation, dry_run=True)["fixes"]))
 
+    def test_edit_blocks_change_part_of_an_existing_page(self):
+        reply = ("<<<EDIT wiki/sources/trial-a.md>>>\n<<<OLD>>>\nopen reached the target in\n  18 minutes\n"
+                 "<<<NEW>>>\nopen reached the target in\n  19 minutes\n<<<OLD>>>\nwith a single-trial\n<<<NEW>>>\n"
+                 "with a one-trial\n<<<END EDIT>>>\n<<<EDIT wiki/sources/trial-b.md>>>\n<<<OLD>>>\ndangling\n"
+                 f"<<<END EDIT>>>\n<<<LOG>>>\n{RECORD}\n<<<NOTES>>>\nTwo corrections.")
+        parsed = op.parse_proposal(reply)
+        self.assertEqual(parsed["edits"], [["wiki/sources/trial-a.md", "open reached the target in\n  18 minutes",
+                                            "open reached the target in\n  19 minutes"],
+                                           ["wiki/sources/trial-a.md", "with a single-trial", "with a one-trial"]])
+        self.assertIn("skipped an EDIT of wiki/sources/trial-b.md with OLD but no NEW", parsed["warnings"])
+        operation = self.staged()
+        before = (self.vault / "wiki/sources/trial-a.md").read_text()
+        (operation / "run.json").write_text(json.dumps({"passed": True}))
+        op.write_json(operation / "proposal.json", parsed)
+        result = op.apply(operation)
+        self.assertTrue(result.get("applied"), result)
+        self.assertEqual(result["edits_applied"], ["wiki/sources/trial-a.md: 2"])
+        after = (self.vault / "wiki/sources/trial-a.md").read_text()
+        expected = (before.replace("18 minutes and", "19 minutes and").replace("single-trial", "one-trial")
+                    .replace('updated: "2026-09-24"', 'updated: "2026-09-28"'))
+        self.assertEqual(after, expected)
+        op.undo(operation)
+        self.assertEqual((self.vault / "wiki/sources/trial-a.md").read_text(), before)
+        for edits, expected in (([["wiki/sources/trial-a.md", "no such text", "x"]], "was not found"),
+                                ([["wiki/sources/trial-a.md", "raw/trial-a.md", "x"]], "occurs 3 times"),
+                                ([["wiki/sources/trial-a.md", "", "x"]], "is empty"),
+                                ([["wiki/sources/missing.md", "a", "b"]], "not an existing wiki page"),
+                                ([["wiki/concepts/oven-airflow.md", "Trial A", "x"]], "both rewritten and edited")):
+            operation = self.staged()
+            self.proposal(operation, files={"wiki/concepts/oven-airflow.md": CONCEPT})
+            proposal = json.loads((operation / "proposal.json").read_text())
+            proposal["edits"] = edits
+            (operation / "proposal.json").write_text(json.dumps(proposal))
+            problems = op.apply(operation, dry_run=True)["problems"]
+            self.assertTrue(any(expected in p for p in problems), problems)
+        manifest = json.loads((self.staged() / "manifest.json").read_text())
+        prompt = op.worker_prompt(manifest, Path(manifest["vault"]))
+        self.assertIn("<<<EDIT path>>>", prompt)
+        self.assertIn("never completing or correcting it", prompt)
+
     def test_normalize_repairs_are_reported(self):
         operation = self.staged()
         manifest = json.loads((operation / "manifest.json").read_text())

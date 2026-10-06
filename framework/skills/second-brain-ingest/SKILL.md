@@ -78,8 +78,11 @@ one to three concept pages the chapter supports, citing the chapter page.
 - Every new page links existing pages in both directions, or the missing link
   goes in the page's `gaps`. To add a link to an existing page, use a LINKS
   line; to add a gap to an existing page, use a GAPS line.
-- Rewriting an existing page with a FILE means returning all of it: every
-  section, claim and link, plus your additions.
+- To correct or extend part of an existing page, use an EDIT block: each OLD
+  text, copied exactly from the page and unique in it, is replaced by its NEW
+  text and the rest of the page is kept. Rewriting an existing page with a FILE
+  means returning all of it: every section, claim and link, plus your
+  additions; use it only when the page changes throughout.
 - The operator generates the index from frontmatter. Give every page you write
   a `summary`: one line saying what the page holds, for someone deciding
   whether to read it. Give a `theme` to pages that belong together, such as

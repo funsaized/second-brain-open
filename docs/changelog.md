@@ -647,3 +647,43 @@ no longer available), and ingest and query runs on the catalog.
   without asking, still asked for the root `AGENTS.md`, and had an edit of
   `wiki/log.md` refused by the deny rule, with the file unchanged. A
   repository without commits was not tested.
+
+## 2026-10-06 — Targeted EDIT blocks for corrections to long pages
+
+- **Found.** Correcting a long source note required a whole-page FILE
+  rewrite, because the update checks refuse a rewrite that drops links or
+  halves a page. On a deployment, repair prompts that said "preserve
+  everything" grew nine part notes to 10–33 KB each. Workers then declined
+  one-sentence corrections because they could not reproduce the whole page in
+  one reply. A worker also changed a capture path that had been cut off
+  mid-word (`-of-co-part-1`) to match the page title, and the
+  full-read check rejected the run.
+- **Change.** Workers can reply with `<<<EDIT path>>>` blocks of
+  `<<<OLD>>>`/`<<<NEW>>>` pairs. `apply_edits` applies them in order to the
+  existing page. Each OLD must occur exactly once, or the operation reports a
+  problem that a revision can fix. The result becomes a whole-page rewrite,
+  so normalization, the drift guard, the link-drop and shrink checks, the
+  checker and undo apply unchanged. FILE and EDIT for the same page is
+  refused. `run` reports `proposed_edits`, `apply` reports `edits_applied`,
+  and a series counts an edit-only reply as a change. The worker prompt
+  describes the format, says when to prefer it over FILE, and says to copy
+  capture paths exactly even when they end mid-word. The ingest skill and
+  reference document EDIT.
+- **Verification.** Offline: a new operator test covers parsing, ordered
+  application, `updated` date, undo, and refusal of missing, repeated or
+  empty OLD text, a missing page, and FILE+EDIT on one page. The full suite
+  passed 162 tests, and `git diff --check` passed. This is a static result,
+  not runtime proof.
+- **Live result (deployment, OpenCode 1.18.34, 2026-10-06).** Two
+  correction operations that had previously failed (the worker declined a full
+  rewrite in one, and changed a path to match a title in another) were
+  restaged as a two-item plan. Both workers replied with EDIT blocks only (one
+  pair and three pairs, no FILE), in 18 s and 24 s. Both applied on the first
+  attempt with no retries, the checker reported no new problems, and diffs
+  against the operation backups showed that only the targeted lines changed.
+  A following chapter-style compile applied four new pages and nine back-links
+  on its first attempt. One run each, not a rate. The updated ingest skill was
+  not yet installed in that deployment; the prompt alone carried the format.
+  The owner then installed the skill and undid all three operations; every
+  file was restored with none skipped, and the checker was back to its six
+  existing findings.

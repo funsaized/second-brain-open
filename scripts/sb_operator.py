@@ -479,7 +479,9 @@ def worker_prompt(manifest, corpus):
             + ". Edits and all other tools are denied. Load your designated skill with the skill tool. "
             f"Working directory: {corpus}. Read files by their paths relative to it, exactly as operation.md "
             f"lists them (for example {CATALOG}, {CONTRACT}, templates/concept.md); do not retype the absolute "
-            "directory. If a read is denied, you used a path that is not staged: retry with the listed relative "
+            "directory. Capture filenames are cut at a fixed length and may end mid-word (such as "
+            "'-of-co-part-2'): copy every path character for character, never completing or correcting it to "
+            "match a title. If a read is denied, you used a path that is not staged: retry with the listed relative "
             f"path, or continue without an optional page. Stop only when {CATALOG}, the contract or an input "
             f"cannot be read at its listed path. {CATALOG}, the contract and every input must be read completely: "
             "when one is too long for one read (the output says it was capped, or does not end with 'End of "
@@ -539,8 +541,14 @@ def worker_prompt(manifest, corpus):
         "for someone choosing which pages to read; theme, the document or topic it belongs with, or null; and "
         "gaps, a JSON list of the page's missing coverage as plain text, or []. Keep an existing page's theme, "
         "gaps and part_of unless they are wrong. Link other pages only as [[wiki/<folder>/<page>|Title]] "
-        "wikilinks. Reply with no outer code fence, in this format:\n<<<FILE path>>>\ncomplete Markdown with "
-        "final newline\n<<<END FILE>>>\n(one block per page)\n"
+        "wikilinks. To change part of an existing page, use EDIT blocks rather than rewriting it: the operator "
+        "replaces each OLD text, copied exactly from the page and long enough to occur only once, with its NEW "
+        "text, and keeps the rest of the page as it is. Use FILE for new pages and for existing pages you change "
+        "throughout; a FILE for an existing page must return all of it. Reply with no outer code fence, in this "
+        "format:\n<<<FILE path>>>\ncomplete Markdown with final newline\n<<<END FILE>>>\n(one block per page)\n"
+        "<<<EDIT path>>>\n<<<OLD>>>\nexact existing text\n<<<NEW>>>\nreplacement text\n(more OLD/NEW pairs "
+        "for the same page, applied in order)\n<<<END EDIT>>>\n(one block per existing page; never both FILE "
+        "and EDIT for one page)\n"
         "<<<LINKS>>>\none line per link to add to an existing page without rewriting it, as "
         "'wiki/<folder>/<page>.md | - [[wiki/<folder>/<page>|Title]] — how they relate'; use this for "
         "reciprocal back-links on long source notes\n"
@@ -562,7 +570,7 @@ def section(text, name):
     return "\n".join(lines).strip()
 
 
-MARKER = re.compile(r"^\s*<<<\s*(END\s+)?(FILE|INDEX|LINKS|GAPS|LOG|NOTES)(?:\s+([^>]*?))?\s*>>>\s*$")
+MARKER = re.compile(r"^\s*<<<\s*(END\s+)?(FILE|EDIT|OLD|NEW|INDEX|LINKS|GAPS|LOG|NOTES)(?:\s+([^>]*?))?\s*>>>\s*$")
 
 
 def parse_proposal(text):
@@ -570,12 +578,15 @@ def parse_proposal(text):
 
     Prose outside sections, repeated section markers and missing closing
     markers are ignored; malformed INDEX/LINKS lines are skipped with a warning.
-    Only a reply without any proposal marker, or a FILE without a path, fails.
+    An EDIT block holds OLD/NEW pairs for one existing page; an OLD without a
+    NEW is skipped with a warning. Only a reply without any proposal marker, or
+    a FILE or EDIT without a path, fails.
     """
     lines = text.strip().splitlines()
     if len(lines) > 1 and lines[0].startswith("```") and lines[-1].strip().startswith("```"):
         lines = lines[1:-1]
     files, sections, warnings = {}, {"INDEX": [], "LINKS": [], "GAPS": [], "LOG": [], "NOTES": []}, []
+    edits, pair = [], None  # pair: [path, old lines, new lines or None] while inside an EDIT
     current, path, buffer, seen, ignored = None, None, [], False, 0
 
     def close_file():
@@ -586,11 +597,23 @@ def parse_proposal(text):
             files[path] = "\n".join(buffer).strip("\n") + "\n"
         path, buffer = None, []
 
+    def close_pair():
+        nonlocal pair
+        if pair is not None:
+            if pair[2] is None:
+                warnings.append(f"skipped an EDIT of {pair[0]} with OLD but no NEW")
+            else:
+                edits.append([pair[0], "\n".join(pair[1]).strip("\n"), "\n".join(pair[2]).strip("\n")])
+        pair = None
+
     for line in lines:
         match = MARKER.match(line)
         if not match:
             if current == "FILE":
                 buffer.append(line)
+            elif current == "EDIT":
+                if pair is not None:
+                    (pair[1] if pair[2] is None else pair[2]).append(line)
             elif current:
                 sections[current].append(line)
             elif line.strip():
@@ -598,18 +621,32 @@ def parse_proposal(text):
             continue
         seen = True
         closing, kind, argument = bool(match.group(1)), match.group(2), (match.group(3) or "").strip()
+        if current == "EDIT" and not closing and kind in ("OLD", "NEW"):
+            if kind == "OLD":
+                close_pair()
+                pair = [path, [], None]
+            elif pair is not None and pair[2] is None:
+                pair[2] = []
+            continue
+        if kind in ("OLD", "NEW"):
+            continue  # a stray or closing OLD/NEW marker carries nothing
         if current == "FILE":
             close_file()
+        if current == "EDIT":
+            close_pair()
+            path = None
         if closing:
             current = None
-        elif kind == "FILE":
+        elif kind in ("FILE", "EDIT"):
             if not argument:
-                raise ValueError("FILE marker without a path")
-            current, path, buffer = "FILE", argument, []
+                raise ValueError(f"{kind} marker without a path")
+            current, path, buffer = kind, argument, []
         else:
             current = kind
     if current == "FILE":
         close_file()
+    if current == "EDIT":
+        close_pair()
     if not seen:
         raise ValueError("the reply contains no proposal markers")
     if ignored:
@@ -645,8 +682,48 @@ def parse_proposal(text):
             continue
         gaps.append([match.group(1), re.sub(r"\s+", " ", match.group(2)).lstrip("- ").strip()])
     log = "\n".join(sections["LOG"]).strip() or None
-    return {"files": files, "index": index, "links": links, "gaps": gaps, "log": log,
+    return {"files": files, "edits": edits, "index": index, "links": links, "gaps": gaps, "log": log,
             "notes": "\n".join(sections["NOTES"]).strip(), "warnings": warnings}
+
+
+def apply_edits(manifest, proposal):
+    """Turn EDIT pairs into whole-page FILE entries, so every later check sees the full new page.
+
+    Each OLD must occur exactly once in the existing page as edited so far (pairs apply in order).
+    Returns (proposal, problems, edited) with the edits removed from the proposal.
+    """
+    proposal = json.loads(json.dumps(proposal))
+    vault, problems, edited = Path(manifest["vault"]), [], {}
+    pages = {}
+    for path, old, new in proposal.pop("edits", None) or []:
+        if path in proposal["files"]:
+            problems.append(f"{path} is both rewritten and edited: make the change in its FILE")
+            continue
+        if path not in pages:
+            target = vault / path
+            if not (WRITABLE.fullmatch(path) and link_check.canonical_parts(path) and target.is_file()):
+                problems.append(f"EDIT target is not an existing wiki page: {path}")
+                pages[path] = None
+                continue
+            pages[path] = target.read_text(encoding="utf-8", errors="replace")
+        text = pages[path]
+        if text is None:
+            continue
+        found = text.count(old) if old else 0
+        if found != 1:
+            excerpt = re.sub(r"\s+", " ", old)[:80]
+            problems.append(f"EDIT of {path}: OLD text "
+                            + ("is empty" if not old else "was not found" if not found else f"occurs {found} times")
+                            + f" ({excerpt!r}); copy OLD exactly from the page, long enough to be unique")
+            continue
+        pages[path] = text.replace(old, new, 1)
+        edited[path] = edited.get(path, 0) + 1
+    for path, count in edited.items():
+        text = pages[path]
+        if wiki_index.split_frontmatter(text)[0] is not None and wiki_index.has_field(text, "updated"):
+            text = wiki_index.set_fields(text, {"updated": manifest["date"]})
+        proposal["files"][path] = text
+    return proposal, problems, edited
 
 
 def lines_seen(output):
@@ -720,7 +797,7 @@ def run(op, feedback=None, format_only=False):
     if feedback is not None and format_only:
         prompt += ("\n\nYour previous reply, saved as previous-proposal.md, could not be read: " + "; ".join(feedback)
                    + ". You already read the inputs completely for it. Read previous-proposal.md and return the same "
-                   "content in exactly the reply format above: FILE blocks, then INDEX, LINKS, LOG and NOTES sections.")
+                   "content in exactly the reply format above: FILE and EDIT blocks, then LINKS, GAPS, LOG and NOTES sections.")
     elif feedback is not None and manifest["kind"] == "query":
         prompt += ("\n\nThe operator's checks rejected your previous answer, saved as previous-proposal.md: "
                    + "; ".join(feedback) + ". Read previous-proposal.md, open and read every page you cite, or drop "
@@ -750,6 +827,7 @@ def run(op, feedback=None, format_only=False):
             write_json(op / "proposal.json", proposal)
             result["proposed_files"] = sorted(proposal["files"])
             result["proposed_links"] = len(proposal["links"])
+            result["proposed_edits"] = len(proposal["edits"])
             if proposal["warnings"]:
                 result["parse_warnings"] = proposal["warnings"]
         except ValueError as error:
@@ -1185,9 +1263,10 @@ def apply(op, dry_run=False):
         raise ValueError("the worker run did not pass verification")
     if (op / "receipt.json").exists():
         raise ValueError("operation already applied")
-    proposal, fixes = normalize(manifest, json.loads((op / "proposal.json").read_text()))
+    proposal, problems, edited = apply_edits(manifest, json.loads((op / "proposal.json").read_text()))
+    proposal, fixes = normalize(manifest, proposal)
     vault = Path(manifest["vault"])
-    problems = check_proposal(manifest, proposal)
+    problems += check_proposal(manifest, proposal)
     checker = None if problems else candidate_check(manifest, proposal)
     if checker and checker["errors"]:
         problems += [f"checker: {d['kind']} {d['page']} {d.get('target') or d.get('detail', '')}".strip()
@@ -1195,6 +1274,7 @@ def apply(op, dry_run=False):
     summary = {"operation": manifest["id"], "dry_run": dry_run, "problems": problems, "fixes": fixes,
                "files": [{"path": p, "action": "update" if manifest["wiki_preimages"].get(p) else "create"}
                          for p in sorted(proposal["files"])],
+               "edits_applied": [f"{path}: {count}" for path, count in sorted(edited.items())],
                "links_added": [f"{path} -> {first_link(entry)}" for path, entry in proposal.get("links", [])],
                "gaps_added": [f"{path}: {gap}" for path, gap in proposal.get("gaps", [])],
                "metadata_set": [f"{path}: {', '.join(sorted(values))}" for path, values in proposal.get("meta", {}).items()],
@@ -1518,7 +1598,7 @@ def series_step(vault, item, task, config_path, info, emit, kind="ingest", input
             result = revise(op)
             # A format-only revision restates the previous reply; if that reply held no proposal (for
             # example the worker ran out of steps), NOTES alone are a failed run, not a no-op.
-            if result["passed"] and not result.get("proposed_files") and not result.get("proposed_links"):
+            if result["passed"] and not any(result.get(k) for k in ("proposed_files", "proposed_links", "proposed_edits")):
                 result = {**result, "passed": False, "proposal_error": "the format revision found no proposal to restate"}
         if result["passed"]:
             break
@@ -1531,7 +1611,7 @@ def series_step(vault, item, task, config_path, info, emit, kind="ingest", input
     if op is None:
         return {**line, "status": "stopped", "reason": "the worker failed twice: " + " | ".join(line["retries"])[:500]}
     proposal = json.loads((op / "proposal.json").read_text())
-    if not proposal["files"] and not proposal["links"] and not proposal.get("gaps"):
+    if not any(proposal.get(k) for k in ("files", "edits", "links", "gaps")):
         return {**line, "status": "no change", "notes": proposal["notes"][:300]}
     summary = apply(op, dry_run=True)
     if summary["problems"]:
@@ -1542,7 +1622,7 @@ def series_step(vault, item, task, config_path, info, emit, kind="ingest", input
         except ValueError as error:
             return {**line, "status": "stopped", "reason": str(error)}
         proposal = json.loads((op / "proposal.json").read_text())
-        if not proposal["files"] and not proposal["links"] and not proposal.get("gaps"):
+        if not any(proposal.get(k) for k in ("files", "edits", "links", "gaps")):
             return {**line, "status": "no change", "notes": proposal["notes"][:300]}
         summary = apply(op, dry_run=True)
         if summary["problems"]:
